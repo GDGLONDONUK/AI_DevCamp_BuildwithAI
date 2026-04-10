@@ -1,0 +1,186 @@
+# 06 · Getting Started (Local Development)
+
+## Prerequisites
+
+- **Node.js** 18 or later — [nodejs.org](https://nodejs.org)
+- **npm** (comes with Node)
+- **Firebase CLI** — `npm install -g firebase-tools`
+- A code editor — VS Code recommended
+
+---
+
+## 1. Clone the repo
+
+```bash
+git clone <repo-url>
+cd AI_DevCamp_BuildwithAI
+```
+
+---
+
+## 2. Install dependencies
+
+```bash
+npm install
+```
+
+---
+
+## 3. Set up environment variables
+
+Create a file called `.env.local` in the project root (copy from `.env.example` if it exists):
+
+```bash
+NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_project.firebasestorage.app
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
+```
+
+Get these values from the Firebase Console → Project Settings → Your apps → Web app.
+
+> ⚠️ Never commit `.env.local` to git. It's already in `.gitignore`.
+
+---
+
+## 4. Run the development server
+
+```bash
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+The dev server has hot-reload — saving a file updates the browser instantly.
+
+---
+
+## 5. Make yourself an admin
+
+1. Register an account on the app (you'll be `role: attendee, userStatus: pending`)
+2. Go to [Firebase Console](https://console.firebase.google.com) → Firestore Database → `users` collection
+3. Find your document (it will have your email in it)
+4. Click the `role` field and change it to `"admin"`
+5. Refresh the app — you'll see the Admin link in the navbar
+
+---
+
+## 6. Seed the session data
+
+Once you're an admin:
+
+1. Go to `/admin` → **Sessions** tab
+2. Click **"Import Default Sessions"**
+3. All 6 sessions from `src/data/sessions.ts` will be written to Firestore
+
+To update sessions with new content after changing `src/data/sessions.ts`:
+- Click **"Re-seed All"** (overwrites all sessions)
+
+---
+
+## 7. Firebase CLI commands
+
+```bash
+# Login to Firebase
+firebase login
+
+# Deploy Firestore security rules
+firebase deploy --only firestore:rules
+
+# Deploy Firestore indexes
+firebase deploy --only firestore:indexes
+
+# Deploy Storage rules
+firebase deploy --only storage
+
+# Deploy everything
+firebase deploy
+```
+
+---
+
+## 8. Project scripts
+
+```bash
+npm run dev      # Start development server (localhost:3000)
+npm run build    # Build for production
+npm run start    # Run production build locally
+npm run lint     # Run ESLint
+```
+
+---
+
+## 9. Common tasks for a junior developer
+
+### Add a new field to user profiles
+
+1. Add the field to `src/types/index.ts` → `UserProfile` interface
+2. Add the field to the form in `src/app/profile/page.tsx`
+3. Make sure `updateDoc` in the profile save handler includes the new field
+4. If the field should be set at registration, update `src/app/register/page.tsx` too
+
+### Add a new page
+
+1. Create a folder: `src/app/my-new-page/`
+2. Create `src/app/my-new-page/page.tsx`
+3. Start with this template:
+
+```tsx
+"use client";
+
+export default function MyNewPage() {
+  return (
+    <div className="min-h-screen bg-gray-950 py-12 px-4">
+      <div className="max-w-4xl mx-auto">
+        <h1 className="text-3xl font-bold text-white">My New Page</h1>
+      </div>
+    </div>
+  );
+}
+```
+
+4. Add a link in `src/components/Navbar.tsx` if needed
+
+### Add a new Firestore collection
+
+1. Add a TypeScript interface in `src/types/index.ts`
+2. Create a service file in `src/lib/myThingService.ts` with your CRUD functions
+3. Add rules for the new collection in `firestore.rules`
+4. Deploy the rules: `firebase deploy --only firestore:rules`
+
+### Fix a Firestore query error "index required"
+
+When Firestore asks you to create an index:
+1. Click the link in the error message — it takes you straight to the Firebase Console
+2. Click "Create Index"
+3. Once created, also add it to `firestore.indexes.json` so it's tracked in the repo
+
+---
+
+## 10. Troubleshooting
+
+| Problem | Fix |
+|---------|-----|
+| "Missing or insufficient permissions" in console | Your Firestore rules are blocking the query — check `firestore.rules` |
+| "The query requires an index" | Create the index via the link in the error |
+| App shows spinner forever | Check `.env.local` — Firebase config is probably wrong |
+| "Firebase: Error (auth/...)" | Check the Firebase Console → Authentication → Sign-in methods are enabled |
+| Changes not showing after save | Hard-refresh the browser (`Ctrl+Shift+R`) |
+| `npm run build` fails | Run `npm run lint` first to find TypeScript/ESLint errors |
+
+---
+
+## Project Firebase configuration
+
+| Setting | Value |
+|---------|-------|
+| Project ID | `buildwithai-gdglondon` |
+| Firebase Console | [console.firebase.google.com/project/buildwithai-gdglondon](https://console.firebase.google.com/project/buildwithai-gdglondon) |
+| Firestore location | (check console) |
+| Auth providers | Email/Password, Google |
+
+---
+
+← Back to [README.md](./README.md)
