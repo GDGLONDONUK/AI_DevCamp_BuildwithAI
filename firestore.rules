@@ -1,0 +1,113 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return request.auth.uid == uid;
+    }
+
+    function callerRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && callerRole() == 'admin';
+    }
+
+    function isAdminOrMod() {
+      return isSignedIn() && callerRole() in ['admin', 'moderator'];
+    }
+
+    // Fields that only admins/moderators may change on a user document.
+    function touchesPrivilegedFields() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+             .hasAny(['role', 'userStatus']);
+    }
+
+    // ── Users ─────────────────────────────────────────────────────────────────
+    match /users/{userId} {
+      // Any signed-in user can read their own doc; admins/mods can read all.
+      allow read: if isSignedIn() && (isOwner(userId) || isAdminOrMod());
+
+      // New account creation — owner only, cannot pre-set privileged fields.
+      allow create: if isSignedIn() && isOwner(userId)
+                    && !('role' in request.resource.data
+                         ? request.resource.data.role != 'attendee'
+                         : false)
+                    && request.resource.data.userStatus == 'pending';
+
+      // Self-updates: allowed, UNLESS they touch role or userStatus.
+      // Admins/mods may update anything.
+      allow update: if isSignedIn() && (
+        (isOwner(userId) && !touchesPrivilegedFields()) ||
+        isAdminOrMod()
+      );
+
+      allow delete: if isAdmin();
+    }
+
+    // ── Sessions ──────────────────────────────────────────────────────────────
+    // Public read; only admins/mods may write.
+    match /sessions/{sessionId} {
+      allow read: if true;
+      allow write: if isAdminOrMod();
+    }
+
+    // ── Attendance ────────────────────────────────────────────────────────────
+    match /attendance/{userId} {
+      // Owner can read their own record; admins/mods can read all.
+      allow read: if isSignedIn() && (isOwner(userId) || isAdminOrMod());
+      // Only admins/mods may mark attendance.
+      allow write: if isAdminOrMod();
+    }
+
+    // ── Assignments ───────────────────────────────────────────────────────────
+    match /assignments/{assignmentId} {
+      allow read: if isSignedIn() && (
+        resource.data.userId == request.auth.uid || isAdminOrMod()
+      );
+
+      // Create: must own the submission, userId must match.
+      allow create: if isSignedIn()
+                    && request.resource.data.userId == request.auth.uid;
+
+      // Update: owner may update content fields but cannot change userId or status.
+      // Admins/mods may update anything (e.g. change status, add feedback).
+      allow update: if isSignedIn() && (
+        (
+          resource.data.userId == request.auth.uid &&
+          request.resource.data.userId == resource.data.userId &&
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['status', 'userId'])
+        ) ||
+        isAdminOrMod()
+      );
+
+      allow delete: if isAdmin();
+    }
+
+    // ── Projects ──────────────────────────────────────────────────────────────
+    match /projects/{projectId} {
+      // Public read (gallery).
+      allow read: if true;
+
+      allow create: if isSignedIn()
+                    && request.resource.data.userId == request.auth.uid;
+
+      allow update: if isSignedIn() && (
+        (
+          resource.data.userId == request.auth.uid &&
+          request.resource.data.userId == resource.data.userId &&
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['status', 'userId'])
+        ) ||
+        isAdminOrMod()
+      );
+
+      allow delete: if isAdmin();
+    }
+  }
+}

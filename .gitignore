@@ -39,6 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-firestore.rules
-storage.rules
-.firebaserc
+
+# Firebase — rules and config ARE tracked in git (no secrets in these files)
+# .firebaserc, firestore.rules, storage.rules are intentionally committed
