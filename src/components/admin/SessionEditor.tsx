@@ -1,0 +1,443 @@
+"use client";
+
+import { useState, useEffect, KeyboardEvent } from "react";
+import { Session, Resource } from "@/types";
+import { X, Plus, Trash2, GripVertical, ExternalLink } from "lucide-react";
+
+interface Props {
+  session: Partial<Session> | null;
+  onSave: (s: Session) => Promise<void>;
+  onClose: () => void;
+}
+
+const BLANK: Partial<Session> = {
+  number: 1,
+  title: "",
+  date: "",
+  time: "6:00 PM – 9:00 PM",
+  duration: "3 hours",
+  week: 1,
+  topic: "",
+  description: "",
+  speaker: "",
+  speakerTitle: "",
+  speakerPhoto: "",
+  tags: [],
+  whatYouWillLearn: [],
+  buildIdeas: [],
+  resources: [],
+  isKickoff: false,
+  isClosing: false,
+};
+
+function generateId(n: number) {
+  return `session-${n}`;
+}
+
+export default function SessionEditor({ session, onSave, onClose }: Props) {
+  const [form, setForm] = useState<Partial<Session>>(session ?? BLANK);
+  const [saving, setSaving] = useState(false);
+
+  // Tag input states
+  const [tagInput, setTagInput] = useState("");
+  const [learnInput, setLearnInput] = useState("");
+  const [buildInput, setBuildInput] = useState("");
+  const [resTitle, setResTitle] = useState("");
+  const [resUrl, setResUrl] = useState("");
+
+  useEffect(() => {
+    setForm(session ?? BLANK);
+    setTagInput(""); setLearnInput(""); setBuildInput("");
+    setResTitle(""); setResUrl("");
+  }, [session]);
+
+  const set = (field: keyof Session, value: unknown) =>
+    setForm((f) => ({ ...f, [field]: value }));
+
+  // ── Array helpers ──────────────────────────────────────────────────────────
+  function addToArray(field: "tags" | "whatYouWillLearn" | "buildIdeas", value: string) {
+    if (!value.trim()) return;
+    const arr = (form[field] as string[]) ?? [];
+    if (!arr.includes(value.trim())) set(field, [...arr, value.trim()]);
+  }
+
+  function removeFromArray(field: "tags" | "whatYouWillLearn" | "buildIdeas", value: string) {
+    set(field, ((form[field] as string[]) ?? []).filter((v) => v !== value));
+  }
+
+  function addResource() {
+    if (!resTitle.trim() || !resUrl.trim()) return;
+    const res: Resource = { title: resTitle.trim(), url: resUrl.trim() };
+    set("resources", [...(form.resources ?? []), res]);
+    setResTitle(""); setResUrl("");
+  }
+
+  function removeResource(idx: number) {
+    set("resources", (form.resources ?? []).filter((_, i) => i !== idx));
+  }
+
+  function handleKeyAdd(
+    e: KeyboardEvent<HTMLInputElement>,
+    field: "tags" | "whatYouWillLearn" | "buildIdeas",
+    val: string,
+    clear: () => void
+  ) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      addToArray(field, val);
+      clear();
+    }
+  }
+
+  // ── Save ──────────────────────────────────────────────────────────────────
+  async function handleSave() {
+    if (!form.title?.trim() || !form.date?.trim()) return;
+    setSaving(true);
+    const id = form.id || generateId(form.number ?? 1);
+    try {
+      await onSave({ ...BLANK, ...form, id } as Session);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const fieldClass =
+    "w-full bg-gray-800 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-green-500 font-mono";
+  const labelClass = "block text-xs font-semibold text-gray-400 mb-1.5 font-mono uppercase tracking-wider";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+      <div className="bg-[#0d1210] border border-white/10 rounded-2xl w-full max-w-2xl max-h-[92vh] flex flex-col shadow-2xl">
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-white/8 flex-shrink-0">
+          <h2 className="text-lg font-bold text-white font-mono">
+            {form.id ? `Edit — ${form.title || "Session"}` : "New Session"}
+          </h2>
+          <button onClick={onClose} className="text-gray-500 hover:text-white transition-colors">
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+
+          {/* Row: number + week */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={labelClass}>Session #</label>
+              <input
+                type="number" min={1}
+                value={form.number ?? ""}
+                onChange={(e) => set("number", parseInt(e.target.value) || 1)}
+                className={fieldClass}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>Week</label>
+              <input
+                type="number" min={1}
+                value={form.week ?? ""}
+                onChange={(e) => set("week", parseInt(e.target.value) || 1)}
+                className={fieldClass}
+              />
+            </div>
+          </div>
+
+          {/* Title */}
+          <div>
+            <label className={labelClass}>Title *</label>
+            <input
+              value={form.title ?? ""}
+              onChange={(e) => set("title", e.target.value)}
+              placeholder="e.g. Kick Off"
+              className={fieldClass}
+            />
+          </div>
+
+          {/* Topic */}
+          <div>
+            <label className={labelClass}>Topic / Theme</label>
+            <input
+              value={form.topic ?? ""}
+              onChange={(e) => set("topic", e.target.value)}
+              placeholder="e.g. Python for AI (Foundations)"
+              className={fieldClass}
+            />
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className={labelClass}>Description</label>
+            <textarea
+              value={form.description ?? ""}
+              onChange={(e) => set("description", e.target.value)}
+              rows={3}
+              placeholder="Brief overview of this session..."
+              className={fieldClass + " resize-none"}
+            />
+          </div>
+
+          {/* Row: date + time + duration */}
+          <div className="grid grid-cols-3 gap-3">
+            <div className="col-span-1">
+              <label className={labelClass}>Date *</label>
+              <input
+                value={form.date ?? ""}
+                onChange={(e) => set("date", e.target.value)}
+                placeholder="23 April 2026"
+                className={fieldClass}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>Time</label>
+              <input
+                value={form.time ?? ""}
+                onChange={(e) => set("time", e.target.value)}
+                placeholder="6:00 PM – 9:00 PM"
+                className={fieldClass}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>Duration</label>
+              <input
+                value={form.duration ?? ""}
+                onChange={(e) => set("duration", e.target.value)}
+                placeholder="3 hours"
+                className={fieldClass}
+              />
+            </div>
+          </div>
+
+          {/* Speaker */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={labelClass}>Speaker Name</label>
+              <input
+                value={form.speaker ?? ""}
+                onChange={(e) => set("speaker", e.target.value)}
+                placeholder="Jane Doe"
+                className={fieldClass}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>Speaker Title</label>
+              <input
+                value={form.speakerTitle ?? ""}
+                onChange={(e) => set("speakerTitle", e.target.value)}
+                placeholder="ML Engineer @ Google"
+                className={fieldClass}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className={labelClass}>Speaker Photo URL</label>
+            <input
+              value={form.speakerPhoto ?? ""}
+              onChange={(e) => set("speakerPhoto", e.target.value)}
+              placeholder="https://..."
+              className={fieldClass}
+            />
+          </div>
+
+          {/* Tags */}
+          <div>
+            <label className={labelClass}>Tags</label>
+            <div className="flex gap-2 mb-2">
+              <input
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyDown={(e) => handleKeyAdd(e, "tags", tagInput, () => setTagInput(""))}
+                placeholder="Type a tag and press Enter"
+                className={fieldClass}
+              />
+              <button
+                onClick={() => { addToArray("tags", tagInput); setTagInput(""); }}
+                className="bg-green-500/20 hover:bg-green-500/30 text-green-400 px-3 rounded-xl border border-green-500/30 transition-colors flex-shrink-0"
+              >
+                <Plus size={16} />
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {(form.tags ?? []).map((tag) => (
+                <span key={tag} className="inline-flex items-center gap-1 bg-green-500/15 text-green-300 border border-green-500/25 px-2.5 py-0.5 rounded-full text-xs font-mono">
+                  {tag}
+                  <button onClick={() => removeFromArray("tags", tag)} className="hover:text-red-400 ml-0.5">
+                    <X size={10} />
+                  </button>
+                </span>
+              ))}
+            </div>
+          </div>
+
+          {/* What you will learn */}
+          <div>
+            <label className={labelClass}>What You Will Learn</label>
+            <div className="flex gap-2 mb-2">
+              <input
+                value={learnInput}
+                onChange={(e) => setLearnInput(e.target.value)}
+                onKeyDown={(e) => handleKeyAdd(e, "whatYouWillLearn", learnInput, () => setLearnInput(""))}
+                placeholder="Add a learning outcome and press Enter"
+                className={fieldClass}
+              />
+              <button
+                onClick={() => { addToArray("whatYouWillLearn", learnInput); setLearnInput(""); }}
+                className="bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 px-3 rounded-xl border border-blue-500/30 transition-colors flex-shrink-0"
+              >
+                <Plus size={16} />
+              </button>
+            </div>
+            <ul className="space-y-1.5">
+              {(form.whatYouWillLearn ?? []).map((item) => (
+                <li key={item} className="flex items-center gap-2 text-sm text-gray-300 bg-white/[0.03] border border-white/6 rounded-lg px-3 py-1.5">
+                  <span className="text-blue-400 text-xs">▸</span>
+                  <span className="flex-1">{item}</span>
+                  <button onClick={() => removeFromArray("whatYouWillLearn", item)} className="text-gray-600 hover:text-red-400 transition-colors">
+                    <X size={12} />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Build ideas */}
+          <div>
+            <label className={labelClass}>Build Ideas / Projects</label>
+            <div className="flex gap-2 mb-2">
+              <input
+                value={buildInput}
+                onChange={(e) => setBuildInput(e.target.value)}
+                onKeyDown={(e) => handleKeyAdd(e, "buildIdeas", buildInput, () => setBuildInput(""))}
+                placeholder="Add a build idea and press Enter"
+                className={fieldClass}
+              />
+              <button
+                onClick={() => { addToArray("buildIdeas", buildInput); setBuildInput(""); }}
+                className="bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 px-3 rounded-xl border border-purple-500/30 transition-colors flex-shrink-0"
+              >
+                <Plus size={16} />
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {(form.buildIdeas ?? []).map((idea) => (
+                <span key={idea} className="inline-flex items-center gap-1 bg-purple-500/15 text-purple-300 border border-purple-500/25 px-2.5 py-0.5 rounded-full text-xs font-mono">
+                  {idea}
+                  <button onClick={() => removeFromArray("buildIdeas", idea)} className="hover:text-red-400 ml-0.5">
+                    <X size={10} />
+                  </button>
+                </span>
+              ))}
+            </div>
+          </div>
+
+          {/* Video + Drive folder */}
+          <div className="grid grid-cols-1 gap-4">
+            <div>
+              <label className={labelClass}>Session Recording URL</label>
+              <input
+                value={form.videoUrl ?? ""}
+                onChange={(e) => set("videoUrl", e.target.value)}
+                placeholder="https://youtube.com/watch?v=... or https://drive.google.com/..."
+                className={fieldClass}
+              />
+              <p className="text-xs text-gray-600 mt-1 font-mono">Add after the session is completed (YouTube, Google Drive, Loom…)</p>
+            </div>
+            <div>
+              <label className={labelClass}>Resources Folder URL</label>
+              <input
+                value={form.resourcesFolderUrl ?? ""}
+                onChange={(e) => set("resourcesFolderUrl", e.target.value)}
+                placeholder="https://drive.google.com/drive/folders/..."
+                className={fieldClass}
+              />
+              <p className="text-xs text-gray-600 mt-1 font-mono">Shared Google Drive folder, Notion page, or any link</p>
+            </div>
+          </div>
+
+          {/* Resources */}
+          <div>
+            <label className={labelClass}>Resources / Links</label>
+            <div className="grid grid-cols-[1fr_1fr_auto] gap-2 mb-2">
+              <input
+                value={resTitle}
+                onChange={(e) => setResTitle(e.target.value)}
+                placeholder="Resource title"
+                className={fieldClass}
+              />
+              <input
+                value={resUrl}
+                onChange={(e) => setResUrl(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addResource(); } }}
+                placeholder="https://..."
+                className={fieldClass}
+              />
+              <button
+                onClick={addResource}
+                className="bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 px-3 rounded-xl border border-orange-500/30 transition-colors"
+              >
+                <Plus size={16} />
+              </button>
+            </div>
+            <ul className="space-y-1.5">
+              {(form.resources ?? []).map((r, i) => (
+                <li key={i} className="flex items-center gap-2 text-sm bg-white/[0.03] border border-white/6 rounded-lg px-3 py-1.5">
+                  <ExternalLink size={12} className="text-orange-400 flex-shrink-0" />
+                  <span className="flex-1 text-gray-300">{r.title}</span>
+                  <a href={r.url} target="_blank" rel="noopener noreferrer"
+                    className="text-xs text-blue-400 hover:underline font-mono truncate max-w-[140px]">
+                    {r.url}
+                  </a>
+                  <button onClick={() => removeResource(i)} className="text-gray-600 hover:text-red-400 transition-colors flex-shrink-0">
+                    <X size={12} />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Flags */}
+          <div className="flex gap-6">
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={form.isKickoff ?? false}
+                onChange={(e) => set("isKickoff", e.target.checked)}
+                className="w-4 h-4 accent-green-500"
+              />
+              <span className="text-sm text-gray-300">🚀 Kick-off session</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={form.isClosing ?? false}
+                onChange={(e) => set("isClosing", e.target.checked)}
+                className="w-4 h-4 accent-yellow-500"
+              />
+              <span className="text-sm text-gray-300">🏆 Closing session</span>
+            </label>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-white/8 flex-shrink-0">
+          <button
+            onClick={onClose}
+            className="px-5 py-2.5 text-sm font-semibold text-gray-400 hover:text-white border border-white/10 hover:border-white/20 rounded-xl transition-all font-mono"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving || !form.title?.trim() || !form.date?.trim()}
+            className="px-6 py-2.5 text-sm font-bold bg-green-500 hover:bg-green-400 text-gray-950 rounded-xl transition-all disabled:opacity-50 font-mono flex items-center gap-2"
+          >
+            {saving && <span className="animate-spin">◌</span>}
+            {form.id ? "Save Changes" : "Create Session"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
