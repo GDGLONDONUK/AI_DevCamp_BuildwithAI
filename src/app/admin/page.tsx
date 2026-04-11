@@ -143,7 +143,7 @@ export default function AdminPage() {
     (u) =>
       u.displayName?.toLowerCase().includes(search.toLowerCase()) ||
       u.email?.toLowerCase().includes(search.toLowerCase()) ||
-      (u as unknown as Record<string, string>).handle?.toLowerCase().includes(search.toLowerCase())
+      u.handle?.toLowerCase().includes(search.toLowerCase())
   );
 
   const filteredAssignments = assignments.filter(
@@ -319,8 +319,8 @@ export default function AdminPage() {
                     {filteredUsers.map((u, idx) => {
                       const status = u.userStatus || "pending";
                       const sc = STATUS_CONFIG[status];
-                      const country = (u as unknown as Record<string, string>).country || "";
-                      const city = (u as unknown as Record<string, string>).city || "";
+                      const country = u.country || "";
+                      const city = u.city || "";
                       const location = [city, country].filter(Boolean).join(", ");
 
                       return (
@@ -412,8 +412,8 @@ export default function AdminPage() {
                 {filteredUsers.map((u) => {
                   const status = u.userStatus || "pending";
                   const sc = STATUS_CONFIG[status];
-                  const country = (u as unknown as Record<string, string>).country || "";
-                  const city = (u as unknown as Record<string, string>).city || "";
+                  const country = u.country || "";
+                  const city = u.city || "";
                   const location = [city, country].filter(Boolean).join(", ");
 
                   return (
@@ -427,9 +427,9 @@ export default function AdminPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="font-semibold text-white">{u.displayName}</span>
-                          {(u as unknown as Record<string, string>).handle && (
+                          {u.handle && (
                             <span className="font-mono text-xs text-gray-500">
-                              @{(u as unknown as Record<string, string>).handle}
+                              @{u.handle}
                             </span>
                           )}
                           {country && (
@@ -444,9 +444,9 @@ export default function AdminPage() {
                           <span className="text-xs bg-white/5 text-gray-400 px-2 py-0.5 rounded-full">
                             {attendanceCount(u.uid)}/{sessions.length} sessions
                           </span>
-                          {(u as unknown as Record<string, string>).experienceLevel && (
+                          {u.experienceLevel && (
                             <span className="text-xs bg-white/5 text-gray-400 px-2 py-0.5 rounded-full capitalize">
-                              {(u as unknown as Record<string, string>).experienceLevel}
+                              {u.experienceLevel}
                             </span>
                           )}
                         </div>
