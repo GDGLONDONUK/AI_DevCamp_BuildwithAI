@@ -51,19 +51,18 @@ export default function ProfilePage() {
       router.push("/");
     }
     if (userProfile) {
-      const p = userProfile as Record<string, unknown>;
       setForm({
         displayName: userProfile.displayName || "",
         bio: userProfile.bio || "",
-        city: p.city as string || "",
-        country: p.country as string || "",
-        skills: (p.skills as string[]) || [],
-        expertise: (p.expertise as string[]) || [],
-        wantToLearn: (p.wantToLearn as string[]) || [],
-        canOffer: (p.canOffer as string[]) || [],
+        city: userProfile.city || "",
+        country: userProfile.country || "",
+        skills: userProfile.skills || [],
+        expertise: userProfile.expertise || [],
+        wantToLearn: userProfile.wantToLearn || [],
+        canOffer: userProfile.canOffer || [],
         linkedinUrl: userProfile.linkedinUrl || "",
-        githubUrl: p.githubUrl as string || "",
-        websiteUrl: p.websiteUrl as string || "",
+        githubUrl: userProfile.githubUrl || "",
+        websiteUrl: userProfile.websiteUrl || "",
         experienceLevel: userProfile.experienceLevel || "beginner",
       });
     }

@@ -17,9 +17,20 @@ export interface UserProfile {
   createdAt: Date | string;
   updatedAt: Date | string;
   bio?: string;
+  roleTitle?: string;
+  city?: string;
+  country?: string;
+  location?: string;
   linkedinUrl?: string;
   githubUrl?: string;
+  websiteUrl?: string;
   experienceLevel?: "beginner" | "intermediate" | "advanced";
+  skills?: string[];
+  expertise?: string[];
+  wantToLearn?: string[];
+  canOffer?: string[];
+  handle?: string;
+  keepUpdated?: boolean;
 }
 
 export interface Session {
