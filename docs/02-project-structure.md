@@ -55,7 +55,7 @@ AI_DevCamp_BuildwithAI/
 │   ├── types/
 │   │   └── index.ts              ← All TypeScript interfaces and types
 │   │
-│   └── middleware.ts             ← Edge middleware (UX route protection)
+│   └── proxy.ts                 ← Edge proxy (UX route protection, Next.js 16)
 │
 ├── firestore.rules               ← Firestore security rules (deployed to Firebase)
 ├── storage.rules                 ← Storage security rules (deployed to Firebase)
@@ -83,6 +83,7 @@ AI_DevCamp_BuildwithAI/
 | Add/remove skill tag presets | `src/data/tags.ts` |
 | Change session seed data | `src/data/sessions.ts` |
 | Add an environment variable | `.env.local` |
+| Change route protection logic | `src/proxy.ts` |
 
 ---
 

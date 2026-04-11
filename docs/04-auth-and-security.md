@@ -53,7 +53,9 @@ User clicks "Sign In"
 
 Security is enforced at three levels. Each adds a layer of defence.
 
-### Layer 1: Next.js Middleware (`src/middleware.ts`)
+### Layer 1: Next.js Proxy (`src/proxy.ts`)
+
+> **Next.js 16 change:** the file was previously called `middleware.ts` with a `middleware()` export. In Next.js 16 it was renamed to `proxy.ts` with a `proxy()` export. The behaviour is identical.
 
 Runs at the Edge (before the page loads). Checks for a `firebase-session` cookie.
 

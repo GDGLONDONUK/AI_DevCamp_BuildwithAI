@@ -25,4 +25,14 @@ User visits site
   └─ Admin reviews via /admin panel
 ```
 
+## Recent changes (for returning contributors)
+
+- **`src/proxy.ts`** — renamed from `middleware.ts` (Next.js 16 convention). Export is now `proxy()`, not `middleware()`.
+- **`UserProfile` type** — extended with `city`, `country`, `handle`, `roleTitle`, `websiteUrl`, `skills`, `expertise`, `wantToLearn`, `canOffer`, `keepUpdated` fields.
+- **Session content gating** — session recordings, resources, and build ideas are only visible to users with `userStatus: "participated"` or `"certified"`.
+- **Session registration removed** — users no longer register for individual sessions; access is granted by an admin setting `userStatus`.
+- **`src/data/tags.ts`** — centralised skill/expertise tag presets (used by register and profile pages).
+- **`src/lib/adminService.ts`** — all admin Firestore mutations are here (previously inline in the page).
+- **`src/hooks/useSessions.ts` / `useAdminData.ts`** — custom hooks for data fetching.
+
 Start with [01-project-overview.md](./01-project-overview.md) →

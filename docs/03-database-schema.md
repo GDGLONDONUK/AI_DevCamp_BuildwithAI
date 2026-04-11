@@ -28,9 +28,9 @@ Document ID = Firebase Auth UID (same for every user across the whole system).
   email:            string          // e.g. "jane@example.com"
   displayName:      string          // Full name
   photoURL?:        string          // Avatar URL (Firebase Storage or Google)
-  handle:           string          // Unique @handle (lowercase, no spaces)
+  handle?:          string          // Unique @handle (lowercase, no spaces)
 
-  // Access control — only admins can change these
+  // Access control — only admins/mods can change these two fields
   role:             "admin" | "moderator" | "attendee"
   userStatus:       "pending" | "participated" | "certified" | "not-certified" | "failed"
 
@@ -39,23 +39,23 @@ Document ID = Firebase Auth UID (same for every user across the whole system).
   roleTitle?:       string          // e.g. "Data Engineer @ Acme"
   city?:            string
   country?:         string
-  location?:        string          // Derived: "city, country"
+  location?:        string          // Derived: "city, country" — stored for display convenience
   experienceLevel?: "beginner" | "intermediate" | "advanced"
   linkedinUrl?:     string
   githubUrl?:       string
   websiteUrl?:      string
 
-  // Skills (arrays of strings, chosen from presets or custom)
-  skills?:          string[]        // Programming skills
-  expertise?:       string[]        // Domain expertise
-  wantToLearn?:     string[]        // Topics user wants to learn
-  canOffer?:        string[]        // Ways user can help others
+  // Skills (string arrays — chosen from presets in src/data/tags.ts or custom)
+  skills?:          string[]        // Programming languages & tools
+  expertise?:       string[]        // Domain expertise (ML, DevOps, etc.)
+  wantToLearn?:     string[]        // Topics the user wants to learn
+  canOffer?:        string[]        // Ways the user can help others
 
   // Misc
-  registeredSessions: string[]      // Legacy — no longer used for session access
-  keepUpdated?:     boolean         // Newsletter opt-in
-  createdAt:        Timestamp
-  updatedAt:        Timestamp
+  registeredSessions: string[]      // Legacy field — no longer used for session access
+  keepUpdated?:     boolean         // Newsletter / updates opt-in
+  createdAt:        Timestamp       // Set once at registration via serverTimestamp()
+  updatedAt:        Timestamp       // Updated on every profile save
 }
 ```
 

@@ -308,7 +308,7 @@ export default function SessionsPage() {
         )}
       </div>
 
-      <AuthModal isOpen={authModal} onClose={() => setAuthModal(false)} defaultMode="login" />
+      <AuthModal isOpen={authModal} onClose={() => setAuthModal(false)} />
     </div>
   );
 }

@@ -21,23 +21,23 @@ export async function createUserDocument(
   const snapshot = await getDoc(userRef);
 
   if (!snapshot.exists()) {
-    const userData: Omit<UserProfile, "createdAt" | "updatedAt"> & {
-      createdAt: ReturnType<typeof serverTimestamp>;
-      updatedAt: ReturnType<typeof serverTimestamp>;
-    } = {
+    // Build base profile fields (no timestamps yet — avoids FieldValue vs Date conflict)
+    const base: Omit<UserProfile, "createdAt" | "updatedAt"> = {
       uid: user.uid,
       email: user.email || "",
-      displayName:
-        additionalData?.displayName || user.displayName || "Anonymous",
+      displayName: additionalData?.displayName || user.displayName || "Anonymous",
       photoURL: user.photoURL || "",
       role: "attendee",
       userStatus: "pending",
       registeredSessions: [],
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
       ...additionalData,
     };
-    await setDoc(userRef, userData);
+    // Write to Firestore: timestamps are FieldValue, not stored in the typed object
+    await setDoc(userRef, {
+      ...base,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
   }
   return userRef;
 }

@@ -169,6 +169,8 @@ When Firestore asks you to create an index:
 | "Firebase: Error (auth/...)" | Check the Firebase Console → Authentication → Sign-in methods are enabled |
 | Changes not showing after save | Hard-refresh the browser (`Ctrl+Shift+R`) |
 | `npm run build` fails | Run `npm run lint` first to find TypeScript/ESLint errors |
+| `"middleware" file convention is deprecated` warning | Rename `middleware.ts` → `proxy.ts` and the export `middleware` → `proxy` (Next.js 16) |
+| Stale TypeScript build errors after fixing code | Delete the `.next/` folder and run `npm run build` again |
 
 ---
 

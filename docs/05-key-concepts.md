@@ -237,4 +237,50 @@ setUsers(prev => prev.map(u =>
 
 ---
 
+## 11. TypeScript + Firestore timestamps (`FieldValue`)
+
+Firestore's `serverTimestamp()` returns a `FieldValue` — a special server-side sentinel that gets resolved to a real `Timestamp` only after the write completes. This conflicts with our TypeScript type `UserProfile` which stores `createdAt: Date | string`.
+
+**The pattern we use** — build the typed object first, then spread timestamps separately in the `setDoc` call:
+
+```ts
+// ✅ Correct — TypeScript only checks the typed object, not the final write
+const base: Omit<UserProfile, "createdAt" | "updatedAt"> = {
+  uid: user.uid,
+  email: user.email,
+  role: "attendee",
+  userStatus: "pending",
+  // ...
+};
+
+await setDoc(userRef, {
+  ...base,
+  createdAt: serverTimestamp(),  // FieldValue — not typed in UserProfile
+  updatedAt: serverTimestamp(),
+});
+```
+
+```ts
+// ❌ Wrong — TypeScript complains because FieldValue ≠ Date | string
+const userData: UserProfile = {
+  createdAt: serverTimestamp(), // Type error
+  ...
+};
+```
+
+---
+
+## 12. Next.js 16 — `proxy.ts` (previously `middleware.ts`)
+
+In Next.js 16, the Edge middleware file was renamed:
+
+| Before (Next.js ≤15) | After (Next.js 16) |
+|---|---|
+| File: `src/middleware.ts` | File: `src/proxy.ts` |
+| Export: `export function middleware(req)` | Export: `export function proxy(req)` |
+
+The `config.matcher` export and `NextResponse` API are unchanged.
+
+---
+
 Next → [06-getting-started.md](./06-getting-started.md)
