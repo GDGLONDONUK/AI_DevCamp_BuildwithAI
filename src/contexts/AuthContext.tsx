@@ -42,9 +42,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
       if (firebaseUser) {
+        // Set a session cookie so the Edge proxy can detect auth state
+        // The cookie has no sensitive data — real security is in Firestore rules
+        document.cookie = "firebase-session=1; path=/; SameSite=Lax";
         const profile = await getUserProfile(firebaseUser.uid);
         setUserProfile(profile);
       } else {
+        // Clear session cookie on sign-out
+        document.cookie = "firebase-session=; path=/; max-age=0";
         setUserProfile(null);
       }
       setLoading(false);
