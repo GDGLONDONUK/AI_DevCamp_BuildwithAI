@@ -17,7 +17,8 @@ import {
   Users, BookOpen, Code2, Shield, Search,
   CheckCircle2, XCircle, ClipboardList, Calendar,
   RefreshCw, Plus, Pencil, Trash2,
-  Link, Download,
+  Link, Download, LayoutGrid, Table2, Filter,
+  Clock, UserCheck,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -47,6 +48,8 @@ export default function AdminPage() {
   const [search, setSearch] = useState("");
   const [togglingCell, setTogglingCell] = useState<string | null>(null);
   const [editingSession, setEditingSession] = useState<Partial<Session> | null | false>(false); // false=closed, null=new
+  const [usersView, setUsersView] = useState<"grid" | "table">("grid");
+  const [statusFilter, setStatusFilter] = useState<"all" | UserStatus>("all");
 
   // ── Access guard ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -146,6 +149,12 @@ export default function AdminPage() {
       u.handle?.toLowerCase().includes(search.toLowerCase())
   );
 
+  const statusFilteredUsers = statusFilter === "all"
+    ? filteredUsers
+    : filteredUsers.filter((u) => (u.userStatus || "pending") === statusFilter);
+
+  const pendingUsers = users.filter((u) => (u.userStatus || "pending") === "pending");
+
   const filteredAssignments = assignments.filter(
     (a) =>
       a.userName?.toLowerCase().includes(search.toLowerCase()) ||
@@ -194,6 +203,77 @@ export default function AdminPage() {
   // ── Attendance summary ────────────────────────────────────────────────────
   const attendanceCount = (uid: string) =>
     sessions.filter((s) => attendance[uid]?.[s.id]).length;
+
+  // ── Date formatter ────────────────────────────────────────────────────────
+  function formatDateTime(val: unknown): string {
+    if (!val) return "—";
+    // Firestore Timestamp
+    if (val && typeof (val as { toDate?: () => Date }).toDate === "function") {
+      return (val as { toDate: () => Date }).toDate().toLocaleString("en-GB", {
+        day: "2-digit", month: "short", year: "numeric",
+        hour: "2-digit", minute: "2-digit",
+      });
+    }
+    if (val instanceof Date) {
+      return val.toLocaleString("en-GB", {
+        day: "2-digit", month: "short", year: "numeric",
+        hour: "2-digit", minute: "2-digit",
+      });
+    }
+    if (typeof val === "string") {
+      const d = new Date(val);
+      if (!isNaN(d.getTime())) {
+        return d.toLocaleString("en-GB", {
+          day: "2-digit", month: "short", year: "numeric",
+          hour: "2-digit", minute: "2-digit",
+        });
+      }
+      return val;
+    }
+    return String(val);
+  }
+
+  // ── CSV export ────────────────────────────────────────────────────────────
+  function exportUsersCSV(list: UserProfile[]) {
+    const headers = [
+      "Name", "Handle", "Email", "Role", "Status",
+      "Experience Level", "City", "Country",
+      "LinkedIn URL", "GitHub URL", "Website URL",
+      "Sessions Attended", "Skills", "Expertise",
+      "Want to Learn", "Can Offer",
+      "Registered At", "Updated At",
+    ];
+    const rows = list.map((u) => [
+      u.displayName || "",
+      u.handle ? `@${u.handle}` : "",
+      u.email || "",
+      u.role || "",
+      u.userStatus || "pending",
+      u.experienceLevel || "",
+      u.city || "",
+      u.country || "",
+      u.linkedinUrl || "",
+      u.githubUrl || "",
+      u.websiteUrl || "",
+      `${attendanceCount(u.uid)}/${sessions.length}`,
+      (u.skills || []).join("; "),
+      (u.expertise || []).join("; "),
+      (u.wantToLearn || []).join("; "),
+      (u.canOffer || []).join("; "),
+      formatDateTime(u.createdAt),
+      formatDateTime(u.updatedAt),
+    ]);
+    const csv = [headers, ...rows]
+      .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `ai-devcamp-attendees-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   // ── Guards ────────────────────────────────────────────────────────────────
   if (loading || !user || userProfile?.role !== "admin") {
@@ -405,75 +485,373 @@ export default function AdminPage() {
 
             {/* ── USERS TAB ── */}
             {activeTab === "users" && (
-              <div className="space-y-3">
-                {filteredUsers.length === 0 && (
-                  <p className="text-center text-gray-500 py-10 font-mono">No users found</p>
-                )}
-                {filteredUsers.map((u) => {
-                  const status = u.userStatus || "pending";
-                  const sc = STATUS_CONFIG[status];
-                  const country = u.country || "";
-                  const city = u.city || "";
-                  const location = [city, country].filter(Boolean).join(", ");
+              <div>
 
-                  return (
-                    <div key={u.uid} className="flex flex-wrap items-center gap-4 bg-gray-900/50 border border-white/8 rounded-xl p-4 hover:border-white/15 transition-all">
-                      {/* Avatar */}
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-400 to-green-700 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-                        {(u.displayName || u.email || "?")[0].toUpperCase()}
-                      </div>
+                {/* ── Summary bar ── */}
+                <div className="flex flex-wrap items-center gap-3 mb-5 p-4 bg-gray-900/60 border border-white/8 rounded-xl">
+                  <div className="flex items-center gap-2">
+                    <UserCheck size={18} className="text-green-400" />
+                    <span className="font-mono font-bold text-white text-lg">{users.length}</span>
+                    <span className="font-mono text-gray-400 text-sm">registered · cap 60</span>
+                  </div>
+                  {/* Progress bar */}
+                  <div className="flex-1 min-w-[120px] h-2 bg-white/8 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-green-500 to-green-400 rounded-full transition-all"
+                      style={{ width: `${Math.min((users.length / 60) * 100, 100)}%` }}
+                    />
+                  </div>
+                  {pendingUsers.length > 0 && (
+                    <button
+                      onClick={() => setStatusFilter("pending")}
+                      className="flex items-center gap-1.5 text-sm text-yellow-400 font-semibold font-mono hover:text-yellow-300 transition-colors"
+                    >
+                      <span className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse" />
+                      {pendingUsers.length} Pending Approval
+                    </button>
+                  )}
+                </div>
 
-                      {/* Info */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-semibold text-white">{u.displayName}</span>
-                          {u.handle && (
-                            <span className="font-mono text-xs text-gray-500">
-                              @{u.handle}
-                            </span>
-                          )}
-                          {country && (
-                            <CountryFlag country={country} size={22} />
-                          )}
-                        </div>
-                        <div className="text-xs text-gray-400 truncate">{u.email}</div>
-                        {location && (
-                          <div className="text-xs text-gray-600 font-mono">{location}</div>
-                        )}
-                        <div className="flex flex-wrap gap-2 mt-2">
-                          <span className="text-xs bg-white/5 text-gray-400 px-2 py-0.5 rounded-full">
-                            {attendanceCount(u.uid)}/{sessions.length} sessions
-                          </span>
-                          {u.experienceLevel && (
-                            <span className="text-xs bg-white/5 text-gray-400 px-2 py-0.5 rounded-full capitalize">
-                              {u.experienceLevel}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Controls */}
-                      <div className="flex flex-wrap items-center gap-2">
-                        {/* Status */}
-                        <StatusDropdown
-                          status={status}
-                          onChange={(s) => updateUserStatus(u.uid, s)}
-                        />
-
-                        {/* Role */}
-                        <select
-                          value={u.role}
-                          onChange={(e) => updateUserRole(u.uid, e.target.value as UserProfile["role"])}
-                          className="bg-gray-800 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white font-mono focus:outline-none focus:ring-1 focus:ring-green-500 cursor-pointer"
-                        >
-                          <option value="attendee">Attendee</option>
-                          <option value="moderator">Moderator</option>
-                          <option value="admin">Admin</option>
-                        </select>
-                      </div>
+                {/* ── Pending quick-approve strip ── */}
+                {pendingUsers.length > 0 && statusFilter !== "pending" && (
+                  <div className="mb-5 p-4 bg-yellow-500/[0.06] border border-yellow-500/20 rounded-xl">
+                    <div className="text-xs font-mono text-yellow-400 uppercase tracking-widest mb-3">
+                      Awaiting approval
                     </div>
-                  );
-                })}
+                    <div className="space-y-2">
+                      {pendingUsers.slice(0, 3).map((u) => (
+                        <div key={u.uid} className="flex flex-wrap items-center gap-3 text-sm">
+                          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-yellow-500 to-yellow-700 flex items-center justify-center text-gray-950 font-bold text-xs flex-shrink-0">
+                            {(u.displayName || u.email || "?")[0].toUpperCase()}
+                          </div>
+                          <span className="font-semibold text-white">{u.displayName}</span>
+                          <span className="text-gray-500 font-mono text-xs">{u.email}</span>
+                          <span className="text-gray-600 font-mono text-xs ml-auto">
+                            {formatDateTime(u.createdAt)}
+                          </span>
+                          <button
+                            onClick={() => updateUserStatus(u.uid, "participated")}
+                            className="flex items-center gap-1 text-xs text-green-400 hover:text-green-300 font-semibold font-mono"
+                          >
+                            <CheckCircle2 size={13} /> Approve
+                          </button>
+                          <button
+                            onClick={() => updateUserStatus(u.uid, "not-certified")}
+                            className="flex items-center gap-1 text-xs text-red-400 hover:text-red-300 font-semibold font-mono"
+                          >
+                            <XCircle size={13} /> Decline
+                          </button>
+                        </div>
+                      ))}
+                      {pendingUsers.length > 3 && (
+                        <button
+                          onClick={() => setStatusFilter("pending")}
+                          className="text-xs text-yellow-400 font-mono mt-1 hover:underline"
+                        >
+                          + {pendingUsers.length - 3} more pending…
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Toolbar ── */}
+                <div className="flex flex-wrap items-center gap-2 mb-4">
+                  {/* Status filter */}
+                  <div className="flex items-center gap-1.5 bg-gray-900/60 border border-white/8 rounded-xl p-1">
+                    {(["all", ...ALL_STATUSES] as const).map((s) => (
+                      <button
+                        key={s}
+                        onClick={() => setStatusFilter(s as "all" | UserStatus)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition-all capitalize ${
+                          statusFilter === s
+                            ? "bg-green-500 text-gray-950"
+                            : "text-gray-400 hover:text-white"
+                        }`}
+                      >
+                        {s === "all"
+                          ? `All (${filteredUsers.length})`
+                          : `${s} (${filteredUsers.filter((u) => (u.userStatus || "pending") === s).length})`
+                        }
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="flex items-center gap-2 ml-auto">
+                    {/* View toggle */}
+                    <div className="flex items-center bg-gray-900/60 border border-white/8 rounded-xl p-1">
+                      <button
+                        onClick={() => setUsersView("grid")}
+                        title="Card view"
+                        className={`p-1.5 rounded-lg transition-all ${usersView === "grid" ? "bg-green-500 text-gray-950" : "text-gray-400 hover:text-white"}`}
+                      >
+                        <LayoutGrid size={15} />
+                      </button>
+                      <button
+                        onClick={() => setUsersView("table")}
+                        title="Full table"
+                        className={`p-1.5 rounded-lg transition-all ${usersView === "table" ? "bg-green-500 text-gray-950" : "text-gray-400 hover:text-white"}`}
+                      >
+                        <Table2 size={15} />
+                      </button>
+                    </div>
+
+                    {/* CSV export */}
+                    <button
+                      onClick={() => exportUsersCSV(statusFilteredUsers)}
+                      className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-white border border-white/10 hover:border-white/20 px-3 py-2 rounded-xl font-mono transition-all"
+                      title="Download as CSV"
+                    >
+                      <Download size={14} />
+                      CSV
+                    </button>
+                  </div>
+                </div>
+
+                {statusFilteredUsers.length === 0 && (
+                  <p className="text-center text-gray-500 py-10 font-mono">No users match this filter</p>
+                )}
+
+                {/* ── GRID VIEW ── */}
+                {usersView === "grid" && (
+                  <div className="space-y-3">
+                    {statusFilteredUsers.map((u) => {
+                      const status = u.userStatus || "pending";
+                      const sc = STATUS_CONFIG[status];
+                      const country = u.country || "";
+                      const city = u.city || "";
+                      const location = [city, country].filter(Boolean).join(", ");
+
+                      return (
+                        <div key={u.uid} className="flex flex-wrap items-center gap-4 bg-gray-900/50 border border-white/8 rounded-xl p-4 hover:border-white/15 transition-all">
+                          {/* Avatar */}
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-400 to-green-700 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                            {(u.displayName || u.email || "?")[0].toUpperCase()}
+                          </div>
+
+                          {/* Info */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="font-semibold text-white">{u.displayName}</span>
+                              {u.handle && <span className="font-mono text-xs text-gray-500">@{u.handle}</span>}
+                              {country && <CountryFlag country={country} size={20} />}
+                            </div>
+                            <div className="text-xs text-gray-400 font-mono truncate">{u.email}</div>
+                            {location && <div className="text-xs text-gray-600 font-mono">{location}</div>}
+                            <div className="flex flex-wrap gap-2 mt-1.5">
+                              <span className="text-xs bg-white/5 text-gray-400 px-2 py-0.5 rounded-full font-mono">
+                                {attendanceCount(u.uid)}/{sessions.length} sessions
+                              </span>
+                              {u.experienceLevel && (
+                                <span className="text-xs bg-white/5 text-gray-400 px-2 py-0.5 rounded-full capitalize font-mono">
+                                  {u.experienceLevel}
+                                </span>
+                              )}
+                              <span className="flex items-center gap-1 text-xs text-gray-600 font-mono">
+                                <Clock size={10} /> {formatDateTime(u.createdAt)}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Quick approve/decline for pending */}
+                          {status === "pending" && (
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => updateUserStatus(u.uid, "participated")}
+                                className="flex items-center gap-1 text-xs text-green-400 hover:text-green-300 border border-green-500/30 hover:bg-green-500/10 px-3 py-1.5 rounded-lg font-mono font-semibold transition-all"
+                              >
+                                <CheckCircle2 size={12} /> Approve
+                              </button>
+                              <button
+                                onClick={() => updateUserStatus(u.uid, "not-certified")}
+                                className="flex items-center gap-1 text-xs text-red-400 hover:text-red-300 border border-red-500/30 hover:bg-red-500/10 px-3 py-1.5 rounded-lg font-mono font-semibold transition-all"
+                              >
+                                <XCircle size={12} /> Decline
+                              </button>
+                            </div>
+                          )}
+
+                          {/* Controls */}
+                          <div className="flex flex-wrap items-center gap-2">
+                            <StatusDropdown
+                              status={status}
+                              onChange={(s) => updateUserStatus(u.uid, s)}
+                            />
+                            <select
+                              value={u.role}
+                              onChange={(e) => updateUserRole(u.uid, e.target.value as UserProfile["role"])}
+                              className="bg-gray-800 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white font-mono focus:outline-none focus:ring-1 focus:ring-green-500 cursor-pointer"
+                            >
+                              <option value="attendee">Attendee</option>
+                              <option value="moderator">Moderator</option>
+                              <option value="admin">Admin</option>
+                            </select>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* ── TABLE VIEW ── */}
+                {usersView === "table" && (
+                  <div className="overflow-x-auto rounded-xl border border-white/8">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-gray-900/80 border-b border-white/8">
+                          {[
+                            "Name / Email", "Handle", "Location", "Role", "Status",
+                            "Experience", "Sessions", "Skills",
+                            "Registered At", "Updated At",
+                            "Actions",
+                          ].map((h) => (
+                            <th key={h} className="text-left px-4 py-3 font-mono text-xs text-gray-400 uppercase tracking-wider whitespace-nowrap">
+                              {h}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {statusFilteredUsers.length === 0 && (
+                          <tr>
+                            <td colSpan={11} className="text-center py-10 text-gray-500 font-mono">
+                              No users
+                            </td>
+                          </tr>
+                        )}
+                        {statusFilteredUsers.map((u, idx) => {
+                          const status = u.userStatus || "pending";
+                          const sc = STATUS_CONFIG[status];
+                          const country = u.country || "";
+                          const city = u.city || "";
+                          const location = [city, country].filter(Boolean).join(", ");
+
+                          return (
+                            <tr
+                              key={u.uid}
+                              className={`border-b border-white/5 hover:bg-white/[0.02] transition-colors ${
+                                idx % 2 === 0 ? "" : "bg-white/[0.01]"
+                              }`}
+                            >
+                              {/* Name */}
+                              <td className="px-4 py-3 min-w-[180px]">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-400 to-green-700 flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+                                    {(u.displayName || u.email || "?")[0].toUpperCase()}
+                                  </div>
+                                  <div>
+                                    <div className="font-semibold text-white text-sm">{u.displayName}</div>
+                                    <div className="text-xs text-gray-500 font-mono">{u.email}</div>
+                                  </div>
+                                </div>
+                              </td>
+                              {/* Handle */}
+                              <td className="px-4 py-3 font-mono text-xs text-gray-400 whitespace-nowrap">
+                                {u.handle ? `@${u.handle}` : "—"}
+                              </td>
+                              {/* Location */}
+                              <td className="px-4 py-3 min-w-[130px]">
+                                <div className="flex items-center gap-1.5">
+                                  {country && <CountryFlag country={country} size={18} />}
+                                  <span className="text-xs text-gray-400">{location || "—"}</span>
+                                </div>
+                              </td>
+                              {/* Role */}
+                              <td className="px-4 py-3">
+                                <select
+                                  value={u.role}
+                                  onChange={(e) => updateUserRole(u.uid, e.target.value as UserProfile["role"])}
+                                  className="bg-gray-800 border border-white/10 rounded-lg px-2 py-1 text-xs text-white font-mono focus:outline-none focus:ring-1 focus:ring-green-500 cursor-pointer"
+                                >
+                                  <option value="attendee">attendee</option>
+                                  <option value="moderator">moderator</option>
+                                  <option value="admin">admin</option>
+                                </select>
+                              </td>
+                              {/* Status */}
+                              <td className="px-4 py-3 whitespace-nowrap">
+                                <StatusDropdown
+                                  status={status}
+                                  onChange={(s) => updateUserStatus(u.uid, s)}
+                                />
+                              </td>
+                              {/* Experience */}
+                              <td className="px-4 py-3 text-xs text-gray-400 font-mono capitalize whitespace-nowrap">
+                                {u.experienceLevel || "—"}
+                              </td>
+                              {/* Sessions */}
+                              <td className="px-4 py-3 text-center font-mono text-sm font-bold whitespace-nowrap">
+                                <span className={
+                                  attendanceCount(u.uid) >= 4 ? "text-green-400" :
+                                  attendanceCount(u.uid) >= 2 ? "text-yellow-400" :
+                                  "text-gray-500"
+                                }>
+                                  {attendanceCount(u.uid)}/{sessions.length}
+                                </span>
+                              </td>
+                              {/* Skills */}
+                              <td className="px-4 py-3 max-w-[180px]">
+                                <div className="flex flex-wrap gap-1">
+                                  {(u.skills || []).slice(0, 3).map((s) => (
+                                    <span key={s} className="text-[10px] bg-blue-500/10 text-blue-400 border border-blue-500/20 px-1.5 py-0.5 rounded-full font-mono">
+                                      {s}
+                                    </span>
+                                  ))}
+                                  {(u.skills || []).length > 3 && (
+                                    <span className="text-[10px] text-gray-500 font-mono">+{(u.skills || []).length - 3}</span>
+                                  )}
+                                </div>
+                              </td>
+                              {/* Registered At */}
+                              <td className="px-4 py-3 font-mono text-xs text-gray-400 whitespace-nowrap">
+                                {formatDateTime(u.createdAt)}
+                              </td>
+                              {/* Updated At */}
+                              <td className="px-4 py-3 font-mono text-xs text-gray-500 whitespace-nowrap">
+                                {formatDateTime(u.updatedAt)}
+                              </td>
+                              {/* Quick actions for pending */}
+                              <td className="px-4 py-3 whitespace-nowrap">
+                                {status === "pending" ? (
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      onClick={() => updateUserStatus(u.uid, "participated")}
+                                      className="flex items-center gap-1 text-xs text-green-400 hover:text-green-300 font-mono font-semibold"
+                                    >
+                                      <CheckCircle2 size={12} /> Approve
+                                    </button>
+                                    <button
+                                      onClick={() => updateUserStatus(u.uid, "not-certified")}
+                                      className="flex items-center gap-1 text-xs text-red-400 hover:text-red-300 font-mono font-semibold"
+                                    >
+                                      <XCircle size={12} /> Decline
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <span className={`text-xs font-mono px-2 py-0.5 rounded-full border ${sc.bg} ${sc.color} ${sc.border}`}>
+                                    {sc.label}
+                                  </span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                    {/* Table footer */}
+                    <div className="px-4 py-3 bg-gray-900/40 border-t border-white/5 flex items-center justify-between">
+                      <span className="font-mono text-xs text-gray-500">
+                        Showing {statusFilteredUsers.length} of {users.length} users
+                      </span>
+                      <button
+                        onClick={() => exportUsersCSV(statusFilteredUsers)}
+                        className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-white font-mono transition-colors"
+                      >
+                        <Download size={12} /> Download CSV
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
