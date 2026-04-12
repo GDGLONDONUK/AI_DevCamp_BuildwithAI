@@ -6,8 +6,19 @@
   --green-glow-sm: 0 0 8px rgba(34, 197, 94, 0.5);
 }
 
+/* Bump the root rem base so every Tailwind size class scales up proportionally.
+   text-xs  → ~14px  (was 12px)
+   text-sm  → ~16px  (was 14px)
+   text-base → ~18px (was 16px)
+   text-lg  → ~20px  (was 18px) */
+html {
+  font-size: 18px;
+}
+
 body {
   font-family: var(--font-poppins), sans-serif;
+  /* Slightly looser line height for readability at larger sizes */
+  line-height: 1.65;
 }
 
 .font-poppins {

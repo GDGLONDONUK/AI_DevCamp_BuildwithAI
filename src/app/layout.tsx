@@ -40,6 +40,8 @@ export default function RootLayout({
                 background: "#1f2937",
                 color: "#f9fafb",
                 border: "1px solid rgba(255,255,255,0.1)",
+                fontSize: "16px",
+                padding: "14px 18px",
               },
             }}
           />
