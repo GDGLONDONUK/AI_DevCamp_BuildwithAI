@@ -180,29 +180,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── BANNER STRIP ── */}
-      <div className="relative h-44 sm:h-56 overflow-hidden border-y border-green-500/20">
-        <Image
-          src="/banner.jpeg"
-          alt="AI DevCamp Banner"
-          fill
-          className="object-cover object-center opacity-35"
-        />
-        <div className="absolute inset-0 bg-gradient-to-r from-[#0a0f0a] via-transparent to-[#0a0f0a]" />
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="text-center">
-            <p className="font-mono text-green-400/70 text-sm tracking-[0.2em] uppercase mb-2">
-              GDG London × Build with AI × Skyscanner
-            </p>
-            <p className="text-white font-extrabold text-2xl sm:text-3xl tracking-wide">
-              AI DevCamp Kick Off — 23 April 2026
-            </p>
-            <p className="text-gray-300 font-mono text-sm mt-2">
-              Skyscanner HQ · London · W1D 4AL · 6 PM – 9 PM
-            </p>
-          </div>
-        </div>
-      </div>
 
       {/* ── STATS ── */}
       <section className="py-14 border-b border-white/5 bg-gray-900/50">
@@ -352,41 +329,70 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── CTA ── */}
-      <section className="py-24 px-4 relative overflow-hidden">
-        <div className="absolute inset-0 bg-dot-grid opacity-40" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-40 bg-green-500/8 blur-3xl rounded-full pointer-events-none" />
-        <div className="relative max-w-2xl mx-auto text-center">
-          <div className="font-mono text-green-400/50 text-sm tracking-widest mb-4">
-            // ready_to_start?
+      {/* ── BANNER CTA ── */}
+      <section className="relative overflow-hidden border-t border-green-500/15">
+        {/* Banner image as full background */}
+        <Image
+          src="/banner.jpeg"
+          alt="AI DevCamp Banner"
+          fill
+          className="object-cover object-center"
+        />
+        {/* Dark overlay — heavier at edges, lighter in centre */}
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0a0f0a] via-[#0a0f0a]/70 to-[#0a0f0a]" />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#0a0f0a] via-transparent to-[#0a0f0a]" />
+        {/* Subtle green bloom */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-40 bg-green-500/10 blur-3xl rounded-full pointer-events-none" />
+
+        {/* Content */}
+        <div className="relative z-10 py-28 px-4">
+          <div className="max-w-3xl mx-auto text-center">
+
+            {/* Label */}
+            <div className="inline-flex items-center gap-2 font-mono text-sm text-green-400/70 tracking-[0.25em] mb-6 bg-black/30 backdrop-blur-sm border border-green-500/20 px-5 py-2 rounded-full">
+              GDG London × Build with AI × Skyscanner
+            </div>
+
+            {/* Headline */}
+            <h2 className="text-5xl sm:text-6xl font-extrabold text-white mb-4 leading-tight drop-shadow-lg">
+              AI DevCamp Kick Off
+            </h2>
+            <p className="font-mono text-2xl text-green-400 font-bold mb-2 tracking-wider">
+              23 April 2026
+            </p>
+            <p className="text-gray-300 font-mono text-base mb-10">
+              Skyscanner HQ · London · W1D 4AL · 6:00 PM – 9:00 PM · Free to attend
+            </p>
+
+            {/* CTA */}
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              {user ? (
+                <Link
+                  href="/sessions"
+                  className="inline-flex items-center gap-2 bg-green-500 hover:bg-green-400 text-gray-950 font-bold font-mono text-base px-12 py-4 rounded-lg transition-all shadow-lg shadow-green-500/40"
+                >
+                  ./view_sessions <ArrowRight size={18} />
+                </Link>
+              ) : (
+                <>
+                  <Link
+                    href="/register"
+                    className="inline-flex items-center gap-2 bg-green-500 hover:bg-green-400 text-gray-950 font-bold font-mono text-base px-12 py-4 rounded-lg transition-all shadow-lg shadow-green-500/40 hover:shadow-green-400/50"
+                  >
+                    <Zap size={20} />
+                    ./register --free
+                    <ArrowRight size={18} />
+                  </Link>
+                  <button
+                    onClick={() => setLoginModal(true)}
+                    className="inline-flex items-center gap-2 border-2 border-white/30 hover:border-white/60 text-white hover:bg-white/10 font-bold font-mono text-base px-8 py-4 rounded-lg transition-all backdrop-blur-sm"
+                  >
+                    $ login
+                  </button>
+                </>
+              )}
+            </div>
           </div>
-          <h2 className="text-4xl sm:text-5xl font-extrabold text-white mb-4">
-            Start Your AI Journey
-          </h2>
-          <p className="text-gray-300 font-mono text-base mb-10">
-            <span className="text-green-400">$</span> join ai-devcamp{" "}
-            <span className="text-gray-500">--date</span> 2026-04-23{" "}
-            <span className="text-gray-500">--venue</span>{" "}
-            <span className="text-yellow-400">&quot;Skyscanner London&quot;</span>{" "}
-            <span className="text-gray-500">--free</span>
-          </p>
-          {user ? (
-            <Link
-              href="/sessions"
-              className="inline-flex items-center gap-2 bg-green-500 hover:bg-green-400 text-gray-950 font-bold font-mono text-base px-12 py-4 rounded-lg transition-all shadow-lg shadow-green-500/40"
-            >
-              ./view_sessions <ArrowRight size={18} />
-            </Link>
-          ) : (
-            <Link
-              href="/register"
-              className="inline-flex items-center gap-2 bg-green-500 hover:bg-green-400 text-gray-950 font-bold font-mono text-base px-12 py-4 rounded-lg transition-all shadow-lg shadow-green-500/40 hover:shadow-green-400/50"
-            >
-              <Zap size={20} />
-              ./register --free
-              <ArrowRight size={18} />
-            </Link>
-          )}
         </div>
       </section>
 
