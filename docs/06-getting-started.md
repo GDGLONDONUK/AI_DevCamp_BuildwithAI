@@ -31,6 +31,10 @@ npm install
 Create a file called `.env.local` in the project root (copy from `.env.example` if it exists):
 
 ```bash
+# Site URL — used by the CORS allowlist in src/proxy.ts
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+
+# Firebase config — get values from Firebase Console → Project Settings → Your apps → Web app
 NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key
 NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
 NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
@@ -39,7 +43,7 @@ NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
 NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
 ```
 
-Get these values from the Firebase Console → Project Settings → Your apps → Web app.
+> When deploying to Vercel, set `NEXT_PUBLIC_SITE_URL` to your production domain (e.g. `https://yourapp.vercel.app`) in the Vercel dashboard → Settings → Environment Variables so the CORS allowlist works correctly in production.
 
 > ⚠️ Never commit `.env.local` to git. It's already in `.gitignore`.
 

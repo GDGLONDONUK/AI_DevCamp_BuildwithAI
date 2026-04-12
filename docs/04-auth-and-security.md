@@ -49,22 +49,64 @@ User clicks "Sign In"
 
 ---
 
-## Three layers of security
+## Four layers of security
 
-Security is enforced at three levels. Each adds a layer of defence.
+Security is enforced at four levels. Each adds a layer of defence.
 
 ### Layer 1: Next.js Proxy (`src/proxy.ts`)
 
 > **Next.js 16 change:** the file was previously called `middleware.ts` with a `middleware()` export. In Next.js 16 it was renamed to `proxy.ts` with a `proxy()` export. The behaviour is identical.
 
-Runs at the Edge (before the page loads). Checks for a `firebase-session` cookie.
+Runs at the Edge (before the page loads). Does three things on every request:
 
-- If the cookie is missing → redirects to `/` (home page)
+#### 1a — CORS (Cross-Origin Resource Sharing)
+
+Prevents malicious websites from making cross-origin requests to this application. The proxy inspects the `Origin` header of every incoming request:
+
+```
+Incoming request
+  └─ Has an Origin header? (cross-origin fetch / XHR)
+        ├─ Origin is in ALLOWED_ORIGINS list?
+        │     ├─ OPTIONS preflight → 204 + CORS headers
+        │     └─ Normal request   → allow + set Access-Control-Allow-Origin
+        └─ Origin NOT in list → 403 Forbidden
+```
+
+Page navigations from a user's browser tab do **not** send an `Origin` header, so they are never blocked by CORS. Only programmatic cross-origin requests (JavaScript `fetch`, `XMLHttpRequest`) are subject to the check.
+
+**Allowed origins** are configured in `src/proxy.ts` and via the environment variable:
+
+```bash
+# .env.local — also set this in Vercel environment variables
+NEXT_PUBLIC_SITE_URL=https://yourapp.com
+```
+
+The hardcoded list also includes the Firebase Hosting domains and `localhost:3000` for local development.
+
+#### 1b — Route protection
+
+Checks for a `firebase-session` cookie (set by `AuthContext` when the user signs in):
+
+- If the cookie is missing → redirects to `/`
 - Protects: `/dashboard`, `/submit`, `/profile`, `/admin`
 
-**Important:** This is a UX shortcut, not a true security boundary. A motivated user could bypass it. The real enforcement is Layer 3.
+**Important:** This is a UX shortcut, not a true security boundary. A motivated user could bypass it. The real enforcement is Layer 4.
+
+#### 1c — Security response headers
+
+Applied to **every** response, regardless of route or origin:
+
+| Header | Value | Purpose |
+|--------|-------|---------|
+| `X-Frame-Options` | `DENY` | Prevent clickjacking via iframes |
+| `X-Content-Type-Options` | `nosniff` | Stop MIME-type sniffing |
+| `X-XSS-Protection` | `1; mode=block` | Enable browser XSS filter |
+| `Referrer-Policy` | `strict-origin-when-cross-origin` | Limit referrer leakage |
+| `Permissions-Policy` | `camera=(), microphone=(), geolocation=()` | Disable unused browser APIs |
+| `Strict-Transport-Security` | `max-age=63072000; includeSubDomains; preload` | Force HTTPS for 2 years |
 
 ### Layer 2: Client-side guards (in page components)
+
 
 Every protected page checks `userProfile?.role` inside a `useEffect`:
 
@@ -78,7 +120,7 @@ useEffect(() => {
 
 This redirects immediately if the wrong user tries to access a page.
 
-### Layer 3: Firestore Security Rules (`firestore.rules`)
+### Layer 4: Firestore Security Rules (`firestore.rules`)
 
 **This is the real security boundary.** Rules run inside Firebase's servers. No client code can bypass them — even if someone uses the Firebase SDK directly from the browser console.
 
