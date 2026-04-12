@@ -25,6 +25,7 @@ import {
   ArrowRight,
   User,
 } from "lucide-react";
+import ProfileCompletion from "@/components/ui/ProfileCompletion";
 
 export default function DashboardPage() {
   const { user, userProfile, loading } = useAuth();
@@ -163,6 +164,9 @@ export default function DashboardPage() {
             </div>
           ))}
         </div>
+
+        {/* Profile completion card */}
+        <ProfileCompletion profile={userProfile} variant="compact" />
 
         <div className="grid lg:grid-cols-2 gap-6">
           {/* Registered Sessions */}

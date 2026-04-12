@@ -24,6 +24,7 @@ const GithubIcon = () => (
 );
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
+import ProfileCompletion from "@/components/ui/ProfileCompletion";
 import toast from "react-hot-toast";
 
 export default function ProfilePage() {
@@ -109,12 +110,15 @@ export default function ProfilePage() {
   return (
     <div className="min-h-screen bg-gray-950 py-12 px-4">
       <div className="max-w-2xl mx-auto">
-        <div className="text-center mb-10">
+        <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-white mb-2">My Profile</h1>
           <p className="text-gray-400">
             Help mentors and other attendees get to know you.
           </p>
         </div>
+
+        {/* Profile completion indicator */}
+        <ProfileCompletion profile={userProfile} variant="full" />
 
         <form
           onSubmit={handleSave}
