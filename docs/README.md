@@ -12,6 +12,7 @@ Welcome! This folder contains everything you need to understand and contribute t
 | [04-auth-and-security.md](./04-auth-and-security.md) | How authentication and access control work |
 | [05-key-concepts.md](./05-key-concepts.md) | React patterns, hooks, context, services |
 | [06-getting-started.md](./06-getting-started.md) | How to run the project locally |
+| [07-api-routes.md](./07-api-routes.md) | REST API reference — endpoints, auth, request/response shapes |
 
 ## Quick orientation
 

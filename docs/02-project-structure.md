@@ -18,7 +18,13 @@ AI_DevCamp_BuildwithAI/
 │   │   ├── dashboard/page.tsx    ← /dashboard User progress (auth required)
 │   │   ├── submit/page.tsx       ← /submit    Submit assignment or project
 │   │   ├── profile/page.tsx      ← /profile   Edit your profile
-│   │   └── admin/page.tsx        ← /admin     Admin panel (admin only)
+│   │   ├── admin/page.tsx        ← /admin     Admin panel (admin only)
+│   │   └── api/                  ← REST API (server-side, Firebase Admin SDK)
+│   │       ├── sessions/         ← GET list, POST create, GET/PUT/DELETE by id
+│   │       ├── users/            ← GET list (admin), GET/PATCH by uid
+│   │       ├── attendance/       ← GET all, GET/PATCH by uid
+│   │       ├── assignments/      ← GET list, POST submit, GET/PATCH by id
+│   │       └── projects/         ← GET list, POST submit, GET/PATCH by id
 │   │
 │   ├── components/               ← Reusable UI pieces
 │   │   ├── Navbar.tsx            ← Top navigation bar
@@ -41,9 +47,11 @@ AI_DevCamp_BuildwithAI/
 │   │   └── useAdminData.ts       ← Load all admin data in one call
 │   │
 │   ├── lib/                      ← Pure service/utility functions (no JSX)
-│   │   ├── firebase.ts           ← Firebase app initialisation
+│   │   ├── firebase.ts           ← Firebase client SDK initialisation
+│   │   ├── firebase-admin.ts     ← Firebase Admin SDK (server-side API routes only)
+│   │   ├── api-helpers.ts        ← verifyAuth, requireAdmin, ok/err response helpers
 │   │   ├── auth.ts               ← Auth helpers (register, login, logout)
-│   │   ├── adminService.ts       ← All admin Firestore mutations
+│   │   ├── adminService.ts       ← Admin Firestore mutations (used by admin UI)
 │   │   ├── sessionService.ts     ← Session CRUD + seeding
 │   │   ├── flags.ts              ← Country → flag image URL
 │   │   └── utils.ts              ← cn() Tailwind class merger
