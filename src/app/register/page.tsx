@@ -39,6 +39,7 @@ import {
   signInWithPopup,
   GoogleAuthProvider,
   updateProfile,
+  sendEmailVerification,
 } from "firebase/auth";
 import {
   doc,
@@ -51,6 +52,7 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { auth, db, storage } from "@/lib/firebase";
+import { getPreRegisteredByEmail, markPreRegisteredLinked } from "@/lib/adminService";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useAuth } from "@/contexts/AuthContext";
 import toast from "react-hot-toast";
@@ -221,6 +223,11 @@ export default function RegisterPage() {
       const userRef = doc(db, "users", gUser.uid);
       const snap = await getDoc(userRef);
       if (!snap.exists()) {
+        // Check if this email was pre-registered via the Google Form
+        const preReg = gUser.email
+          ? await getPreRegisteredByEmail(gUser.email)
+          : null;
+
         await setDoc(userRef, {
           uid: gUser.uid,
           email: gUser.email,
@@ -230,11 +237,34 @@ export default function RegisterPage() {
           role: "attendee",
           userStatus: "pending",
           registeredSessions: [],
+          // Merge Google Form fields if pre-registered
+          ...(preReg && {
+            formRole: preReg.formRole,
+            yearsOfExperience: preReg.yearsOfExperience,
+            priorAIKnowledge: preReg.priorAIKnowledge,
+            areasOfInterest: preReg.areasOfInterest,
+            whyJoin: preReg.whyJoin,
+            joiningInPerson: preReg.joiningInPerson,
+            city: preReg.city || "",
+            country: preReg.country || "",
+            location: preReg.location || "",
+            formSubmittedAt: preReg.formSubmittedAt,
+            preRegistered: true,
+          }),
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         });
+
+        // Mark as linked in preRegistered collection
+        if (preReg && gUser.email) {
+          await markPreRegisteredLinked(gUser.email, gUser.uid);
+          toast.success("Welcome back! Your registration form has been matched ✓");
+        } else {
+          toast.success("Welcome to AI DevCamp! 🚀");
+        }
+      } else {
+        toast.success("Welcome back!");
       }
-      toast.success("Welcome to AI DevCamp! 🚀");
       router.push("/dashboard");
     } catch {
       toast.error("Google sign-in failed");
@@ -265,6 +295,9 @@ export default function RegisterPage() {
         photoURL: photoURL || undefined,
       });
 
+      // Check if email was pre-registered via Google Form
+      const preReg = await getPreRegisteredByEmail(form.email);
+
       // Save user document
       const userData = {
         uid: newUser.uid,
@@ -289,10 +322,29 @@ export default function RegisterPage() {
         canOffer: form.canOffer,
         keepUpdated: form.keepUpdated,
         registeredSessions: [],
+        // Merge Google Form fields if pre-registered
+        ...(preReg && {
+          formRole: preReg.formRole,
+          yearsOfExperience: preReg.yearsOfExperience,
+          priorAIKnowledge: preReg.priorAIKnowledge,
+          areasOfInterest: preReg.areasOfInterest,
+          whyJoin: preReg.whyJoin,
+          joiningInPerson: preReg.joiningInPerson,
+          formSubmittedAt: preReg.formSubmittedAt,
+          preRegistered: true,
+        }),
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       };
       await setDoc(doc(db, "users", newUser.uid), userData);
+
+      // Send email verification link
+      await sendEmailVerification(newUser);
+
+      // Mark as linked in preRegistered collection
+      if (preReg) {
+        await markPreRegisteredLinked(form.email, newUser.uid);
+      }
 
       // Save project if not skipped
       if (!skip && form.projectName.trim()) {
@@ -310,7 +362,11 @@ export default function RegisterPage() {
         });
       }
 
-      toast.success("Welcome to AI DevCamp! 🚀");
+      if (preReg) {
+        toast.success("Account created! Your form registration has been matched ✓ Check your email to verify.");
+      } else {
+        toast.success("Welcome to AI DevCamp! 🚀 Check your email to verify your account.");
+      }
       router.push("/dashboard");
     } catch (err: unknown) {
       const error = err as { code?: string };

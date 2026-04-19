@@ -2,9 +2,9 @@
  * adminService — all admin-only Firestore mutations in one place.
  * UI components call these functions; no raw Firestore calls in admin page.tsx.
  */
-import { collection, doc, getDocs, updateDoc, getDoc, setDoc, orderBy, query } from "firebase/firestore";
+import { collection, doc, getDocs, updateDoc, getDoc, setDoc, orderBy, query, writeBatch } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { Assignment, Project, UserProfile, UserStatus } from "@/types";
+import { Assignment, PreRegisteredUser, Project, UserProfile, UserStatus } from "@/types";
 
 // ── Users ─────────────────────────────────────────────────────────────────────
 
@@ -76,4 +76,45 @@ export async function setProjectStatus(
   status: Project["status"]
 ): Promise<void> {
   await updateDoc(doc(db, "projects", id), { status });
+}
+
+// ── Pre-registered users ───────────────────────────────────────────────────────
+
+export async function fetchPreRegisteredUsers(): Promise<PreRegisteredUser[]> {
+  const snap = await getDocs(collection(db, "preRegistered"));
+  return snap.docs.map((d) => d.data() as PreRegisteredUser);
+}
+
+/** Bulk-upsert pre-registered users. Doc ID = normalised email. */
+export async function upsertPreRegisteredUsers(
+  users: PreRegisteredUser[]
+): Promise<void> {
+  const BATCH_SIZE = 499;
+  for (let i = 0; i < users.length; i += BATCH_SIZE) {
+    const batch = writeBatch(db);
+    const chunk = users.slice(i, i + BATCH_SIZE);
+    for (const u of chunk) {
+      const id = u.email.toLowerCase().trim();
+      batch.set(doc(db, "preRegistered", id), u, { merge: true });
+    }
+    await batch.commit();
+  }
+}
+
+export async function getPreRegisteredByEmail(
+  email: string
+): Promise<PreRegisteredUser | null> {
+  const snap = await getDoc(doc(db, "preRegistered", email.toLowerCase().trim()));
+  return snap.exists() ? (snap.data() as PreRegisteredUser) : null;
+}
+
+export async function markPreRegisteredLinked(
+  email: string,
+  uid: string
+): Promise<void> {
+  await setDoc(
+    doc(db, "preRegistered", email.toLowerCase().trim()),
+    { linkedUid: uid, linkedAt: new Date().toISOString() },
+    { merge: true }
+  );
 }

@@ -63,6 +63,25 @@ export interface Resource {
   url: string;
 }
 
+export interface PreRegisteredUser {
+  email: string;
+  displayName: string;
+  formSubmittedAt: string;
+  formRole: string;
+  yearsOfExperience: string;
+  priorAIKnowledge: string;
+  areasOfInterest: string;
+  whyJoin: string;
+  knowsProgramming: boolean;
+  joiningInPerson: string;
+  location: string;
+  city: string;
+  country: string;
+  commitment: boolean;
+  linkedUid?: string;
+  linkedAt?: string;
+}
+
 export interface Assignment {
   id?: string;
   userId: string;

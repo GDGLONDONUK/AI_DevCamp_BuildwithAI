@@ -18,7 +18,7 @@ import {
   CheckCircle2, XCircle, ClipboardList, Calendar,
   RefreshCw, Plus, Pencil, Trash2,
   Link, Download, LayoutGrid, Table2, Filter,
-  Clock, UserCheck,
+  Clock, UserCheck, Mail,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -305,13 +305,21 @@ export default function AdminPage() {
               <p className="text-xs text-gray-500 font-mono">AI DevCamp 2026 — Build with AI</p>
             </div>
           </div>
-          <button
-            onClick={fetchAll}
-            className="flex items-center gap-2 text-sm text-gray-400 hover:text-white border border-white/10 hover:border-white/20 px-4 py-2 rounded-lg font-mono transition-all"
-          >
-            <RefreshCw size={14} className={dataLoading ? "animate-spin" : ""} />
-            Refresh
-          </button>
+          <div className="flex items-center gap-2">
+            <Link href="/admin/email" className="flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 border border-blue-500/20 hover:border-blue-500/40 bg-blue-500/10 px-4 py-2 rounded-lg font-mono transition-all">
+              <Mail size={14} /> Email
+            </Link>
+            <Link href="/admin/import" className="flex items-center gap-2 text-sm text-purple-400 hover:text-purple-300 border border-purple-500/20 hover:border-purple-500/40 bg-purple-500/10 px-4 py-2 rounded-lg font-mono transition-all">
+              <Download size={14} /> CSV Import
+            </Link>
+            <button
+              onClick={fetchAll}
+              className="flex items-center gap-2 text-sm text-gray-400 hover:text-white border border-white/10 hover:border-white/20 px-4 py-2 rounded-lg font-mono transition-all"
+            >
+              <RefreshCw size={14} className={dataLoading ? "animate-spin" : ""} />
+              Refresh
+            </button>
+          </div>
         </div>
 
         {/* Stats row */}
