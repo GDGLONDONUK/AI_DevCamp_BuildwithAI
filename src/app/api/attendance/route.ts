@@ -6,11 +6,11 @@
 
 import { NextRequest } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
-import { ok, err, requireAdmin } from "@/lib/api-helpers";
+import { ok, err, requireAdmin, isErrorResponse } from "@/lib/api-helpers";
 
 export async function GET(request: NextRequest) {
   const auth = await requireAdmin(request);
-  if ("status" in auth && typeof auth.status === "number") return auth;
+  if (isErrorResponse(auth)) return auth;
 
   try {
     const snap = await adminDb().collection("attendance").get();

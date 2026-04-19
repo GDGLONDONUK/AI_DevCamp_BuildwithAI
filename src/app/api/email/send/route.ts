@@ -14,7 +14,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import nodemailer from "nodemailer";
-import { requireAdmin } from "@/lib/api-helpers";
+import { requireAdmin, isErrorResponse } from "@/lib/api-helpers";
 
 const GMAIL_USER = process.env.GMAIL_USER ?? "";
 const GMAIL_PASS = process.env.GMAIL_APP_PASSWORD ?? "";
@@ -57,7 +57,7 @@ async function sendOne(
 
 export async function POST(request: NextRequest) {
   const auth = await requireAdmin(request);
-  if ("status" in auth && typeof auth.status === "number") return auth as NextResponse;
+  if (isErrorResponse(auth)) return auth;
 
   if (!GMAIL_USER || !GMAIL_PASS) {
     return NextResponse.json(

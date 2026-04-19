@@ -6,7 +6,7 @@
 
 import { NextRequest } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
-import { ok, err, requireAdmin } from "@/lib/api-helpers";
+import { ok, err, requireAdmin, isErrorResponse } from "@/lib/api-helpers";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -26,7 +26,7 @@ export async function PUT(request: NextRequest, { params }: Params) {
   const { id } = await params;
 
   const auth = await requireAdmin(request);
-  if ("status" in auth && typeof auth.status === "number") return auth;
+  if (isErrorResponse(auth)) return auth;
 
   try {
     const body = await request.json();
@@ -47,7 +47,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
   const { id } = await params;
 
   const auth = await requireAdmin(request);
-  if ("status" in auth && typeof auth.status === "number") return auth;
+  if (isErrorResponse(auth)) return auth;
 
   try {
     await adminDb().collection("sessions").doc(id).delete();

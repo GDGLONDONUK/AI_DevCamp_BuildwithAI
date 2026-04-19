@@ -13,7 +13,7 @@
 
 import { NextRequest } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
-import { ok, err, verifyAuth, requireAdminOrSelf } from "@/lib/api-helpers";
+import { ok, err, verifyAuth, requireAdminOrSelf, isErrorResponse } from "@/lib/api-helpers";
 import { FieldValue } from "firebase-admin/firestore";
 
 type Params = { params: Promise<{ uid: string }> };
@@ -33,7 +33,7 @@ export async function GET(request: NextRequest, { params }: Params) {
   const { uid } = await params;
 
   const auth = await requireAdminOrSelf(request, uid);
-  if ("status" in auth && typeof auth.status === "number") return auth;
+  if (isErrorResponse(auth)) return auth;
 
   try {
     const snap = await adminDb().collection("users").doc(uid).get();
@@ -49,7 +49,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   const { uid } = await params;
 
   const auth = await verifyAuth(request);
-  if ("status" in auth && typeof auth.status === "number") return auth;
+  if (isErrorResponse(auth)) return auth;
 
   const isAdmin = ["admin", "moderator"].includes(auth.role);
   const isSelf  = auth.uid === uid;

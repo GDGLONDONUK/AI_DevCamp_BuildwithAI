@@ -5,7 +5,7 @@
 
 import { NextRequest } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
-import { ok, created, err, requireAdmin } from "@/lib/api-helpers";
+import { ok, created, err, requireAdmin, isErrorResponse } from "@/lib/api-helpers";
 import { FieldValue } from "firebase-admin/firestore";
 
 export async function GET() {
@@ -25,7 +25,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   const auth = await requireAdmin(request);
-  if ("status" in auth && typeof auth.status === "number") return auth;
+  if (isErrorResponse(auth)) return auth;
 
   try {
     const body = await request.json();

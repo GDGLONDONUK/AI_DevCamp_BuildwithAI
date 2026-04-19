@@ -8,7 +8,7 @@
 
 import { NextRequest } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
-import { ok, err, verifyAuth, requireAdmin } from "@/lib/api-helpers";
+import { ok, err, verifyAuth, requireAdmin, isErrorResponse } from "@/lib/api-helpers";
 import { FieldValue } from "firebase-admin/firestore";
 
 type Params = { params: Promise<{ id: string }> };
@@ -19,7 +19,7 @@ export async function GET(request: NextRequest, { params }: Params) {
   const { id } = await params;
 
   const auth = await verifyAuth(request);
-  if ("status" in auth && typeof auth.status === "number") return auth;
+  if (isErrorResponse(auth)) return auth;
 
   try {
     const snap = await adminDb().collection("assignments").doc(id).get();
@@ -40,7 +40,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   const { id } = await params;
 
   const auth = await requireAdmin(request);
-  if ("status" in auth && typeof auth.status === "number") return auth;
+  if (isErrorResponse(auth)) return auth;
 
   try {
     const { status, feedback, grade } = await request.json();

@@ -11,12 +11,12 @@
 
 import { NextRequest } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
-import { ok, created, err, verifyAuth, requireAdmin } from "@/lib/api-helpers";
+import { ok, created, err, verifyAuth, requireAdmin, isErrorResponse } from "@/lib/api-helpers";
 import { FieldValue } from "firebase-admin/firestore";
 
 export async function GET(request: NextRequest) {
   const auth = await verifyAuth(request);
-  if ("status" in auth && typeof auth.status === "number") return auth;
+  if (isErrorResponse(auth)) return auth;
 
   try {
     const isAdmin = ["admin", "moderator"].includes(auth.role);
@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   const auth = await verifyAuth(request);
-  if ("status" in auth && typeof auth.status === "number") return auth;
+  if (isErrorResponse(auth)) return auth;
 
   try {
     const body = await request.json();

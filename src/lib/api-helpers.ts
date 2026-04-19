@@ -33,13 +33,18 @@ export interface AuthResult {
   role: string;
 }
 
+/** Use after verifyAuth / requireAdmin: narrows to AuthResult when false. */
+export function isErrorResponse(res: AuthResult | NextResponse): res is NextResponse {
+  return res instanceof NextResponse;
+}
+
 /**
  * Verifies the Firebase ID token from the Authorization header.
  * Returns the decoded token payload or throws an error response.
  *
  * Usage in a route handler:
  *   const auth = await verifyAuth(request);
- *   if (auth instanceof NextResponse) return auth; // 401
+ *   if (isErrorResponse(auth)) return auth; // 401
  */
 export async function verifyAuth(request: NextRequest): Promise<AuthResult | NextResponse> {
   const authHeader = request.headers.get("authorization") ?? "";

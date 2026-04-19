@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { PreRegisteredUser } from "@/types";
@@ -203,6 +203,20 @@ const FILTER_LABELS: Record<RecipientFilter, string> = {
 // ── Component ────────────────────────────────────────────────────────────────
 
 export default function AdminEmailPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[#0a0f0a] flex items-center justify-center">
+          <div className="animate-spin w-8 h-8 border-2 border-green-500 border-t-transparent rounded-full" />
+        </div>
+      }
+    >
+      <AdminEmailPageInner />
+    </Suspense>
+  );
+}
+
+function AdminEmailPageInner() {
   const { userProfile, loading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -590,3 +604,4 @@ export default function AdminEmailPage() {
     </div>
   );
 }
+

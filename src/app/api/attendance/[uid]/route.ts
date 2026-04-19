@@ -8,7 +8,7 @@
 
 import { NextRequest } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
-import { ok, err, requireAdmin, requireAdminOrSelf } from "@/lib/api-helpers";
+import { ok, err, requireAdmin, requireAdminOrSelf, isErrorResponse } from "@/lib/api-helpers";
 
 type Params = { params: Promise<{ uid: string }> };
 
@@ -16,7 +16,7 @@ export async function GET(request: NextRequest, { params }: Params) {
   const { uid } = await params;
 
   const auth = await requireAdminOrSelf(request, uid);
-  if ("status" in auth && typeof auth.status === "number") return auth;
+  if (isErrorResponse(auth)) return auth;
 
   try {
     const snap = await adminDb().collection("attendance").doc(uid).get();
@@ -31,7 +31,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   const { uid } = await params;
 
   const auth = await requireAdmin(request);
-  if ("status" in auth && typeof auth.status === "number") return auth;
+  if (isErrorResponse(auth)) return auth;
 
   try {
     const { sessionId, attended } = await request.json();
