@@ -1,30 +1,38 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import { Assignment, Project, Session, UserProfile, UserStatus } from "@/types";
+import { Assignment, PreRegisteredUser, Project, Session, UserProfile, UserStatus } from "@/types";
 import { getSessions, upsertSession, deleteSession, seedDefaultSessions } from "@/lib/sessionService";
 import {
   fetchAllUsers, fetchAllAssignments, fetchAllProjects, fetchAttendanceForUsers,
   setUserStatus, setUserRole, setAssignmentStatus, setProjectStatus,
   toggleAttendance as toggleAttendanceSvc,
+  updateUserFields,
 } from "@/lib/adminService";
+import { auth } from "@/lib/firebase";
+import { formatAdminDateTime } from "@/lib/admin/format";
+import { exportAttendeesCsv } from "@/lib/admin/exportAttendeesCsv";
+import { uploadPreRegisteredCsv } from "@/lib/admin/uploadPreRegisteredCsv";
 import CountryFlag from "@/components/ui/CountryFlag";
+import PreRegisteredDetailModal from "@/features/admin/components/PreRegisteredDetailModal";
 import SessionEditor from "@/components/admin/SessionEditor";
+import UserEditor from "@/components/admin/UserEditor";
 import StatusDropdown, { STATUS_CONFIG, ALL_STATUSES } from "@/components/admin/StatusDropdown";
 import {
   Users, BookOpen, Code2, Shield, Search,
   CheckCircle2, XCircle, ClipboardList, Calendar,
   RefreshCw, Plus, Pencil, Trash2,
-  Link, Download, LayoutGrid, Table2, Filter,
-  Clock, UserCheck, Mail,
+  Link as LinkIcon, Download, LayoutGrid, Table2, Filter,
+  Clock, UserCheck, Mail, FileText, Link2, AlertTriangle, Upload, Tags,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
-type Tab = "attendance" | "users" | "assignments" | "projects" | "sessions";
+type Tab = "attendance" | "users" | "assignments" | "projects" | "sessions" | "preregistered";
 
 interface AttendanceMap {
   [userId: string]: {
@@ -50,6 +58,15 @@ export default function AdminPage() {
   const [editingSession, setEditingSession] = useState<Partial<Session> | null | false>(false); // false=closed, null=new
   const [usersView, setUsersView] = useState<"grid" | "table">("grid");
   const [statusFilter, setStatusFilter] = useState<"all" | UserStatus>("all");
+  const [preRegistered, setPreRegistered] = useState<PreRegisteredUser[]>([]);
+  const [preRegLoading, setPreRegLoading] = useState(false);
+  const [preRegSearch, setPreRegSearch] = useState("");
+  const [preRegFilter, setPreRegFilter] = useState<"all" | "linked" | "unlinked">("all");
+  const [csvUploading, setCsvUploading] = useState(false);
+  const [seedingTags, setSeedingTags] = useState(false);
+  const [detailUser, setDetailUser] = useState<PreRegisteredUser | null>(null);
+  const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set());
+  const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
 
   // ── Access guard ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -90,6 +107,51 @@ export default function AdminPage() {
     fetchAll();
   }, [fetchAll]);
 
+  // ── Load pre-registered users via API ────────────────────────────────────
+  const loadPreRegistered = useCallback(async () => {
+    setPreRegLoading(true);
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      const res = await fetch("/api/admin/preregistered", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const json = await res.json();
+      const data: PreRegisteredUser[] = json.data ?? [];
+      setPreRegistered(data.sort((a, b) => a.displayName.localeCompare(b.displayName)));
+    } catch (e) {
+      console.error("loadPreRegistered", e);
+      toast.error("Failed to load pre-registered users");
+    } finally {
+      setPreRegLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === "preregistered" && preRegistered.length === 0) {
+      loadPreRegistered();
+    }
+  }, [activeTab, preRegistered.length, loadPreRegistered]);
+
+  const handleCsvUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setCsvUploading(true);
+    try {
+      await uploadPreRegisteredCsv(
+        file,
+        () => auth.currentUser?.getIdToken() ?? Promise.resolve(undefined),
+        loadPreRegistered
+      );
+    } catch (err) {
+      console.error("CSV upload error:", err);
+      toast.error(`Upload failed: ${err instanceof Error ? err.message : "unknown error"}`);
+    } finally {
+      setCsvUploading(false);
+      e.target.value = "";
+    }
+  };
+
   // ── Attendance toggle ─────────────────────────────────────────────────────
   const toggleAttendance = async (userId: string, sessionId: string) => {
     const key = `${userId}_${sessionId}`;
@@ -123,6 +185,12 @@ export default function AdminPage() {
       setUsers((prev) => prev.map((u) => u.uid === uid ? { ...u, role } : u));
       toast.success("Role updated");
     } catch { toast.error("Failed to update role"); }
+  };
+
+  const handleSaveUserEdit = async (uid: string, updates: Record<string, unknown>) => {
+    await updateUserFields(uid, updates);
+    await fetchAll();
+    toast.success("User updated");
   };
 
   const updateAssignmentStatus = async (id: string, status: Assignment["status"]) => {
@@ -200,80 +268,32 @@ export default function AdminPage() {
     }
   };
 
+  const handleSeedTags = async () => {
+    setSeedingTags(true);
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      const res = await fetch("/api/admin/tags", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ action: "seed" }),
+      });
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error ?? res.statusText);
+      toast.success(`Tag catalog: ${json.data.upserted} categories saved to Firestore`);
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to seed tags");
+    } finally {
+      setSeedingTags(false);
+    }
+  };
+
   // ── Attendance summary ────────────────────────────────────────────────────
   const attendanceCount = (uid: string) =>
     sessions.filter((s) => attendance[uid]?.[s.id]).length;
-
-  // ── Date formatter ────────────────────────────────────────────────────────
-  function formatDateTime(val: unknown): string {
-    if (!val) return "—";
-    // Firestore Timestamp
-    if (val && typeof (val as { toDate?: () => Date }).toDate === "function") {
-      return (val as { toDate: () => Date }).toDate().toLocaleString("en-GB", {
-        day: "2-digit", month: "short", year: "numeric",
-        hour: "2-digit", minute: "2-digit",
-      });
-    }
-    if (val instanceof Date) {
-      return val.toLocaleString("en-GB", {
-        day: "2-digit", month: "short", year: "numeric",
-        hour: "2-digit", minute: "2-digit",
-      });
-    }
-    if (typeof val === "string") {
-      const d = new Date(val);
-      if (!isNaN(d.getTime())) {
-        return d.toLocaleString("en-GB", {
-          day: "2-digit", month: "short", year: "numeric",
-          hour: "2-digit", minute: "2-digit",
-        });
-      }
-      return val;
-    }
-    return String(val);
-  }
-
-  // ── CSV export ────────────────────────────────────────────────────────────
-  function exportUsersCSV(list: UserProfile[]) {
-    const headers = [
-      "Name", "Handle", "Email", "Role", "Status",
-      "Experience Level", "City", "Country",
-      "LinkedIn URL", "GitHub URL", "Website URL",
-      "Sessions Attended", "Skills", "Expertise",
-      "Want to Learn", "Can Offer",
-      "Registered At", "Updated At",
-    ];
-    const rows = list.map((u) => [
-      u.displayName || "",
-      u.handle ? `@${u.handle}` : "",
-      u.email || "",
-      u.role || "",
-      u.userStatus || "pending",
-      u.experienceLevel || "",
-      u.city || "",
-      u.country || "",
-      u.linkedinUrl || "",
-      u.githubUrl || "",
-      u.websiteUrl || "",
-      `${attendanceCount(u.uid)}/${sessions.length}`,
-      (u.skills || []).join("; "),
-      (u.expertise || []).join("; "),
-      (u.wantToLearn || []).join("; "),
-      (u.canOffer || []).join("; "),
-      formatDateTime(u.createdAt),
-      formatDateTime(u.updatedAt),
-    ]);
-    const csv = [headers, ...rows]
-      .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
-      .join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `ai-devcamp-attendees-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
 
   // ── Guards ────────────────────────────────────────────────────────────────
   if (loading || !user || userProfile?.role !== "admin") {
@@ -285,11 +305,12 @@ export default function AdminPage() {
   }
 
   const TABS = [
-    { id: "attendance" as Tab, label: "Attendance", icon: ClipboardList, count: users.length },
-    { id: "users" as Tab,      label: "Users",      icon: Users,          count: users.length },
-    { id: "sessions" as Tab,   label: "Sessions",   icon: Calendar,       count: sessions.length },
-    { id: "assignments" as Tab,label: "Assignments", icon: BookOpen,       count: assignments.length },
-    { id: "projects" as Tab,   label: "Projects",   icon: Code2,          count: projects.length },
+    { id: "attendance" as Tab,     label: "Attendance",    icon: ClipboardList, count: users.length },
+    { id: "users" as Tab,          label: "Users",         icon: Users,         count: users.length },
+    { id: "preregistered" as Tab,  label: "Pre-Registered",icon: FileText,      count: preRegistered.length },
+    { id: "sessions" as Tab,       label: "Sessions",      icon: Calendar,      count: sessions.length },
+    { id: "assignments" as Tab,    label: "Assignments",   icon: BookOpen,      count: assignments.length },
+    { id: "projects" as Tab,       label: "Projects",      icon: Code2,         count: projects.length },
   ];
 
   return (
@@ -312,6 +333,15 @@ export default function AdminPage() {
             <Link href="/admin/import" className="flex items-center gap-2 text-sm text-purple-400 hover:text-purple-300 border border-purple-500/20 hover:border-purple-500/40 bg-purple-500/10 px-4 py-2 rounded-lg font-mono transition-all">
               <Download size={14} /> CSV Import
             </Link>
+            <button
+              type="button"
+              onClick={handleSeedTags}
+              disabled={seedingTags}
+              className="flex items-center gap-2 text-sm text-amber-400 hover:text-amber-300 border border-amber-500/20 hover:border-amber-500/40 bg-amber-500/10 px-4 py-2 rounded-lg font-mono transition-all disabled:opacity-50"
+            >
+              <Tags size={14} className={seedingTags ? "animate-pulse" : ""} />
+              {seedingTags ? "Seeding…" : "Seed tags"}
+            </button>
             <button
               onClick={fetchAll}
               className="flex items-center gap-2 text-sm text-gray-400 hover:text-white border border-white/10 hover:border-white/20 px-4 py-2 rounded-lg font-mono transition-all"
@@ -535,7 +565,7 @@ export default function AdminPage() {
                           <span className="font-semibold text-white">{u.displayName}</span>
                           <span className="text-gray-500 font-mono text-xs">{u.email}</span>
                           <span className="text-gray-600 font-mono text-xs ml-auto">
-                            {formatDateTime(u.createdAt)}
+                            {formatAdminDateTime(u.createdAt)}
                           </span>
                           <button
                             onClick={() => updateUserStatus(u.uid, "participated")}
@@ -606,7 +636,7 @@ export default function AdminPage() {
 
                     {/* CSV export */}
                     <button
-                      onClick={() => exportUsersCSV(statusFilteredUsers)}
+                      onClick={() => exportAttendeesCsv(statusFilteredUsers, attendance, sessions)}
                       className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-white border border-white/10 hover:border-white/20 px-3 py-2 rounded-xl font-mono transition-all"
                       title="Download as CSV"
                     >
@@ -656,7 +686,7 @@ export default function AdminPage() {
                                 </span>
                               )}
                               <span className="flex items-center gap-1 text-xs text-gray-600 font-mono">
-                                <Clock size={10} /> {formatDateTime(u.createdAt)}
+                                <Clock size={10} /> {formatAdminDateTime(u.createdAt)}
                               </span>
                             </div>
                           </div>
@@ -681,6 +711,13 @@ export default function AdminPage() {
 
                           {/* Controls */}
                           <div className="flex flex-wrap items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setEditingUser(u)}
+                              className="flex items-center gap-1.5 text-xs text-gray-300 hover:text-white border border-white/15 hover:border-white/30 px-3 py-1.5 rounded-lg font-mono transition-all"
+                            >
+                              <Pencil size={12} /> Edit
+                            </button>
                             <StatusDropdown
                               status={status}
                               onChange={(s) => updateUserStatus(u.uid, s)}
@@ -812,34 +849,43 @@ export default function AdminPage() {
                               </td>
                               {/* Registered At */}
                               <td className="px-4 py-3 font-mono text-xs text-gray-400 whitespace-nowrap">
-                                {formatDateTime(u.createdAt)}
+                                {formatAdminDateTime(u.createdAt)}
                               </td>
                               {/* Updated At */}
                               <td className="px-4 py-3 font-mono text-xs text-gray-500 whitespace-nowrap">
-                                {formatDateTime(u.updatedAt)}
+                                {formatAdminDateTime(u.updatedAt)}
                               </td>
                               {/* Quick actions for pending */}
                               <td className="px-4 py-3 whitespace-nowrap">
-                                {status === "pending" ? (
-                                  <div className="flex items-center gap-2">
-                                    <button
-                                      onClick={() => updateUserStatus(u.uid, "participated")}
-                                      className="flex items-center gap-1 text-xs text-green-400 hover:text-green-300 font-mono font-semibold"
-                                    >
-                                      <CheckCircle2 size={12} /> Approve
-                                    </button>
-                                    <button
-                                      onClick={() => updateUserStatus(u.uid, "not-certified")}
-                                      className="flex items-center gap-1 text-xs text-red-400 hover:text-red-300 font-mono font-semibold"
-                                    >
-                                      <XCircle size={12} /> Decline
-                                    </button>
-                                  </div>
-                                ) : (
-                                  <span className={`text-xs font-mono px-2 py-0.5 rounded-full border border-current/30 ${sc.bg} ${sc.text}`}>
-                                    {sc.label}
-                                  </span>
-                                )}
+                                <div className="flex flex-col gap-2 items-start">
+                                  <button
+                                    type="button"
+                                    onClick={() => setEditingUser(u)}
+                                    className="flex items-center gap-1 text-xs text-gray-300 hover:text-white border border-white/15 hover:border-white/30 px-2 py-1 rounded-lg font-mono"
+                                  >
+                                    <Pencil size={11} /> Edit
+                                  </button>
+                                  {status === "pending" ? (
+                                    <div className="flex items-center gap-2">
+                                      <button
+                                        onClick={() => updateUserStatus(u.uid, "participated")}
+                                        className="flex items-center gap-1 text-xs text-green-400 hover:text-green-300 font-mono font-semibold"
+                                      >
+                                        <CheckCircle2 size={12} /> Approve
+                                      </button>
+                                      <button
+                                        onClick={() => updateUserStatus(u.uid, "not-certified")}
+                                        className="flex items-center gap-1 text-xs text-red-400 hover:text-red-300 font-mono font-semibold"
+                                      >
+                                        <XCircle size={12} /> Decline
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <span className={`text-xs font-mono px-2 py-0.5 rounded-full border border-current/30 ${sc.bg} ${sc.text}`}>
+                                      {sc.label}
+                                    </span>
+                                  )}
+                                </div>
                               </td>
                             </tr>
                           );
@@ -852,7 +898,7 @@ export default function AdminPage() {
                         Showing {statusFilteredUsers.length} of {users.length} users
                       </span>
                       <button
-                        onClick={() => exportUsersCSV(statusFilteredUsers)}
+                        onClick={() => exportAttendeesCsv(statusFilteredUsers, attendance, sessions)}
                         className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-white font-mono transition-colors"
                       >
                         <Download size={12} /> Download CSV
@@ -1112,7 +1158,7 @@ export default function AdminPage() {
                                 {s.resources.map((r) => (
                                   <a key={r.url} href={r.url} target="_blank" rel="noopener noreferrer"
                                     className="inline-flex items-center gap-1 text-[10px] text-orange-400 bg-orange-500/10 border border-orange-500/20 px-2 py-0.5 rounded-full hover:bg-orange-500/20 transition-colors">
-                                    <Link size={9} /> {r.title}
+                                    <LinkIcon size={9} /> {r.title}
                                   </a>
                                 ))}
                               </div>
@@ -1141,9 +1187,185 @@ export default function AdminPage() {
                 )}
               </div>
             )}
+            {/* ── PRE-REGISTERED TAB ── */}
+            {activeTab === "preregistered" && (() => {
+              const filteredPreReg = preRegistered.filter((u) => {
+                const q = preRegSearch.toLowerCase();
+                const matchSearch = !q || u.email.includes(q) || u.displayName.toLowerCase().includes(q);
+                const matchFilter =
+                  preRegFilter === "all" ? true
+                  : preRegFilter === "linked" ? !!u.linkedUid
+                  : !u.linkedUid;
+                return matchSearch && matchFilter;
+              });
+              const allVisibleSelected = filteredPreReg.length > 0 && filteredPreReg.every((u) => selectedEmails.has(u.email));
+
+              const toggleSelect = (email: string) =>
+                setSelectedEmails((prev) => { const s = new Set(prev); s.has(email) ? s.delete(email) : s.add(email); return s; });
+
+              const toggleSelectAll = () =>
+                setSelectedEmails(allVisibleSelected
+                  ? new Set([...selectedEmails].filter((e) => !filteredPreReg.find((u) => u.email === e)))
+                  : new Set([...selectedEmails, ...filteredPreReg.map((u) => u.email)]));
+
+              const sendToSelected = () => {
+                const sel = preRegistered.filter((u) => selectedEmails.has(u.email));
+                sessionStorage.setItem("emailRecipients", JSON.stringify(sel.map((u) => ({ email: u.email, name: u.displayName }))));
+                window.open("/admin/email?source=selection", "_blank");
+              };
+
+              return (
+              <div className="space-y-5">
+                {/* Top bar */}
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <div className="relative">
+                      <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                      <input value={preRegSearch} onChange={(e) => setPreRegSearch(e.target.value)}
+                        placeholder="Search name or email…"
+                        className="pl-8 pr-4 py-2 bg-gray-900/60 border border-white/10 rounded-lg text-sm text-white placeholder:text-gray-600 focus:outline-none focus:ring-1 focus:ring-green-500 font-mono w-56" />
+                    </div>
+                    {(["all", "linked", "unlinked"] as const).map((f) => (
+                      <button key={f} onClick={() => setPreRegFilter(f)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition-all ${preRegFilter === f ? "bg-green-500 text-gray-950" : "border border-white/10 text-gray-400 hover:text-white"}`}>
+                        {f === "all" ? `All (${preRegistered.length})`
+                          : f === "linked" ? `Signed up (${preRegistered.filter((u) => u.linkedUid).length})`
+                          : `Not signed up (${preRegistered.filter((u) => !u.linkedUid).length})`}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button onClick={loadPreRegistered} disabled={preRegLoading}
+                      className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-white border border-white/10 px-3 py-2 rounded-lg font-mono transition-all">
+                      <RefreshCw size={12} className={preRegLoading ? "animate-spin" : ""} /> Refresh
+                    </button>
+                    <label className={`flex items-center gap-1.5 text-xs font-mono font-semibold px-3 py-2 rounded-lg border cursor-pointer transition-all ${csvUploading ? "border-white/10 text-gray-500 cursor-not-allowed" : "border-purple-500/30 bg-purple-500/10 text-purple-400 hover:bg-purple-500/20"}`}>
+                      {csvUploading ? <><RefreshCw size={12} className="animate-spin" /> Uploading…</> : <><Upload size={12} /> Upload CSV</>}
+                      <input type="file" accept=".csv" className="hidden" onChange={handleCsvUpload} disabled={csvUploading} />
+                    </label>
+                    <Link href="/admin/email" className="flex items-center gap-1.5 text-xs font-mono font-semibold px-3 py-2 rounded-lg border border-blue-500/30 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-all">
+                      <Mail size={12} /> Email All
+                    </Link>
+                  </div>
+                </div>
+
+                {/* Stats pills */}
+                <div className="flex flex-wrap gap-3 font-mono text-xs">
+                  <span className="bg-green-500/10 border border-green-500/20 text-green-400 px-3 py-1 rounded-full">
+                    <Link2 size={10} className="inline mr-1" />{preRegistered.filter((u) => u.linkedUid).length} linked to accounts
+                  </span>
+                  <span className="bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 px-3 py-1 rounded-full">
+                    <AlertTriangle size={10} className="inline mr-1" />{preRegistered.filter((u) => !u.linkedUid).length} haven&apos;t signed up
+                  </span>
+                  <span className="bg-blue-500/10 border border-blue-500/20 text-blue-400 px-3 py-1 rounded-full">
+                    <UserCheck size={10} className="inline mr-1" />{preRegistered.filter((u) => u.joiningInPerson?.toLowerCase().startsWith("y")).length} joining in person
+                  </span>
+                </div>
+
+                {/* Bulk action bar */}
+                {selectedEmails.size > 0 && (
+                  <div className="flex items-center justify-between bg-blue-500/10 border border-blue-500/30 rounded-xl px-4 py-3">
+                    <span className="text-sm text-blue-300 font-mono">{selectedEmails.size} user{selectedEmails.size > 1 ? "s" : ""} selected</span>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => setSelectedEmails(new Set())}
+                        className="text-xs text-gray-400 hover:text-white border border-white/10 px-3 py-1.5 rounded-lg font-mono transition-all">
+                        Clear
+                      </button>
+                      <button onClick={sendToSelected}
+                        className="flex items-center gap-1.5 text-xs font-mono font-semibold px-4 py-1.5 rounded-lg bg-blue-500 hover:bg-blue-400 text-white transition-all">
+                        <Mail size={12} /> Send Email to {selectedEmails.size} selected
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Table */}
+                {preRegLoading ? (
+                  <div className="flex justify-center py-16">
+                    <div className="animate-spin w-8 h-8 border-2 border-green-500 border-t-transparent rounded-full" />
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto rounded-xl border border-white/8">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-gray-900/80 border-b border-white/8">
+                          <th className="px-3 py-3 w-8">
+                            <input type="checkbox" checked={allVisibleSelected} onChange={toggleSelectAll}
+                              className="w-3.5 h-3.5 rounded accent-green-500 cursor-pointer" />
+                          </th>
+                          {["Name", "Email", "Role", "Experience", "AI Knowledge", "In Person", "Location", "Submitted", "Status", ""].map((h) => (
+                            <th key={h} className="text-left px-3 py-3 font-mono text-xs text-gray-400 uppercase tracking-wider whitespace-nowrap">{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredPreReg.map((u, idx) => (
+                          <tr key={u.email}
+                            className={`border-b border-white/5 transition-colors cursor-pointer ${selectedEmails.has(u.email) ? "bg-blue-500/5" : idx % 2 === 0 ? "hover:bg-white/[0.02]" : "bg-white/[0.01] hover:bg-white/[0.03]"}`}
+                            onClick={() => setDetailUser(u)}>
+                            <td className="px-3 py-3" onClick={(e) => { e.stopPropagation(); toggleSelect(u.email); }}>
+                              <input type="checkbox" checked={selectedEmails.has(u.email)} onChange={() => toggleSelect(u.email)}
+                                className="w-3.5 h-3.5 rounded accent-green-500 cursor-pointer" />
+                            </td>
+                            <td className="px-3 py-3 font-semibold text-white whitespace-nowrap">{u.displayName}</td>
+                            <td className="px-3 py-3 font-mono text-xs text-green-400 whitespace-nowrap">{u.email}</td>
+                            <td className="px-3 py-3 text-gray-300 whitespace-nowrap text-xs max-w-[120px] truncate">{u.formRole || "—"}</td>
+                            <td className="px-3 py-3 text-gray-400 whitespace-nowrap text-xs text-center">{u.yearsOfExperience || "—"}</td>
+                            <td className="px-3 py-3 text-gray-400 text-xs max-w-[140px]">
+                              <span className="line-clamp-2 leading-tight">{u.priorAIKnowledge || "—"}</span>
+                            </td>
+                            <td className="px-3 py-3 whitespace-nowrap">
+                              <span className={`px-2 py-0.5 rounded-full text-xs font-mono ${u.joiningInPerson?.toLowerCase().startsWith("y") ? "bg-green-500/20 text-green-400" : "bg-gray-500/15 text-gray-500"}`}>
+                                {u.joiningInPerson?.toLowerCase().startsWith("y") ? "Yes" : u.joiningInPerson || "—"}
+                              </span>
+                            </td>
+                            <td className="px-3 py-3 text-gray-400 text-xs whitespace-nowrap">{u.location || "—"}</td>
+                            <td className="px-3 py-3 text-gray-600 text-xs whitespace-nowrap font-mono">
+                              {u.formSubmittedAt ? new Date(u.formSubmittedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : "—"}
+                            </td>
+                            <td className="px-3 py-3 whitespace-nowrap">
+                              {u.linkedUid ? (
+                                <span className="flex items-center gap-1 text-xs text-green-400 font-mono"><CheckCircle2 size={12} /> Signed up</span>
+                              ) : (
+                                <span className="flex items-center gap-1 text-xs text-yellow-500 font-mono"><XCircle size={12} /> Pending</span>
+                              )}
+                            </td>
+                            <td className="px-3 py-3 whitespace-nowrap">
+                              <button onClick={(e) => { e.stopPropagation(); setDetailUser(u); }}
+                                className="text-xs text-gray-500 hover:text-white border border-white/10 hover:border-white/25 px-2 py-1 rounded-lg font-mono transition-all">
+                                View
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                        {filteredPreReg.length === 0 && (
+                          <tr><td colSpan={11} className="text-center py-16 text-gray-500 font-mono">
+                            {preRegistered.length === 0 ? "No pre-registered users. Upload a CSV to import." : "No results match your search."}
+                          </td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+              );
+            })()}
           </>
         )}
       </div>
+
+      {detailUser && (
+        <PreRegisteredDetailModal detailUser={detailUser} onClose={() => setDetailUser(null)} />
+      )}
+
+      {/* User editor (admin) */}
+      {editingUser && (
+        <UserEditor
+          user={editingUser}
+          onClose={() => setEditingUser(null)}
+          onSave={handleSaveUserEdit}
+        />
+      )}
 
       {/* Session editor modal */}
       {editingSession !== false && (

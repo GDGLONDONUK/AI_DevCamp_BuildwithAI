@@ -18,6 +18,8 @@ import {
   ChevronRight,
   Zap,
   Camera,
+  MapPin,
+  MonitorPlay,
 } from "lucide-react";
 import LocationPicker from "@/components/ui/LocationPicker";
 import SkillsSelector from "@/components/ui/SkillsSelector";
@@ -53,6 +55,8 @@ import {
 } from "firebase/firestore";
 import { auth, db, storage } from "@/lib/firebase";
 import { getPreRegisteredByEmail, markPreRegisteredLinked } from "@/lib/adminService";
+import { joiningInPersonLabel, SESSION_SKIP_REGISTER_REDIRECT } from "@/lib/kickoffRsvp";
+import { parseLocationFields } from "@/lib/locationCleanup";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useAuth } from "@/contexts/AuthContext";
 import toast from "react-hot-toast";
@@ -83,6 +87,8 @@ interface FormData {
   canOffer: string[];
   agreedToTerms: boolean;
   keepUpdated: boolean;
+  /** null = not chosen yet — required on step 2 (23 Apr kick-off RSVP). */
+  kickoffInPersonRsvp: boolean | null;
   // Step 4
   projectName: string;
   projectDescription: string;
@@ -132,15 +138,38 @@ export default function RegisterPage() {
     canOffer: [],
     agreedToTerms: false,
     keepUpdated: false,
+    kickoffInPersonRsvp: null,
     projectName: "",
     projectDescription: "",
     projectUrl: "",
   });
 
-  // Redirect if already logged in
+  // Redirect if already logged in (not when heading to kick-off RSVP)
   useEffect(() => {
-    if (!loading && user) router.push("/dashboard");
+    if (loading || !user) return;
+    if (typeof sessionStorage !== "undefined" && sessionStorage.getItem(SESSION_SKIP_REGISTER_REDIRECT) === "1") return;
+    router.push("/dashboard");
   }, [user, loading, router]);
+
+  // When entering step 2, pre-fill kick-off RSVP from pre-registered CSV if they said yes to in-person
+  useEffect(() => {
+    if (step !== 2 || form.kickoffInPersonRsvp !== null) return;
+    const email = form.email.trim();
+    if (!email) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const pre = await getPreRegisteredByEmail(email);
+        if (cancelled || !pre) return;
+        if ((pre.joiningInPerson || "").toLowerCase().trim().startsWith("y")) {
+          setForm((prev) => ({ ...prev, kickoffInPersonRsvp: true }));
+        }
+      } catch { /* ignore */ }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [step, form.email, form.kickoffInPersonRsvp]);
 
   // Handle uniqueness check
   useEffect(() => {
@@ -182,6 +211,7 @@ export default function RegisterPage() {
       if (form.password.length < 8) e.password = "Min. 8 characters";
     }
     if (s === 2) {
+      if (form.kickoffInPersonRsvp === null) e.kickoff = "Please choose how you’ll join the 23 April kick-off";
       if (!form.roleTitle.trim()) e.roleTitle = "Role / title is required";
       if (!form.city.trim()) e.city = "City is required";
       if (!form.country.trim()) e.country = "Country is required";
@@ -228,6 +258,12 @@ export default function RegisterPage() {
           ? await getPreRegisteredByEmail(gUser.email)
           : null;
 
+        const preRegLocation = preReg
+          ? parseLocationFields(
+              preReg.location?.trim() || [preReg.city, preReg.country].filter(Boolean).join(", ")
+            )
+          : { location: "", city: "", country: "" };
+
         await setDoc(userRef, {
           uid: gUser.uid,
           email: gUser.email,
@@ -237,17 +273,16 @@ export default function RegisterPage() {
           role: "attendee",
           userStatus: "pending",
           registeredSessions: [],
-          // Merge Google Form fields if pre-registered
+          // Merge Google Form fields if pre-registered (kick-off RSVP set on next screen)
           ...(preReg && {
             formRole: preReg.formRole,
             yearsOfExperience: preReg.yearsOfExperience,
             priorAIKnowledge: preReg.priorAIKnowledge,
             areasOfInterest: preReg.areasOfInterest,
             whyJoin: preReg.whyJoin,
-            joiningInPerson: preReg.joiningInPerson,
-            city: preReg.city || "",
-            country: preReg.country || "",
-            location: preReg.location || "",
+            city: preRegLocation.city,
+            country: preRegLocation.country,
+            location: preRegLocation.location,
             formSubmittedAt: preReg.formSubmittedAt,
             preRegistered: true,
           }),
@@ -262,6 +297,9 @@ export default function RegisterPage() {
         } else {
           toast.success("Welcome to AI DevCamp! 🚀");
         }
+        sessionStorage.setItem(SESSION_SKIP_REGISTER_REDIRECT, "1");
+        router.push("/register/kickoff");
+        return;
       } else {
         toast.success("Welcome back!");
       }
@@ -322,14 +360,15 @@ export default function RegisterPage() {
         canOffer: form.canOffer,
         keepUpdated: form.keepUpdated,
         registeredSessions: [],
-        // Merge Google Form fields if pre-registered
+        kickoffInPersonRsvp: form.kickoffInPersonRsvp!,
+        joiningInPerson: joiningInPersonLabel(form.kickoffInPersonRsvp!),
+        // Merge Google Form fields if pre-registered (RSVP above overrides CSV in-person)
         ...(preReg && {
           formRole: preReg.formRole,
           yearsOfExperience: preReg.yearsOfExperience,
           priorAIKnowledge: preReg.priorAIKnowledge,
           areasOfInterest: preReg.areasOfInterest,
           whyJoin: preReg.whyJoin,
-          joiningInPerson: preReg.joiningInPerson,
           formSubmittedAt: preReg.formSubmittedAt,
           preRegistered: true,
         }),
@@ -632,6 +671,53 @@ export default function RegisterPage() {
               <p className="text-gray-400 mb-8">This is what others will see on your profile.</p>
 
               <div className="space-y-5">
+                {/* Kick-off RSVP — first (23 Apr in-person vs online) */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1.5">
+                    23 April kick-off — how will you join? <span className="text-red-400">*</span>
+                  </label>
+                  <p className="text-xs text-gray-500 mb-3">
+                    We need a headcount for the London venue. <span className="text-amber-400/90">Swag may be available for in-person attendees</span> (while stocks last).
+                  </p>
+                  <div className="space-y-2">
+                    <button
+                      type="button"
+                      onClick={() => set("kickoffInPersonRsvp", true)}
+                      className={`w-full text-left flex gap-3 p-4 rounded-xl border-2 transition-all ${
+                        form.kickoffInPersonRsvp === true
+                          ? "border-green-500 bg-green-500/10"
+                          : "border-white/10 bg-white/[0.02] hover:border-white/20"
+                      }`}
+                    >
+                      <MapPin size={22} className="text-green-400 shrink-0 mt-0.5" />
+                      <div>
+                        <div className="text-sm font-semibold text-white">In person — London (RSVP)</div>
+                        <div className="text-xs text-gray-400 mt-1">
+                          I plan to attend the kick-off at Skyscanner HQ · W1D 4AL · 6:00 PM
+                        </div>
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => set("kickoffInPersonRsvp", false)}
+                      className={`w-full text-left flex gap-3 p-4 rounded-xl border-2 transition-all ${
+                        form.kickoffInPersonRsvp === false
+                          ? "border-green-500 bg-green-500/10"
+                          : "border-white/10 bg-white/[0.02] hover:border-white/20"
+                      }`}
+                    >
+                      <MonitorPlay size={22} className="text-blue-400 shrink-0 mt-0.5" />
+                      <div>
+                        <div className="text-sm font-semibold text-white">Online only</div>
+                        <div className="text-xs text-gray-400 mt-1">
+                          I’ll follow along remotely (no in-person RSVP for this date)
+                        </div>
+                      </div>
+                    </button>
+                  </div>
+                  {errors.kickoff && <p className="text-xs text-red-400 mt-2">{errors.kickoff}</p>}
+                </div>
+
                 {/* Photo */}
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">

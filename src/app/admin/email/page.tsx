@@ -1,9 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import { fetchPreRegisteredUsers } from "@/lib/adminService";
 import { PreRegisteredUser } from "@/types";
 import { auth } from "@/lib/firebase";
 import {
@@ -52,11 +51,18 @@ const TEMPLATES = {
     <div style="background: #111827; border: 1px solid #1f2937; border-radius: 12px; padding: 24px; margin: 24px 0;">
       <div style="font-family: monospace; font-size: 11px; color: #4ade80; letter-spacing: 3px; margin-bottom: 16px;">PROGRAMME DETAILS</div>
       <table style="width: 100%; border-collapse: collapse;">
-        <tr><td style="padding: 6px 0; color: #6b7280; font-size: 13px; width: 100px;">Kick Off</td><td style="padding: 6px 0; color: #e5e7eb; font-size: 13px; font-weight: 600;">23 April 2026 · 6:00 PM</td></tr>
-        <tr><td style="padding: 6px 0; color: #6b7280; font-size: 13px;">Venue</td><td style="padding: 6px 0; color: #e5e7eb; font-size: 13px; font-weight: 600;">Skyscanner HQ · London · W1D 4AL</td></tr>
-        <tr><td style="padding: 6px 0; color: #6b7280; font-size: 13px;">Sessions</td><td style="padding: 6px 0; color: #e5e7eb; font-size: 13px; font-weight: 600;">6 sessions · 23 Apr – 19 May 2026</td></tr>
+        <tr><td style="padding: 6px 0; color: #6b7280; font-size: 13px; width: 110px; vertical-align: top;">Format</td><td style="padding: 6px 0; color: #e5e7eb; font-size: 13px; font-weight: 600;">Online <strong style="color: #9ca3af; font-weight: 600;">+</strong> optional in-person sessions</td></tr>
+        <tr><td style="padding: 6px 0; color: #6b7280; font-size: 13px; vertical-align: top;">Kick-off</td><td style="padding: 6px 0; color: #e5e7eb; font-size: 13px; font-weight: 600;">23 April 2026 · 6:00 PM (UK)</td></tr>
+        <tr><td style="padding: 6px 0; color: #6b7280; font-size: 13px; vertical-align: top;">In-person</td><td style="padding: 6px 0; color: #e5e7eb; font-size: 13px; font-weight: 600;">Skyscanner HQ · London · W1D 4AL — <span style="color: #4ade80;">RSVP required</span></td></tr>
+        <tr><td style="padding: 6px 0; color: #6b7280; font-size: 13px; vertical-align: top;">Sessions</td><td style="padding: 6px 0; color: #e5e7eb; font-size: 13px; font-weight: 600;">6 sessions · 23 Apr – 19 May 2026</td></tr>
         <tr><td style="padding: 6px 0; color: #6b7280; font-size: 13px;">Cost</td><td style="padding: 6px 0; color: #4ade80; font-size: 13px; font-weight: 700;">Free</td></tr>
       </table>
+    </div>
+
+    <div style="background: #14532d22; border: 1px solid #14532d55; border-radius: 12px; padding: 16px 18px; margin: 0 0 20px;">
+      <p style="font-size: 13px; color: #a7f3d0; line-height: 1.65; margin: 0;">
+        <strong style="color: #4ade80;">Planning to join in London?</strong> After you create your account, please <strong>confirm whether you are attending the 23 April kick-off in person</strong> — we need accurate numbers for the venue. <strong style="color: #fef08a;">Limited swag is available for in-person attendees</strong> (while stocks last).
+      </p>
     </div>
 
     <p style="font-size: 13px; color: #6b7280; line-height: 1.7;">
@@ -106,10 +112,16 @@ const TEMPLATES = {
       </a>
     </div>
 
+    <div style="background: #14532d22; border: 1px solid #14532d55; border-radius: 12px; padding: 16px 18px; margin: 0 0 20px;">
+      <p style="font-size: 13px; color: #a7f3d0; line-height: 1.65; margin: 0;">
+        Sessions run <strong style="color: #fff;">online and in-person</strong> where noted. Please <strong>confirm in your account</strong> if you are coming to the <strong>23 April kick-off in person</strong> (London) — we use this for venue numbers. <strong style="color: #fef08a;">Swag for in-person attendees</strong> while stocks last.
+      </p>
+    </div>
+
     <div style="background: #111827; border: 1px solid #1f2937; border-radius: 12px; padding: 20px; margin: 24px 0;">
       <div style="font-family: monospace; font-size: 11px; color: #4ade80; letter-spacing: 3px; margin-bottom: 12px;">WHAT TO EXPECT</div>
       <ul style="margin: 0; padding-left: 18px; color: #9ca3af; font-size: 14px; line-height: 1.9;">
-        <li>6 sessions: 23 Apr → 19 May 2026</li>
+        <li>6 sessions: 23 Apr → 19 May 2026 (online + optional in-person)</li>
         <li>Hands-on codelabs with Google ADK, MCP &amp; Vertex AI</li>
         <li>Assignments + final project showcase</li>
         <li>Certificate for those who complete the programme</li>
@@ -193,28 +205,49 @@ const FILTER_LABELS: Record<RecipientFilter, string> = {
 export default function AdminEmailPage() {
   const { userProfile, loading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [preRegistered, setPreRegistered] = useState<PreRegisteredUser[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const [templateId, setTemplateId] = useState<TemplateId>("invite");
   const [filter, setFilter] = useState<RecipientFilter>("not-linked");
-  const [subject, setSubject] = useState(TEMPLATES.invite.subject);
+  const [subject, setSubject] = useState<string>(TEMPLATES.invite.subject);
   const [htmlBody, setHtmlBody] = useState("");
   const [replyTo, setReplyTo] = useState("");
   const [showPreview, setShowPreview] = useState(false);
   const [showRecipients, setShowRecipients] = useState(false);
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState<{ sent: number; failed: { email: string; error: string }[]; total: number } | null>(null);
+  // When navigated from admin panel with pre-selected users
+  const [customRecipients, setCustomRecipients] = useState<{ email: string; name: string }[] | null>(null);
 
   useEffect(() => {
     if (!loading && userProfile?.role !== "admin") router.push("/");
   }, [loading, userProfile, router]);
 
+  // Load pre-selected recipients from sessionStorage if navigated from selection
+  useEffect(() => {
+    if (searchParams.get("source") === "selection") {
+      try {
+        const stored = sessionStorage.getItem("emailRecipients");
+        if (stored) {
+          setCustomRecipients(JSON.parse(stored));
+          sessionStorage.removeItem("emailRecipients");
+        }
+      } catch { /* ignore */ }
+    }
+  }, [searchParams]);
+
   const loadData = useCallback(async () => {
     setLoadingData(true);
     try {
-      const users = await fetchPreRegisteredUsers();
-      setPreRegistered(users);
+      const token = await auth.currentUser?.getIdToken();
+      const res = await fetch("/api/admin/preregistered", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const json = await res.json();
+      setPreRegistered(json.data ?? []);
     } catch {
       toast.error("Failed to load pre-registered users");
     } finally {
@@ -231,14 +264,17 @@ export default function AdminEmailPage() {
     setHtmlBody(t.html(APP_URL));
   }, [templateId]);
 
-  const recipients = preRegistered.filter((u) => {
-    switch (filter) {
-      case "not-linked": return !u.linkedUid;
-      case "linked":     return !!u.linkedUid;
-      case "in-person":  return u.joiningInPerson?.toLowerCase().startsWith("y");
-      case "all":        return true;
-    }
-  });
+  // If custom recipients are loaded, use them directly; otherwise filter from pre-registered list
+  const recipients: { email: string; name: string }[] = customRecipients
+    ? customRecipients
+    : preRegistered.filter((u) => {
+        switch (filter) {
+          case "not-linked": return !u.linkedUid;
+          case "linked":     return !!u.linkedUid;
+          case "in-person":  return u.joiningInPerson?.toLowerCase().startsWith("y");
+          case "all":        return true;
+        }
+      }).map((u) => ({ email: u.email, name: u.displayName }));
 
   const handleSend = async () => {
     if (!recipients.length) { toast.error("No recipients selected"); return; }
@@ -261,7 +297,7 @@ export default function AdminEmailPage() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          recipients: recipients.map((u) => ({ email: u.email, name: u.displayName })),
+          recipients: recipients.map((u) => ({ email: u.email, name: u.name })),
           subject,
           html: htmlBody,
           replyTo: replyTo || undefined,
@@ -347,7 +383,19 @@ export default function AdminEmailPage() {
               <h2 className="font-bold text-white text-sm flex items-center gap-2">
                 <Filter size={14} className="text-blue-400" /> Recipients
               </h2>
-              {loadingData ? (
+
+              {/* Custom selection banner */}
+              {customRecipients ? (
+                <div className="bg-blue-500/10 border border-blue-500/25 rounded-xl px-4 py-3 space-y-2">
+                  <p className="text-xs text-blue-300 font-mono">
+                    Sending to <span className="font-bold text-white">{customRecipients.length}</span> hand-picked user{customRecipients.length > 1 ? "s" : ""}
+                  </p>
+                  <button onClick={() => setCustomRecipients(null)}
+                    className="text-xs text-gray-400 hover:text-white underline underline-offset-2 transition-colors">
+                    Clear selection — use filter instead
+                  </button>
+                </div>
+              ) : loadingData ? (
                 <div className="flex justify-center py-4">
                   <div className="animate-spin w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full" />
                 </div>
@@ -401,7 +449,7 @@ export default function AdminEmailPage() {
                 <div className="max-h-48 overflow-y-auto space-y-1 mt-1">
                   {recipients.map((u) => (
                     <div key={u.email} className="flex items-center justify-between text-xs font-mono py-1 border-b border-white/5">
-                      <span className="text-gray-400 truncate max-w-[140px]">{u.displayName}</span>
+                      <span className="text-gray-400 truncate max-w-[140px]">{u.name}</span>
                       <span className="text-gray-600 truncate max-w-[140px]">{u.email}</span>
                     </div>
                   ))}

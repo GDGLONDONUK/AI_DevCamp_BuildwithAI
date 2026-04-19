@@ -2,7 +2,7 @@
  * adminService — all admin-only Firestore mutations in one place.
  * UI components call these functions; no raw Firestore calls in admin page.tsx.
  */
-import { collection, doc, getDocs, updateDoc, getDoc, setDoc, orderBy, query, writeBatch } from "firebase/firestore";
+import { collection, doc, getDocs, updateDoc, getDoc, setDoc, orderBy, query, writeBatch, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Assignment, PreRegisteredUser, Project, UserProfile, UserStatus } from "@/types";
 
@@ -19,6 +19,15 @@ export async function setUserStatus(uid: string, status: UserStatus): Promise<vo
 
 export async function setUserRole(uid: string, role: UserProfile["role"]): Promise<void> {
   await updateDoc(doc(db, "users", uid), { role });
+}
+
+/** Admin bulk-edit profile fields (Firestore rules: admin may update user docs). */
+export async function updateUserFields(uid: string, data: Record<string, unknown>): Promise<void> {
+  const payload: Record<string, unknown> = { updatedAt: serverTimestamp() };
+  for (const [k, v] of Object.entries(data)) {
+    if (v !== undefined) payload[k] = v;
+  }
+  await updateDoc(doc(db, "users", uid), payload);
 }
 
 // ── Attendance ────────────────────────────────────────────────────────────────

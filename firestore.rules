@@ -51,6 +51,12 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // ── Tag catalog (dropdowns: Prior AI Knowledge, skills, etc.) ─────────────
+    match /tags/{tagId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     // ── Sessions ──────────────────────────────────────────────────────────────
     // Public read; only admins/mods may write.
     match /sessions/{sessionId} {

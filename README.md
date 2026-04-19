@@ -40,11 +40,12 @@ npm run dev
 Full developer docs are in the [`docs/`](./docs/README.md) folder:
 
 - [Project Overview](./docs/01-project-overview.md)
-- [Project Structure](./docs/02-project-structure.md)
+- [Project Structure](./docs/02-project-structure.md) — includes `src/lib/admin/`, `src/features/admin/`, and `/admin` sub-routes
 - [Database Schema](./docs/03-database-schema.md)
 - [Auth & Security](./docs/04-auth-and-security.md)
-- [Key Concepts](./docs/05-key-concepts.md)
+- [Key Concepts](./docs/05-key-concepts.md) — layers, services, and where admin helpers belong
 - [Getting Started](./docs/06-getting-started.md)
+- [API Routes](./docs/07-api-routes.md)
 
 ## Firebase project
 

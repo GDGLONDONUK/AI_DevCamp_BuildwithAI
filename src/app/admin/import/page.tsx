@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import toast from "react-hot-toast";
+import { parseLocationFields } from "@/lib/locationCleanup";
 
 // ── CSV Parser ────────────────────────────────────────────────────────────────
 
@@ -43,18 +44,11 @@ function parseCSV(text: string): string[][] {
   return rows;
 }
 
-function parseLocation(raw: string): { city: string; country: string } {
-  if (!raw) return { city: "", country: "" };
-  const parts = raw.split(/[,\/]/).map((s) => s.trim()).filter(Boolean);
-  if (parts.length === 1) return { city: parts[0], country: "" };
-  return { city: parts[0], country: parts[parts.length - 1] };
-}
-
 function rowToPreRegistered(row: string[]): PreRegisteredUser | null {
   if (row.length < 8) return null;
   const email = (row[2] || "").toLowerCase().trim();
   if (!email || !email.includes("@")) return null;
-  const { city, country } = parseLocation(row[10] || "");
+  const { location, city, country } = parseLocationFields(row[10] || "");
   return {
     email,
     displayName: (row[1] || "").trim(),
@@ -66,7 +60,7 @@ function rowToPreRegistered(row: string[]): PreRegisteredUser | null {
     whyJoin: (row[7] || "").trim(),
     knowsProgramming: (row[8] || "").toLowerCase().includes("know"),
     joiningInPerson: (row[9] || "").trim(),
-    location: (row[10] || "").trim(),
+    location,
     city,
     country,
     commitment: (row[11] || "").toLowerCase().includes("understand"),

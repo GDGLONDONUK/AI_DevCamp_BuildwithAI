@@ -126,21 +126,29 @@ The project is split into layers. Each layer has one job:
 ```
 ┌─────────────────────────────────┐
 │  Pages  (src/app/)              │  Route = URL. Compose components.
-│  What the user sees.            │  Minimal logic.
+│  What the user sees.            │  Orchestration; keep files shorter by
+│                                 │  pulling in feature components below.
 ├─────────────────────────────────┤
-│  Components  (src/components/)  │  Reusable UI pieces.
+│  Feature UI  (src/features/)  │  Optional: domain-specific components
+│  e.g. features/admin/           │  and types for one area (admin, …).
+│                                 │  Use when a route file grows too large.
+├─────────────────────────────────┤
+│  Components  (src/components/)  │  Reusable UI pieces app-wide.
 │  How things look.               │  Receive props, emit events.
 ├─────────────────────────────────┤
 │  Hooks  (src/hooks/)            │  Data fetching + local state.
 │  When to load data.             │  Return data to components.
 ├─────────────────────────────────┤
-│  Services  (src/lib/)           │  Talk to Firebase.
-│  How to get/save data.          │  Pure async functions.
+│  Services  (src/lib/)           │  Talk to Firebase and external APIs.
+│  How to get/save data.          │  Pure async functions (no JSX).
+│  Subfolders e.g. lib/admin/     │  Domain helpers: CSV, exports, formatting.
 ├─────────────────────────────────┤
 │  Types  (src/types/)            │  TypeScript interfaces.
 │  What the data looks like.      │  Shared by all layers.
 └─────────────────────────────────┘
 ```
+
+**Admin example:** Firestore mutations stay in `adminService.ts`. CSV parsing, attendee export, and shared date formatting for the admin UI live in `src/lib/admin/` so they can be reused from `/admin` and `/admin/import` without duplicating logic. Larger admin-only UI (for example the pre-registered detail drawer) lives under `src/features/admin/components/`.
 
 ---
 

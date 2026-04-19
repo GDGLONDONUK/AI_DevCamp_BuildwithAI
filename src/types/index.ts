@@ -29,6 +29,12 @@ export interface UserProfile {
   expertise?: string[];
   wantToLearn?: string[];
   canOffer?: string[];
+  /** Normalised tags from the `tags` catalog (e.g. prior-ai-knowledge). Optional alongside free-text fields. */
+  priorAIKnowledgeTags?: string[];
+  /** RSVP for the 23 Apr kick-off: in person (London) vs online only. */
+  kickoffInPersonRsvp?: boolean;
+  /** Human-readable; use with kickoffInPersonRsvp (e.g. from kickoffRsvp.joiningInPersonLabel). */
+  joiningInPerson?: string;
   handle?: string;
   keepUpdated?: boolean;
 }
@@ -61,6 +67,21 @@ export interface Session {
 export interface Resource {
   title: string;
   url: string;
+}
+
+/**
+ * One document per category in the `tags` Firestore collection (doc id = `id`).
+ * Used for dropdowns / filters; user documents may store free text (`priorAIKnowledge`)
+ * and/or structured tag arrays (`priorAIKnowledgeTags`) aligned with `userField`.
+ */
+export interface TagCategoryDocument {
+  id: string;
+  label: string;
+  /** Which field on `users` this category relates to (e.g. priorAIKnowledge, skills). */
+  userField: string;
+  values: string[];
+  order: number;
+  updatedAt?: string;
 }
 
 export interface PreRegisteredUser {

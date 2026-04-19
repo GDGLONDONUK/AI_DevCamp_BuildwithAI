@@ -28,6 +28,8 @@ User visits site
 
 ## Recent changes (for returning contributors)
 
+- **`src/lib/admin/`** — Admin domain helpers: CSV parsing and deduplication for pre-registered imports (`csvPreRegistered.ts`), attendee CSV download (`exportAttendeesCsv.ts`), shared datetime formatting (`format.ts`), and pre-reg upload with toast (`uploadPreRegisteredCsv.ts`). Used by the main admin page (and intended for import flows) so logic is not duplicated in huge route files.
+- **`src/features/admin/`** — Feature-scoped admin UI (e.g. `PreRegisteredDetailModal`) and small shared types; add more tab/modal components here as `/admin` is split up.
 - **`src/proxy.ts`** — renamed from `middleware.ts` (Next.js 16 convention). Export is now `proxy()`, not `middleware()`.
 - **`UserProfile` type** — extended with `city`, `country`, `handle`, `roleTitle`, `websiteUrl`, `skills`, `expertise`, `wantToLearn`, `canOffer`, `keepUpdated` fields.
 - **Session content gating** — session recordings, resources, and build ideas are only visible to users with `userStatus: "participated"` or `"certified"`.
