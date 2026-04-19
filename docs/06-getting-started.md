@@ -75,7 +75,9 @@ In [Vercel](https://vercel.com) → your project → **Settings** → **Environm
 - `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`
 - `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`
 - `NEXT_PUBLIC_FIREBASE_APP_ID`
-- `NEXT_PUBLIC_SITE_URL` — set to your live URL, e.g. `https://ai-dev-camp-buildwith-ai.vercel.app` (no trailing slash). Used by `src/proxy.ts` for CORS.
+- `NEXT_PUBLIC_SITE_URL` — set to your live URL, e.g. `https://ai-dev-camp-buildwith-ai.vercel.app` (**no trailing slash**). Used by `src/proxy.ts` for CORS so `fetch("/api/...")` calls (including **Send email**) are allowed from your domain.
+
+On Vercel, the platform also sets **`VERCEL_URL`** (hostname only). The proxy adds `https://${VERCEL_URL}` automatically so preview and production deployments work even if `NEXT_PUBLIC_SITE_URL` was missing once — but you should still set `NEXT_PUBLIC_SITE_URL` to your canonical URL.
 
 Redeploy after changing variables.
 
@@ -208,6 +210,7 @@ When Firestore asks you to create an index:
 | App shows spinner forever | Check `.env.local` — Firebase config is probably wrong |
 | "Firebase: Error (auth/...)" | Check the Firebase Console → Authentication → Sign-in methods are enabled |
 | Google sign-in works locally but not on Vercel | Add your Vercel hostname under **Authentication → Settings → Authorized domains**. Set `NEXT_PUBLIC_*` and `NEXT_PUBLIC_SITE_URL` on Vercel and redeploy. |
+| `Origin not allowed` when calling APIs (e.g. send email) | `src/proxy.ts` CORS list must include your site origin exactly (`https://…`, no trailing slash). Set `NEXT_PUBLIC_SITE_URL` on Vercel; redeploy. Vercel’s `VERCEL_URL` is also allowed automatically. |
 | Changes not showing after save | Hard-refresh the browser (`Ctrl+Shift+R`) |
 | `npm run build` fails | Run `npm run lint` first to find TypeScript/ESLint errors |
 | `"middleware" file convention is deprecated` warning | Rename `middleware.ts` → `proxy.ts` and the export `middleware` → `proxy` (Next.js 16) |

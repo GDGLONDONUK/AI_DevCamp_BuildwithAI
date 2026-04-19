@@ -16,15 +16,31 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 // ── Trusted origins ─────────────────────────────────────────────────────────
-// Add your production domain via NEXT_PUBLIC_SITE_URL in .env.local / Vercel env vars.
-// All origins listed here are allowed to make cross-origin requests to this app.
+// Browsers send `Origin` on fetch/XHR (e.g. POST /api/email/send). It must match
+// one entry exactly (scheme + host + port, no trailing slash).
+// - NEXT_PUBLIC_SITE_URL: set in Vercel to your canonical URL, no trailing slash
+// - VERCEL_URL: set automatically on Vercel (hostname only) — we prefix https://
+function normalizeSiteUrl(url: string | undefined): string | undefined {
+  if (!url?.trim()) return undefined;
+  return url.trim().replace(/\/+$/, "");
+}
+
 const ALLOWED_ORIGINS: string[] = [
-  process.env.NEXT_PUBLIC_SITE_URL,                       // e.g. https://yourapp.com
-  "https://buildwithai-gdglondon.web.app",                // Firebase Hosting primary
-  "https://buildwithai-gdglondon.firebaseapp.com",        // Firebase Hosting secondary
-  "http://localhost:3000",                                 // Local dev
-  "http://localhost:3001",                                 // Local dev (alt port)
+  normalizeSiteUrl(process.env.NEXT_PUBLIC_SITE_URL),
+  process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined,
+  "https://buildwithai-gdglondon.web.app",
+  "https://buildwithai-gdglondon.firebaseapp.com",
+  "http://localhost:3000",
+  "http://localhost:3001",
 ].filter(Boolean) as string[];
+
+const ALLOWED_ORIGINS_SET = new Set(ALLOWED_ORIGINS);
+
+function isAllowedOrigin(origin: string | null): boolean {
+  if (!origin) return false;
+  if (ALLOWED_ORIGINS_SET.has(origin)) return true;
+  return false;
+}
 
 // ── Route protection ─────────────────────────────────────────────────────────
 const PROTECTED_ROUTES = ["/dashboard", "/submit", "/profile"];
@@ -63,7 +79,7 @@ export function proxy(request: NextRequest) {
   // Regular browser page navigations don't include an Origin header — they
   // pass through freely. Only cross-origin fetch/XHR requests have one.
   if (origin) {
-    const isAllowed = ALLOWED_ORIGINS.includes(origin);
+    const isAllowed = isAllowedOrigin(origin);
 
     // Respond to CORS preflight (OPTIONS) requests
     if (request.method === "OPTIONS") {
@@ -101,7 +117,7 @@ export function proxy(request: NextRequest) {
 
   // ── 3. Pass through with security headers + CORS allow header ────────────
   const response = NextResponse.next();
-  if (origin && ALLOWED_ORIGINS.includes(origin)) {
+  if (origin && isAllowedOrigin(origin)) {
     response.headers.set("Access-Control-Allow-Origin", origin);
   }
   return applySecurityHeaders(response);

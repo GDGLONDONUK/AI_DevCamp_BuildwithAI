@@ -81,11 +81,11 @@ Page navigations from a user's browser tab do **not** send an `Origin` header, s
 **Allowed origins** are configured in `src/proxy.ts` and via the environment variable:
 
 ```bash
-# .env.local — also set this in Vercel environment variables
+# .env.local — also set this in Vercel environment variables (no trailing slash)
 NEXT_PUBLIC_SITE_URL=https://yourapp.com
 ```
 
-The hardcoded list also includes the Firebase Hosting domains and `localhost:3000` for local development.
+On Vercel, `https://${VERCEL_URL}` is added automatically (hostname-only env var). The value must match the browser `Origin` header exactly — a trailing slash on `NEXT_PUBLIC_SITE_URL` breaks the match. The hardcoded list also includes the Firebase Hosting domains and `localhost:3000` for local development.
 
 #### 1b — Route protection
 
