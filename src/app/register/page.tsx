@@ -60,6 +60,7 @@ import { parseLocationFields } from "@/lib/locationCleanup";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useAuth } from "@/contexts/AuthContext";
 import toast from "react-hot-toast";
+import { firebaseAuthErrorMessage } from "@/lib/firebaseAuthErrors";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -304,8 +305,9 @@ export default function RegisterPage() {
         toast.success("Welcome back!");
       }
       router.push("/dashboard");
-    } catch {
-      toast.error("Google sign-in failed");
+    } catch (err) {
+      console.error(err);
+      toast.error(firebaseAuthErrorMessage(err));
     } finally {
       setSubmitting(false);
     }

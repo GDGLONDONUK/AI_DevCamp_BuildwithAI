@@ -30,6 +30,10 @@ User clicks "Sign In"
        userProfile state populated → UI updates
 ```
 
+### Google sign-in on production (e.g. Vercel)
+
+`signInWithPopup` only works on **authorized domains** listed in Firebase Console → **Authentication** → **Settings** → **Authorized domains**. Add each deployment host (such as `your-project.vercel.app`) without `https://`. If you skip this, users see `auth/unauthorized-domain` and Google sign-in fails. Also set all `NEXT_PUBLIC_FIREBASE_*` and `NEXT_PUBLIC_SITE_URL` on the host (e.g. Vercel env vars). See [06-getting-started.md](./06-getting-started.md) (Deploying to Vercel).
+
 ### Registration flow
 
 ```

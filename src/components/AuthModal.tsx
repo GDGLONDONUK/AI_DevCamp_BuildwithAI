@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { X, Mail, Lock } from "lucide-react";
 import { loginWithEmail, loginWithGoogle } from "@/lib/auth";
+import { firebaseAuthErrorMessage } from "@/lib/firebaseAuthErrors";
 import Button from "./ui/Button";
 import Input from "./ui/Input";
 import Image from "next/image";
@@ -56,8 +57,9 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
       await loginWithGoogle();
       toast.success("Signed in with Google!");
       onClose();
-    } catch {
-      toast.error("Google sign-in failed. Please try again.");
+    } catch (err) {
+      console.error(err);
+      toast.error(firebaseAuthErrorMessage(err));
     } finally {
       setGoogleLoading(false);
     }

@@ -61,7 +61,43 @@ The dev server has hot-reload — saving a file updates the browser instantly.
 
 ---
 
-## 5. Make yourself an admin
+## 5. Deploying to Vercel (production checklist)
+
+If **Google sign-in** or auth works locally but fails on `*.vercel.app` or a custom domain, check all of the following.
+
+### Environment variables on Vercel
+
+In [Vercel](https://vercel.com) → your project → **Settings** → **Environment Variables**, set the same `NEXT_PUBLIC_*` values as in `.env.local` (Production + Preview as needed):
+
+- `NEXT_PUBLIC_FIREBASE_API_KEY`
+- `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` (usually `your-project-id.firebaseapp.com`)
+- `NEXT_PUBLIC_FIREBASE_PROJECT_ID`
+- `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`
+- `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`
+- `NEXT_PUBLIC_FIREBASE_APP_ID`
+- `NEXT_PUBLIC_SITE_URL` — set to your live URL, e.g. `https://ai-dev-camp-buildwith-ai.vercel.app` (no trailing slash). Used by `src/proxy.ts` for CORS.
+
+Redeploy after changing variables.
+
+### Firebase: authorized domains (required for Google sign-in)
+
+Firebase only allows OAuth on hosts you explicitly list.
+
+1. Open [Firebase Console](https://console.firebase.google.com) → your project → **Authentication** → **Settings** → **Authorized domains**.
+2. Click **Add domain** and add:
+   - Your Vercel hostname, e.g. `ai-dev-camp-buildwith-ai.vercel.app` (no `https://`).
+   - Your custom domain later, if you add one in Vercel.
+3. `localhost` and your `firebaseapp.com` / `web.app` hosts are usually already listed.
+
+If this step is skipped, sign-in often fails with `auth/unauthorized-domain` (the app can show a toast explaining this after a deploy).
+
+### Google Cloud OAuth (if you use a custom OAuth client)
+
+If you configured a **Web client ID** in Google Cloud Console, add **Authorized JavaScript origins** and **Authorized redirect URIs** for your production URLs. For most Firebase-only setups, Firebase manages this when Google is enabled under Authentication → Sign-in method.
+
+---
+
+## 6. Make yourself an admin
 
 1. Register an account on the app (you'll be `role: attendee, userStatus: pending`)
 2. Go to [Firebase Console](https://console.firebase.google.com) → Firestore Database → `users` collection
@@ -71,7 +107,7 @@ The dev server has hot-reload — saving a file updates the browser instantly.
 
 ---
 
-## 6. Seed the session data
+## 7. Seed the session data
 
 Once you're an admin:
 
@@ -84,7 +120,7 @@ To update sessions with new content after changing `src/data/sessions.ts`:
 
 ---
 
-## 7. Firebase CLI commands
+## 8. Firebase CLI commands
 
 ```bash
 # Login to Firebase
@@ -105,7 +141,7 @@ firebase deploy
 
 ---
 
-## 8. Project scripts
+## 9. Project scripts
 
 ```bash
 npm run dev      # Start development server (localhost:3000)
@@ -116,7 +152,7 @@ npm run lint     # Run ESLint
 
 ---
 
-## 9. Common tasks for a junior developer
+## 10. Common tasks for a junior developer
 
 ### Add a new field to user profiles
 
@@ -163,7 +199,7 @@ When Firestore asks you to create an index:
 
 ---
 
-## 10. Troubleshooting
+## 11. Troubleshooting
 
 | Problem | Fix |
 |---------|-----|
@@ -171,6 +207,7 @@ When Firestore asks you to create an index:
 | "The query requires an index" | Create the index via the link in the error |
 | App shows spinner forever | Check `.env.local` — Firebase config is probably wrong |
 | "Firebase: Error (auth/...)" | Check the Firebase Console → Authentication → Sign-in methods are enabled |
+| Google sign-in works locally but not on Vercel | Add your Vercel hostname under **Authentication → Settings → Authorized domains**. Set `NEXT_PUBLIC_*` and `NEXT_PUBLIC_SITE_URL` on Vercel and redeploy. |
 | Changes not showing after save | Hard-refresh the browser (`Ctrl+Shift+R`) |
 | `npm run build` fails | Run `npm run lint` first to find TypeScript/ESLint errors |
 | `"middleware" file convention is deprecated` warning | Rename `middleware.ts` → `proxy.ts` and the export `middleware` → `proxy` (Next.js 16) |
