@@ -828,7 +828,7 @@ export default function AdminPage() {
                                     </button>
                                   </div>
                                 ) : (
-                                  <span className={`text-xs font-mono px-2 py-0.5 rounded-full border ${sc.bg} ${sc.color} ${sc.border}`}>
+                                  <span className={`text-xs font-mono px-2 py-0.5 rounded-full border border-current/30 ${sc.bg} ${sc.text}`}>
                                     {sc.label}
                                   </span>
                                 )}

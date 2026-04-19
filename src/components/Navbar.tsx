@@ -33,7 +33,6 @@ export default function Navbar() {
 
   const navLinks = [
     { href: "/sessions", label: "Sessions", icon: BookOpen },
-    { href: "/curriculum", label: "Curriculum", icon: BookOpen },
     ...(user ? [{ href: "/dashboard", label: "Dashboard", icon: LayoutDashboard }] : []),
     ...(user ? [{ href: "/submit", label: "Submit", icon: Upload }] : []),
     ...(userProfile?.role === "admin"

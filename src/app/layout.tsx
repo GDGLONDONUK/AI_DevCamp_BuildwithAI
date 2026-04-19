@@ -14,7 +14,7 @@ const poppins = Poppins({
 export const metadata: Metadata = {
   title: "AI DevCamp – Build with AI | GDG London",
   description:
-    "A 3-week hands-on AI learning program by GDG London & Build with AI. Learn Python for AI, Machine Learning fundamentals, and build your first AI models.",
+    "A hands-on AI learning program by GDG London & Build with AI. Build multi-agent AI apps with TypeScript, Google ADK, Vertex AI, and the Model Context Protocol.",
   openGraph: {
     title: "AI DevCamp – Build with AI",
     description: "3-week hands-on AI learning program by GDG London",

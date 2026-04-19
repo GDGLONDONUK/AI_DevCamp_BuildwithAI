@@ -11,10 +11,10 @@ export const EXPERTISE_TAGS = [
 ];
 
 export const WANT_TO_LEARN_TAGS = [
-  "Python for AI", "ML Fundamentals", "Neural Networks",
-  "Data Visualisation", "Math for ML", "TensorFlow / Keras",
-  "Scikit-learn", "Jupyter / Colab", "Cloud AI Services",
-  "LLMs", "Mentorship", "Career Advice",
+  "AI Agents", "LLMs / GenAI", "Model Context Protocol (MCP)",
+  "Google ADK", "Vertex AI", "Multi-Agent Systems",
+  "TypeScript for AI", "Cloud Deployment", "Cloud AI Services",
+  "Prompt Engineering", "Mentorship", "Career Advice",
 ];
 
 export const CAN_OFFER_TAGS = [

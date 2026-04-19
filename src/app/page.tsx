@@ -51,12 +51,12 @@ export default function HomePage() {
         {/* Floating code — visible & styled */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none select-none">
           {[
-            { text: "import tensorflow as tf", top: "12%", left: "3%" },
-            { text: "model.fit(X_train, y_train)", top: "22%", right: "4%" },
-            { text: "accuracy: 0.987", top: "68%", left: "2%" },
-            { text: ">>> train_model(epochs=10)", top: "75%", right: "3%" },
-            { text: "loss: 0.042", top: "42%", left: "1%" },
-            { text: "predictions = model.predict(X)", top: "55%", right: "2%" },
+            { text: "const agent = new Agent({ model: 'gemini' })", top: "12%", left: "3%" },
+            { text: "await agent.run('research and summarise')", top: "22%", right: "4%" },
+            { text: "status: tool_call → search(query)", top: "68%", left: "2%" },
+            { text: ">>> mcp.connect('filesystem')", top: "75%", right: "3%" },
+            { text: "thought: I should check the docs first", top: "42%", left: "1%" },
+            { text: "vertex.deploy({ agent, region: 'eu' })", top: "55%", right: "2%" },
           ].map((s, i) => (
             <div
               key={i}
@@ -122,7 +122,7 @@ export default function HomePage() {
               </p>
               <p className="text-gray-300 pl-4">
                 <span className="text-green-400">→</span>{" "}
-                Python · ML · Neural Networks · Real Projects
+                AI Agents · MCP · Google ADK · Real Projects
               </p>
               <p className="text-gray-400 pl-4">
                 <span className="text-emerald-400">→</span>{" "}
@@ -283,7 +283,7 @@ export default function HomePage() {
               What You&apos;ll Learn
             </h2>
             <p className="text-gray-300 font-mono text-base">
-              Zero AI experience required — Python to Neural Networks in 4 weeks
+              Zero AI experience required — from agent fundamentals to a deployed multi-agent app
             </p>
           </div>
 

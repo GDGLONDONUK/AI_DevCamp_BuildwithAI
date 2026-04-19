@@ -399,7 +399,7 @@ export default function SubmitPage() {
             <Input
               id="proj-tech"
               label="Tech Stack"
-              placeholder="Python, TensorFlow, Keras, NumPy (comma-separated)"
+              placeholder="TypeScript, Google ADK, Vertex AI, LangChain (comma-separated)"
               icon={<Code2 size={16} />}
               value={projectForm.techStack}
               onChange={(e) =>
