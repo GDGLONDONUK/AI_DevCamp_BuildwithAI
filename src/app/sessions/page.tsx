@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSessions } from "@/hooks/useSessions";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import {
   Calendar, Clock, ExternalLink, MapPin,
-  ChevronDown, Lightbulb, BookOpen, Mic, Timer,
+  ChevronDown, Lightbulb, BookOpen, Mic, Timer, CheckCircle2,
 } from "lucide-react";
 import AuthModal from "@/components/AuthModal";
 import { Session } from "@/types";
@@ -18,22 +20,23 @@ function groupByWeek(sessions: Session[]): Record<number, Session[]> {
   }, {} as Record<number, Session[]>);
 }
 
-const WEEK_LABELS: Record<number, string> = {
-  1: "Python for AI",
-  2: "Machine Learning",
-  3: "Neural Networks",
-  4: "Real Projects",
-};
-
 export default function SessionsPage() {
   const { user, userProfile } = useAuth();
   const { sessions, loading } = useSessions();
   const [expanded, setExpanded] = useState<string | null>(null);
   const [authModal, setAuthModal] = useState(false);
+  const [attendance, setAttendance] = useState<Record<string, boolean>>({});
 
   const isApproved =
     user &&
     ["participated", "certified"].includes(userProfile?.userStatus ?? "");
+
+  useEffect(() => {
+    if (!user) return;
+    getDoc(doc(db, "attendance", user.uid)).then((snap) => {
+      if (snap.exists()) setAttendance(snap.data() as Record<string, boolean>);
+    });
+  }, [user]);
 
   const grouped = groupByWeek(sessions);
   const weekNums = Object.keys(grouped).map(Number).sort((a, b) => a - b);
@@ -52,7 +55,7 @@ export default function SessionsPage() {
           </h1>
           <p className="text-gray-300 text-lg font-mono mb-4">
             <span className="text-green-400">{sessions.length || 6}</span> sessions ·{" "}
-            <span className="text-green-400">4</span> weeks · Thu &amp; Sat evenings
+            <span className="text-green-400">4</span> weeks · Thu, Sat &amp; Tue evenings
           </p>
           <div className="flex items-center justify-center gap-2 text-base text-gray-400 font-mono">
             <MapPin size={16} className="text-green-400" />
@@ -87,6 +90,14 @@ export default function SessionsPage() {
           </div>
         )}
 
+        {/* ── Attendance legend ── */}
+        {user && isApproved && (
+          <div className="flex items-center gap-3 bg-green-500/8 border border-green-500/20 rounded-xl px-4 py-3 mb-10 font-mono text-sm text-gray-400">
+            <CheckCircle2 size={15} className="text-green-400 flex-shrink-0" />
+            <span>Sessions you attended are marked in green. Attendance is recorded by the organising team.</span>
+          </div>
+        )}
+
         {/* ── Timeline ── */}
         {loading ? (
           <div className="flex justify-center py-24">
@@ -101,29 +112,20 @@ export default function SessionsPage() {
           <div className="space-y-14">
             {weekNums.map((week) => {
               const weekSessions = grouped[week];
-              const weekLabel = WEEK_LABELS[week];
               return (
                 <div key={week}>
 
                   {/* ── Week pill header ── */}
                   <div className="flex items-center gap-4 mb-8">
                     <div className="flex-1 h-px bg-white/8" />
-                    <div className="flex flex-col items-center">
-                      <div className="px-6 py-2.5 rounded-full bg-green-500/15 border border-green-500/30 font-mono text-sm font-bold tracking-widest text-green-300 whitespace-nowrap">
-                        WEEK {week}
-                      </div>
-                      {weekLabel && (
-                        <p className="font-mono text-xs text-gray-500 mt-1.5 tracking-wider">
-                          // {weekLabel}
-                        </p>
-                      )}
+                    <div className="px-6 py-2.5 rounded-full bg-green-500/15 border border-green-500/30 font-mono text-sm font-bold tracking-widest text-green-300 whitespace-nowrap">
+                      WEEK {week}
                     </div>
                     <div className="flex-1 h-px bg-white/8" />
                   </div>
 
                   {/* ── Sessions with vertical timeline ── */}
                   <div className="relative">
-                    {/* Vertical connector line */}
                     {weekSessions.length > 1 && (
                       <div
                         className="absolute left-7 top-7 w-px bg-gradient-to-b from-green-500/30 via-green-500/15 to-transparent"
@@ -135,6 +137,7 @@ export default function SessionsPage() {
                       {weekSessions.map((session) => {
                         const isOpen = expanded === session.id;
                         const isSpecial = session.isKickoff || session.isClosing;
+                        const attended = attendance[session.id] === true;
 
                         return (
                           <div key={session.id} className="flex gap-5">
@@ -142,8 +145,10 @@ export default function SessionsPage() {
                             {/* ── Timeline dot ── */}
                             <div className="relative flex-shrink-0 z-10">
                               <div className={`w-14 h-14 rounded-full flex flex-col items-center justify-center font-mono font-bold border-2 transition-all duration-200 ${
-                                isSpecial
+                                attended
                                   ? "bg-green-500 border-green-400 text-gray-950 shadow-lg shadow-green-500/40"
+                                  : isSpecial
+                                  ? "bg-green-500/20 border-green-400/60 text-green-300"
                                   : isOpen
                                   ? "bg-green-500/20 border-green-400 text-green-300 shadow-md shadow-green-500/20"
                                   : "bg-gray-900 border-green-500/30 text-gray-400"
@@ -155,7 +160,9 @@ export default function SessionsPage() {
 
                             {/* ── Session card ── */}
                             <div className={`flex-1 min-w-0 rounded-2xl border transition-all duration-200 ${
-                              isOpen
+                              attended
+                                ? "border-green-500/40 bg-green-500/[0.05]"
+                                : isOpen
                                 ? "border-green-500/40 bg-green-500/[0.04]"
                                 : isSpecial
                                 ? "border-green-500/30 bg-green-500/[0.05]"
@@ -173,6 +180,11 @@ export default function SessionsPage() {
                                     {/* Title row */}
                                     <div className="flex flex-wrap items-center gap-2 mb-2">
                                       <h3 className="text-xl font-bold text-white">{session.title}</h3>
+                                      {attended && (
+                                        <span className="text-xs bg-green-500/20 text-green-400 border border-green-500/30 px-2.5 py-0.5 rounded-full font-mono font-bold flex items-center gap-1">
+                                          <CheckCircle2 size={11} /> Attended
+                                        </span>
+                                      )}
                                       {session.isKickoff && (
                                         <span className="text-xs bg-green-500/20 text-green-400 border border-green-500/30 px-2.5 py-0.5 rounded-full font-mono font-bold">
                                           🚀 KICKOFF
@@ -180,7 +192,7 @@ export default function SessionsPage() {
                                       )}
                                       {session.isClosing && (
                                         <span className="text-xs bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 px-2.5 py-0.5 rounded-full font-mono font-bold">
-                                          🏆 DEMO DAY
+                                          🏆 CLOSING
                                         </span>
                                       )}
                                     </div>
@@ -270,7 +282,7 @@ export default function SessionsPage() {
                                     </div>
                                   )}
 
-                                  {/* What you'll learn + Build ideas */}
+                                  {/* What you'll learn + Build ideas — approved only */}
                                   {(session.whatYouWillLearn?.length || session.buildIdeas?.length) && (
                                     isApproved ? (
                                       <div className="grid sm:grid-cols-2 gap-5">
@@ -315,7 +327,35 @@ export default function SessionsPage() {
                                     )
                                   )}
 
-                                  {/* Video + Resources folder */}
+                                  {/* Resources — approved only */}
+                                  {session.resources && session.resources.length > 0 && (
+                                    <div>
+                                      <div className="text-sm font-bold text-gray-400 mb-3 uppercase tracking-wider">
+                                        Resources
+                                      </div>
+                                      {isApproved ? (
+                                        <div className="flex flex-wrap gap-2">
+                                          {session.resources.map((r) => (
+                                            <a
+                                              key={r.url}
+                                              href={r.url}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="inline-flex items-center gap-1.5 text-sm text-orange-400 bg-orange-500/10 border border-orange-500/20 hover:bg-orange-500/20 px-3 py-1.5 rounded-lg transition-colors"
+                                            >
+                                              <ExternalLink size={12} /> {r.title}
+                                            </a>
+                                          ))}
+                                        </div>
+                                      ) : (
+                                        <p className="text-sm text-gray-600 italic">
+                                          Resources unlocked for approved attendees.
+                                        </p>
+                                      )}
+                                    </div>
+                                  )}
+
+                                  {/* Video + Resources folder — approved only */}
                                   {(session.videoUrl || session.resourcesFolderUrl) && (
                                     <div className="flex flex-wrap gap-3">
                                       {session.videoUrl && (
@@ -349,34 +389,6 @@ export default function SessionsPage() {
                                             🔒 Resources for approved attendees
                                           </span>
                                         )
-                                      )}
-                                    </div>
-                                  )}
-
-                                  {/* Reference resources */}
-                                  {session.resources && session.resources.length > 0 && (
-                                    <div>
-                                      <div className="text-sm font-bold text-gray-400 mb-3 uppercase tracking-wider">
-                                        Reference Links
-                                      </div>
-                                      {isApproved ? (
-                                        <div className="flex flex-wrap gap-2">
-                                          {session.resources.map((r) => (
-                                            <a
-                                              key={r.url}
-                                              href={r.url}
-                                              target="_blank"
-                                              rel="noopener noreferrer"
-                                              className="inline-flex items-center gap-1.5 text-sm text-orange-400 bg-orange-500/10 border border-orange-500/20 hover:bg-orange-500/20 px-3 py-1.5 rounded-lg transition-colors"
-                                            >
-                                              <ExternalLink size={12} /> {r.title}
-                                            </a>
-                                          ))}
-                                        </div>
-                                      ) : (
-                                        <p className="text-sm text-gray-600 italic">
-                                          Resources unlocked for approved attendees.
-                                        </p>
                                       )}
                                     </div>
                                   )}

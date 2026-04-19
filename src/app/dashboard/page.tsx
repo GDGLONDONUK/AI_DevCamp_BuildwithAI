@@ -10,6 +10,8 @@ import {
   where,
   getDocs,
   orderBy,
+  doc,
+  getDoc,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Assignment, Project } from "@/types";
@@ -24,6 +26,7 @@ import {
   Code2,
   ArrowRight,
   User,
+  XCircle,
 } from "lucide-react";
 import ProfileCompletion from "@/components/ui/ProfileCompletion";
 
@@ -32,6 +35,7 @@ export default function DashboardPage() {
   const router = useRouter();
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [attendance, setAttendance] = useState<Record<string, boolean>>({});
   const [dataLoading, setDataLoading] = useState(true);
 
   useEffect(() => {
@@ -44,26 +48,22 @@ export default function DashboardPage() {
     if (!user) return;
     const fetchData = async () => {
       try {
-        const asnQuery = query(
-          collection(db, "assignments"),
-          where("userId", "==", user.uid),
-          orderBy("submittedAt", "desc")
-        );
-        const projQuery = query(
-          collection(db, "projects"),
-          where("userId", "==", user.uid),
-          orderBy("submittedAt", "desc")
-        );
-        const [asnSnap, projSnap] = await Promise.all([
-          getDocs(asnQuery),
-          getDocs(projQuery),
+        const [asnSnap, projSnap, attSnap] = await Promise.all([
+          getDocs(query(
+            collection(db, "assignments"),
+            where("userId", "==", user.uid),
+            orderBy("submittedAt", "desc")
+          )),
+          getDocs(query(
+            collection(db, "projects"),
+            where("userId", "==", user.uid),
+            orderBy("submittedAt", "desc")
+          )),
+          getDoc(doc(db, "attendance", user.uid)),
         ]);
-        setAssignments(
-          asnSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Assignment))
-        );
-        setProjects(
-          projSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Project))
-        );
+        setAssignments(asnSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Assignment)));
+        setProjects(projSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Project)));
+        if (attSnap.exists()) setAttendance(attSnap.data() as Record<string, boolean>);
       } catch (err) {
         console.error(err);
       } finally {
@@ -81,16 +81,14 @@ export default function DashboardPage() {
     );
   }
 
-  const registeredSessions = SESSIONS.filter((s) =>
-    (userProfile?.registeredSessions || []).includes(s.id)
-  );
-
+  const attendedSessions = SESSIONS.filter((s) => attendance[s.id] === true);
   const completedWeeks = [...new Set(assignments.map((a) => a.weekNumber))];
-  const progress = Math.round((completedWeeks.length / 4) * 100);
+  const progress = Math.round((attendedSessions.length / SESSIONS.length) * 100);
 
   return (
     <div className="min-h-screen bg-gray-950 py-10 px-4">
       <div className="max-w-5xl mx-auto space-y-8">
+
         {/* Welcome */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 bg-gradient-to-r from-green-500/10 to-emerald-500/5 border border-green-500/20 rounded-2xl p-6">
           <div className="flex-shrink-0">
@@ -127,28 +125,28 @@ export default function DashboardPage() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {[
             {
-              label: "Sessions Registered",
-              value: registeredSessions.length,
-              total: 6,
+              label: "Sessions Attended",
+              value: attendedSessions.length,
+              total: SESSIONS.length,
               icon: Calendar,
               color: "text-blue-400",
             },
             {
               label: "Assignments Submitted",
               value: assignments.length,
-              total: 4,
+              total: 3,
               icon: BookOpen,
               color: "text-purple-400",
             },
             {
               label: "Projects Submitted",
               value: projects.length,
-              total: 2,
+              total: 1,
               icon: Code2,
               color: "text-green-400",
             },
             {
-              label: "Overall Progress",
+              label: "Attendance Rate",
               value: `${progress}%`,
               icon: CheckCircle2,
               color: "text-orange-400",
@@ -169,52 +167,60 @@ export default function DashboardPage() {
         <ProfileCompletion profile={userProfile} variant="compact" />
 
         <div className="grid lg:grid-cols-2 gap-6">
-          {/* Registered Sessions */}
+
+          {/* My Attendance */}
           <div className="bg-gray-900 border border-white/10 rounded-2xl p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-bold text-white flex items-center gap-2">
                 <Calendar size={18} className="text-green-400" />
-                My Sessions
+                My Attendance
               </h2>
               <Link
                 href="/sessions"
                 className="text-xs text-green-400 hover:text-green-300 flex items-center gap-1"
               >
-                View all <ArrowRight size={12} />
+                View sessions <ArrowRight size={12} />
               </Link>
             </div>
-            {registeredSessions.length === 0 ? (
-              <div className="text-center py-8">
-                <Calendar size={36} className="text-gray-600 mx-auto mb-3" />
-                <p className="text-gray-400 text-sm mb-3">
-                  No sessions registered yet
-                </p>
-                <Link
-                  href="/sessions"
-                  className="text-green-400 hover:text-green-300 text-sm font-medium"
-                >
-                  Browse sessions →
-                </Link>
+
+            {dataLoading ? (
+              <div className="flex justify-center py-8">
+                <div className="animate-spin w-6 h-6 border-2 border-green-500 border-t-transparent rounded-full" />
               </div>
             ) : (
-              <div className="space-y-3">
-                {registeredSessions.map((s) => (
-                  <div
-                    key={s.id}
-                    className="flex items-center gap-3 bg-white/[0.03] border border-white/5 rounded-xl p-3"
-                  >
-                    <div className="w-9 h-9 rounded-lg bg-green-500/20 flex items-center justify-center text-green-400 font-bold text-sm">
-                      {s.number}
+              <div className="space-y-2">
+                {SESSIONS.map((s) => {
+                  const attended = attendance[s.id] === true;
+                  return (
+                    <div
+                      key={s.id}
+                      className={`flex items-center gap-3 rounded-xl p-3 border transition-all ${
+                        attended
+                          ? "bg-green-500/10 border-green-500/20"
+                          : "bg-white/[0.02] border-white/5"
+                      }`}
+                    >
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm flex-shrink-0 ${
+                        attended
+                          ? "bg-green-500/30 text-green-300"
+                          : "bg-white/5 text-gray-500"
+                      }`}>
+                        {s.number}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm font-medium truncate ${attended ? "text-white" : "text-gray-500"}`}>
+                          {s.title}
+                        </p>
+                        <p className="text-xs text-gray-600">{s.date}</p>
+                      </div>
+                      {attended ? (
+                        <CheckCircle2 size={16} className="text-green-400 flex-shrink-0" />
+                      ) : (
+                        <XCircle size={16} className="text-gray-700 flex-shrink-0" />
+                      )}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-white truncate">
-                        {s.title}
-                      </p>
-                      <p className="text-xs text-gray-500">{s.date}</p>
-                    </div>
-                    <CheckCircle2 size={16} className="text-green-400 flex-shrink-0" />
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -240,9 +246,7 @@ export default function DashboardPage() {
             ) : assignments.length === 0 && projects.length === 0 ? (
               <div className="text-center py-8">
                 <Upload size={36} className="text-gray-600 mx-auto mb-3" />
-                <p className="text-gray-400 text-sm mb-3">
-                  No submissions yet
-                </p>
+                <p className="text-gray-400 text-sm mb-3">No submissions yet</p>
                 <Link
                   href="/submit"
                   className="text-purple-400 hover:text-purple-300 text-sm font-medium"
@@ -284,8 +288,8 @@ export default function DashboardPage() {
                             item.status === "approved"
                               ? "bg-green-500/20 text-green-400"
                               : item.status === "reviewed"
-                                ? "bg-blue-500/20 text-blue-400"
-                                : "bg-gray-500/20 text-gray-400"
+                              ? "bg-blue-500/20 text-blue-400"
+                              : "bg-gray-500/20 text-gray-400"
                           }`}
                         >
                           {item.status}
@@ -299,14 +303,14 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Progress */}
+        {/* Week progress */}
         <div className="bg-gray-900 border border-white/10 rounded-2xl p-6">
           <h2 className="font-bold text-white mb-4 flex items-center gap-2">
             <Clock size={18} className="text-orange-400" />
-            Learning Progress
+            Assignment Progress
           </h2>
-          <div className="grid sm:grid-cols-4 gap-3">
-            {[1, 2, 3, 4].map((week) => {
+          <div className="grid sm:grid-cols-3 gap-3">
+            {[1, 2, 3].map((week) => {
               const done = completedWeeks.includes(week);
               return (
                 <div
@@ -324,7 +328,7 @@ export default function DashboardPage() {
                   </div>
                   <div className="text-xs text-gray-400">Week {week}</div>
                   <div className="text-xs text-gray-500 mt-0.5">
-                    {done ? "Complete" : "Pending"}
+                    {done ? "Submitted" : "Pending"}
                   </div>
                 </div>
               );
@@ -337,9 +341,7 @@ export default function DashboardPage() {
           <div className="flex items-start gap-4 bg-blue-500/10 border border-blue-500/20 rounded-2xl p-5">
             <User size={20} className="text-blue-400 mt-0.5 flex-shrink-0" />
             <div className="flex-1">
-              <p className="text-sm text-white font-medium">
-                Complete your profile
-              </p>
+              <p className="text-sm text-white font-medium">Complete your profile</p>
               <p className="text-xs text-gray-400 mt-0.5">
                 Add a bio and social links so mentors can get to know you better.
               </p>
