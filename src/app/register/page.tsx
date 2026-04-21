@@ -46,7 +46,6 @@ import {
 import {
   doc,
   setDoc,
-  getDoc,
   collection,
   query,
   where,
@@ -54,9 +53,12 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { auth, db, storage } from "@/lib/firebase";
-import { getPreRegisteredByEmail, markPreRegisteredLinked } from "@/lib/adminService";
+import {
+  ensureProfileOnServer,
+  fetchMyPreregisteredRow,
+  linkPreregisterRowOnServer,
+} from "@/lib/meApi";
 import { joiningInPersonLabel, SESSION_SKIP_REGISTER_REDIRECT } from "@/lib/kickoffRsvp";
-import { parseLocationFields } from "@/lib/locationCleanup";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useAuth } from "@/contexts/AuthContext";
 import toast from "react-hot-toast";
@@ -152,25 +154,8 @@ export default function RegisterPage() {
     router.push("/dashboard");
   }, [user, loading, router]);
 
-  // When entering step 2, pre-fill kick-off RSVP from pre-registered CSV if they said yes to in-person
-  useEffect(() => {
-    if (step !== 2 || form.kickoffInPersonRsvp !== null) return;
-    const email = form.email.trim();
-    if (!email) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const pre = await getPreRegisteredByEmail(email);
-        if (cancelled || !pre) return;
-        if ((pre.joiningInPerson || "").toLowerCase().trim().startsWith("y")) {
-          setForm((prev) => ({ ...prev, kickoffInPersonRsvp: true }));
-        }
-      } catch { /* ignore */ }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [step, form.email, form.kickoffInPersonRsvp]);
+  // Form RSVP defaults are merged from `users/{email}` (via /api/me/preregistered)
+  // when the account is created, then appear on the profile for kickoff pre-fill.
 
   // Handle uniqueness check
   useEffect(() => {
@@ -249,62 +234,20 @@ export default function RegisterPage() {
     setSubmitting(true);
     try {
       const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
-      const { user: gUser } = result;
-      const userRef = doc(db, "users", gUser.uid);
-      const snap = await getDoc(userRef);
-      if (!snap.exists()) {
-        // Check if this email was pre-registered via the Google Form
-        const preReg = gUser.email
-          ? await getPreRegisteredByEmail(gUser.email)
-          : null;
-
-        const preRegLocation = preReg
-          ? parseLocationFields(
-              preReg.location?.trim() || [preReg.city, preReg.country].filter(Boolean).join(", ")
-            )
-          : { location: "", city: "", country: "" };
-
-        await setDoc(userRef, {
-          uid: gUser.uid,
-          email: gUser.email,
-          displayName: gUser.displayName,
-          handle: gUser.email?.split("@")[0].toLowerCase().replace(/[^a-z0-9_]/g, "") || gUser.uid.slice(0, 8),
-          photoURL: gUser.photoURL,
-          role: "attendee",
-          userStatus: "pending",
-          registeredSessions: [],
-          // Merge Google Form fields if pre-registered (kick-off RSVP set on next screen)
-          ...(preReg && {
-            formRole: preReg.formRole,
-            yearsOfExperience: preReg.yearsOfExperience,
-            priorAIKnowledge: preReg.priorAIKnowledge,
-            areasOfInterest: preReg.areasOfInterest,
-            whyJoin: preReg.whyJoin,
-            city: preRegLocation.city,
-            country: preRegLocation.country,
-            location: preRegLocation.location,
-            formSubmittedAt: preReg.formSubmittedAt,
-            preRegistered: true,
-          }),
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        });
-
-        // Mark as linked in preRegistered collection
-        if (preReg && gUser.email) {
-          await markPreRegisteredLinked(gUser.email, gUser.uid);
-          toast.success("Welcome back! Your registration form has been matched ✓");
-        } else {
-          toast.success("Welcome to AI DevCamp! 🚀");
-        }
-        sessionStorage.setItem(SESSION_SKIP_REGISTER_REDIRECT, "1");
-        router.push("/register/kickoff");
-        return;
-      } else {
+      await signInWithPopup(auth, provider);
+      const ensured = await ensureProfileOnServer();
+      if (!ensured.created && ensured.profileExists) {
         toast.success("Welcome back!");
+        router.push("/dashboard");
+        return;
       }
-      router.push("/dashboard");
+      if (ensured.preRegistrationMatched) {
+        toast.success("Welcome back! Your registration form has been matched ✓");
+      } else {
+        toast.success("Welcome to AI DevCamp! 🚀");
+      }
+      sessionStorage.setItem(SESSION_SKIP_REGISTER_REDIRECT, "1");
+      router.push("/register/kickoff");
     } catch (err) {
       console.error(err);
       toast.error(firebaseAuthErrorMessage(err));
@@ -335,8 +278,7 @@ export default function RegisterPage() {
         photoURL: photoURL || undefined,
       });
 
-      // Check if email was pre-registered via Google Form
-      const preReg = await getPreRegisteredByEmail(form.email);
+      const preReg = await fetchMyPreregisteredRow();
 
       // Save user document
       const userData = {
@@ -347,6 +289,8 @@ export default function RegisterPage() {
         photoURL,
         role: "attendee",
         userStatus: "pending",
+        registrationSource: "password" as const,
+        authProviders: newUser.providerData.map((p) => p.providerId),
         roleTitle: form.roleTitle,
         city: form.city,
         country: form.country,
@@ -365,6 +309,8 @@ export default function RegisterPage() {
         kickoffInPersonRsvp: form.kickoffInPersonRsvp!,
         joiningInPerson: joiningInPersonLabel(form.kickoffInPersonRsvp!),
         // Merge Google Form fields if pre-registered (RSVP above overrides CSV in-person)
+        signedIn: true,
+        registered: true,
         ...(preReg && {
           formRole: preReg.formRole,
           yearsOfExperience: preReg.yearsOfExperience,
@@ -372,6 +318,9 @@ export default function RegisterPage() {
           areasOfInterest: preReg.areasOfInterest,
           whyJoin: preReg.whyJoin,
           formSubmittedAt: preReg.formSubmittedAt,
+          joiningInPerson: preReg.joiningInPerson,
+          knowsProgramming: preReg.knowsProgramming,
+          commitment: preReg.commitment,
           preRegistered: true,
         }),
         createdAt: serverTimestamp(),
@@ -382,9 +331,8 @@ export default function RegisterPage() {
       // Send email verification link
       await sendEmailVerification(newUser);
 
-      // Mark as linked in preRegistered collection
       if (preReg) {
-        await markPreRegisteredLinked(form.email, newUser.uid);
+        await linkPreregisterRowOnServer();
       }
 
       // Save project if not skipped
@@ -519,8 +467,11 @@ export default function RegisterPage() {
               <h1 className="text-4xl sm:text-5xl font-extrabold text-white mb-1 leading-tight">
                 Who are <span className="text-green-400">you?</span>
               </h1>
-              <p className="text-gray-400 mb-8">
+              <p className="text-gray-400 mb-3">
                 Your handle and login details — this is how you&apos;ll show up on AI DevCamp.
+              </p>
+              <p className="text-gray-500 text-sm mb-8">
+                You don&apos;t need to have filled the interest form first. If you use the same email you used before, we&apos;ll match your account automatically.
               </p>
 
               {/* Google button */}
@@ -659,6 +610,10 @@ export default function RegisterPage() {
                 Already have an account?{" "}
                 <Link href="/?login=1" className="text-green-400 hover:text-green-300 font-semibold">
                   Sign in
+                </Link>
+                {" · "}
+                <Link href="/?login=1&reset=1" className="text-gray-500 hover:text-green-300">
+                  Forgot password?
                 </Link>
               </p>
             </div>

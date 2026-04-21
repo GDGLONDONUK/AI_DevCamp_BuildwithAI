@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import { PreRegisteredUser } from "@/types";
+import { UserProfile } from "@/types";
 import { auth } from "@/lib/firebase";
 import {
   Mail, Send, Users, ArrowLeft, RefreshCw, Eye, EyeOff,
@@ -12,6 +12,11 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import toast from "react-hot-toast";
+
+function hasAuthAccount(u: UserProfile): boolean {
+  if (u.signedIn === false) return false;
+  return Boolean(u.uid);
+}
 
 // ── Email Templates ──────────────────────────────────────────────────────────
 
@@ -221,7 +226,7 @@ function AdminEmailPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [preRegistered, setPreRegistered] = useState<PreRegisteredUser[]>([]);
+  const [preRegistered, setPreRegistered] = useState<UserProfile[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const [templateId, setTemplateId] = useState<TemplateId>("invite");
   const [filter, setFilter] = useState<RecipientFilter>("not-linked");
@@ -283,8 +288,8 @@ function AdminEmailPageInner() {
     ? customRecipients
     : preRegistered.filter((u) => {
         switch (filter) {
-          case "not-linked": return !u.linkedUid;
-          case "linked":     return !!u.linkedUid;
+          case "not-linked": return !hasAuthAccount(u);
+          case "linked":     return hasAuthAccount(u);
           case "in-person":  return u.joiningInPerson?.toLowerCase().startsWith("y");
           case "all":        return true;
         }
@@ -418,8 +423,8 @@ function AdminEmailPageInner() {
                   {(Object.keys(FILTER_LABELS) as RecipientFilter[]).map((f) => {
                     const count = preRegistered.filter((u) => {
                       switch (f) {
-                        case "not-linked": return !u.linkedUid;
-                        case "linked":     return !!u.linkedUid;
+                        case "not-linked": return !hasAuthAccount(u);
+                        case "linked":     return hasAuthAccount(u);
                         case "in-person":  return u.joiningInPerson?.toLowerCase().startsWith("y");
                         case "all":        return true;
                       }
@@ -593,8 +598,8 @@ function AdminEmailPageInner() {
             {/* Stats summary */}
             <div className="flex flex-wrap gap-4 font-mono text-xs text-gray-500 px-1">
               <span><span className="text-white">{preRegistered.length}</span> total pre-registered</span>
-              <span><span className="text-green-400">{preRegistered.filter((u) => u.linkedUid).length}</span> have accounts</span>
-              <span><span className="text-yellow-400">{preRegistered.filter((u) => !u.linkedUid).length}</span> haven&apos;t signed up</span>
+              <span><span className="text-green-400">{preRegistered.filter((u) => hasAuthAccount(u)).length}</span> have accounts</span>
+              <span><span className="text-yellow-400">{preRegistered.filter((u) => !hasAuthAccount(u)).length}</span> haven&apos;t signed up</span>
               <span><span className="text-blue-400">{preRegistered.filter((u) => u.joiningInPerson?.toLowerCase().startsWith("y")).length}</span> joining in person</span>
               <span><Users size={10} className="inline mr-1" /><span className="text-white">{recipients.length}</span> selected to receive this email</span>
             </div>

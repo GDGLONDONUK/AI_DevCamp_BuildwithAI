@@ -7,6 +7,7 @@ export interface AttendanceRecord {
 }
 
 export interface UserProfile {
+  /** Firebase Auth UID. Empty for pending (email-only) imports until they sign up. */
   uid: string;
   email: string;
   displayName: string;
@@ -29,6 +30,28 @@ export interface UserProfile {
   expertise?: string[];
   wantToLearn?: string[];
   canOffer?: string[];
+  /** Google Form free-text: prior experience with AI. */
+  priorAIKnowledge?: string;
+  /** Google Form: areas of interest. */
+  areasOfInterest?: string;
+  /** Google Form: why join. */
+  whyJoin?: string;
+  /** Google Form: from programming disclaimer. */
+  knowsProgramming?: boolean;
+  /** Google Form: commitment disclaimer. */
+  commitment?: boolean;
+  /** Google Form: role (Current Role) from CSV. */
+  formRole?: string;
+  /** Google Form. */
+  yearsOfExperience?: string;
+  /** When the Google Form was submitted (ISO or raw). */
+  formSubmittedAt?: string;
+  /** Same as form submission time when imported (ISO). */
+  registeredAt?: string;
+  /** When this profile row was first created in Firestore (import or sign-up). */
+  importCreatedAt?: string;
+  /** When a pending import was merged to this Auth-backed profile. */
+  importLinkedAt?: string;
   /** Normalised tags from the `tags` catalog (e.g. prior-ai-knowledge). Optional alongside free-text fields. */
   priorAIKnowledgeTags?: string[];
   /** RSVP for the 23 Apr kick-off: in person (London) vs online only. */
@@ -37,6 +60,30 @@ export interface UserProfile {
   joiningInPerson?: string;
   handle?: string;
   keepUpdated?: boolean;
+  /** Submitted the Google Form (imported or matched at sign-up). */
+  preRegistered?: boolean;
+  /** Has a Firebase account (app sign-up complete). */
+  registered?: boolean;
+  /** Whether this row is linked to Firebase Auth. False = pending import, doc id = email. */
+  signedIn?: boolean;
+  /** How the account was first provisioned in Firestore (admin / tooling). */
+  registrationSource?: "google" | "password";
+  /**
+   * Firebase Auth provider IDs, e.g. `google.com`, `password`. Synced on sign-in
+   * so admins can see Google vs email/password (including accounts with both linked).
+   */
+  authProviders?: string[];
+  /**
+   * How the pending `users/{email}` row was created before first login, e.g. `csv`, `admin`.
+   */
+  importSource?: string;
+  /** Set when a moderator created the row from admin before the user signed in. */
+  createdByAdmin?: boolean;
+  /**
+   * Firestore document id when it differs from `uid` (e.g. email-keyed pending import).
+   * Omitted in normal app reads; set when listing users in admin.
+   */
+  firestoreId?: string;
 }
 
 export interface Session {
@@ -82,25 +129,6 @@ export interface TagCategoryDocument {
   values: string[];
   order: number;
   updatedAt?: string;
-}
-
-export interface PreRegisteredUser {
-  email: string;
-  displayName: string;
-  formSubmittedAt: string;
-  formRole: string;
-  yearsOfExperience: string;
-  priorAIKnowledge: string;
-  areasOfInterest: string;
-  whyJoin: string;
-  knowsProgramming: boolean;
-  joiningInPerson: string;
-  location: string;
-  city: string;
-  country: string;
-  commitment: boolean;
-  linkedUid?: string;
-  linkedAt?: string;
 }
 
 export interface Assignment {

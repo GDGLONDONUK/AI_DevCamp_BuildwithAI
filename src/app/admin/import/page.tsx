@@ -3,89 +3,24 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import { upsertPreRegisteredUsers, fetchPreRegisteredUsers } from "@/lib/adminService";
-import { PreRegisteredUser } from "@/types";
+import { upsertRegistrationUsers, fetchFormRegisteredUsers } from "@/lib/adminService";
+import { UserProfile } from "@/types";
+import {
+  parseCSVText,
+  rowToPreRegistered,
+  buildPreRegisteredUsersFromRows,
+  duplicateMetaFromRows,
+} from "@/lib/admin/csvPreRegistered";
 import {
   Upload, FileText, CheckCircle2, XCircle, AlertTriangle,
   Users, Link2, ArrowLeft, RefreshCw, Search,
 } from "lucide-react";
 import Link from "next/link";
 import toast from "react-hot-toast";
-import { parseLocationFields } from "@/lib/locationCleanup";
 
-// ── CSV Parser ────────────────────────────────────────────────────────────────
-
-function parseCSV(text: string): string[][] {
-  const rows: string[][] = [];
-  let row: string[] = [];
-  let field = "";
-  let inQuotes = false;
-
-  for (let i = 0; i < text.length; i++) {
-    const ch = text[i];
-    const next = text[i + 1];
-
-    if (inQuotes) {
-      if (ch === '"' && next === '"') { field += '"'; i++; }
-      else if (ch === '"') { inQuotes = false; }
-      else { field += ch; }
-    } else {
-      if (ch === '"') { inQuotes = true; }
-      else if (ch === ',') { row.push(field.trim()); field = ""; }
-      else if (ch === '\n' || (ch === '\r' && next === '\n')) {
-        if (ch === '\r') i++;
-        row.push(field.trim());
-        if (row.some(Boolean)) rows.push(row);
-        row = []; field = "";
-      } else { field += ch; }
-    }
-  }
-  if (field || row.length) { row.push(field.trim()); if (row.some(Boolean)) rows.push(row); }
-  return rows;
-}
-
-function rowToPreRegistered(row: string[]): PreRegisteredUser | null {
-  if (row.length < 8) return null;
-  const email = (row[2] || "").toLowerCase().trim();
-  if (!email || !email.includes("@")) return null;
-  const { location, city, country } = parseLocationFields(row[10] || "");
-  return {
-    email,
-    displayName: (row[1] || "").trim(),
-    formSubmittedAt: (row[0] || "").trim(),
-    formRole: (row[3] || "").trim(),
-    yearsOfExperience: (row[4] || "").trim(),
-    priorAIKnowledge: (row[5] || "").trim(),
-    areasOfInterest: (row[6] || "").trim(),
-    whyJoin: (row[7] || "").trim(),
-    knowsProgramming: (row[8] || "").toLowerCase().includes("know"),
-    joiningInPerson: (row[9] || "").trim(),
-    location,
-    city,
-    country,
-    commitment: (row[11] || "").toLowerCase().includes("understand"),
-  };
-}
-
-// ── Deduplication: keep last entry per email ──────────────────────────────────
-
-function deduplicate(users: PreRegisteredUser[]): {
-  unique: PreRegisteredUser[];
-  duplicates: { email: string; count: number }[];
-} {
-  const map = new Map<string, PreRegisteredUser>();
-  const counts = new Map<string, number>();
-
-  for (const u of users) {
-    counts.set(u.email, (counts.get(u.email) ?? 0) + 1);
-    map.set(u.email, u); // last one wins (latest timestamp when sorted)
-  }
-
-  const duplicates = [...counts.entries()]
-    .filter(([, c]) => c > 1)
-    .map(([email, count]) => ({ email, count }));
-
-  return { unique: [...map.values()], duplicates };
+function hasAuthAccount(u: UserProfile): boolean {
+  if (u.signedIn === false) return false;
+  return Boolean(u.uid);
 }
 
 // ── Page ─────────────────────────────────────────────────────────────────────
@@ -95,13 +30,13 @@ export default function AdminImportPage() {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const [parsed, setParsed] = useState<PreRegisteredUser[]>([]);
+  const [parsed, setParsed] = useState<UserProfile[]>([]);
   const [duplicates, setDuplicates] = useState<{ email: string; count: number }[]>([]);
-  const [unique, setUnique] = useState<PreRegisteredUser[]>([]);
+  const [unique, setUnique] = useState<UserProfile[]>([]);
   const [fileName, setFileName] = useState("");
   const [uploading, setUploading] = useState(false);
   const [uploaded, setUploaded] = useState(false);
-  const [existingUsers, setExistingUsers] = useState<PreRegisteredUser[]>([]);
+  const [existingUsers, setExistingUsers] = useState<UserProfile[]>([]);
   const [loadingExisting, setLoadingExisting] = useState(false);
   const [search, setSearch] = useState("");
   const [dragging, setDragging] = useState(false);
@@ -113,7 +48,7 @@ export default function AdminImportPage() {
   const loadExisting = useCallback(async () => {
     setLoadingExisting(true);
     try {
-      const users = await fetchPreRegisteredUsers();
+      const users = await fetchFormRegisteredUsers();
       setExistingUsers(users.sort((a, b) => a.displayName.localeCompare(b.displayName)));
     } catch {
       toast.error("Failed to load existing records");
@@ -130,15 +65,16 @@ export default function AdminImportPage() {
     const reader = new FileReader();
     reader.onload = (e) => {
       const text = e.target?.result as string;
-      const rows = parseCSV(text);
-      const users: PreRegisteredUser[] = [];
+      const rows = parseCSVText(text);
+      const users: UserProfile[] = [];
       for (let i = 1; i < rows.length; i++) {
         const u = rowToPreRegistered(rows[i]);
-        if (u) users.push(u);
+        if (u) users.push(u as UserProfile);
       }
-      const { unique: u, duplicates: d } = deduplicate(users);
+      const { unique: u } = buildPreRegisteredUsersFromRows(rows);
+      const d = duplicateMetaFromRows(rows);
       setParsed(users);
-      setUnique(u);
+      setUnique(u as UserProfile[]);
       setDuplicates(d);
       setUploaded(false);
     };
@@ -161,7 +97,7 @@ export default function AdminImportPage() {
     if (!unique.length) return;
     setUploading(true);
     try {
-      await upsertPreRegisteredUsers(unique);
+      await upsertRegistrationUsers(unique as unknown as Record<string, unknown>[]);
       toast.success(`Uploaded ${unique.length} users to Firestore`);
       setUploaded(true);
       await loadExisting();
@@ -195,7 +131,7 @@ export default function AdminImportPage() {
           <div>
             <h1 className="text-2xl font-bold text-white font-mono">CSV Import</h1>
             <p className="text-sm text-gray-400 mt-0.5">
-              Upload Google Form responses → seed <code className="text-green-400">preRegistered</code> collection
+              Upload Google Form responses → <code className="text-green-400">users</code> (pending by email) + flags
             </p>
           </div>
         </div>
@@ -314,7 +250,7 @@ export default function AdminImportPage() {
                           <td className="px-3 py-2 text-gray-400 whitespace-nowrap">{u.yearsOfExperience}</td>
                           <td className="px-3 py-2 whitespace-nowrap">
                             <span className={`px-1.5 py-0.5 rounded text-[10px] ${
-                              u.joiningInPerson.toLowerCase().startsWith("y")
+                              (u.joiningInPerson || "").toLowerCase().startsWith("y")
                                 ? "bg-green-500/20 text-green-400"
                                 : "bg-gray-500/20 text-gray-400"
                             }`}>
@@ -407,7 +343,7 @@ export default function AdminImportPage() {
                       </td>
                       <td className="px-3 py-2 text-gray-400 whitespace-nowrap">{u.location || "—"}</td>
                       <td className="px-3 py-2 whitespace-nowrap">
-                        {u.linkedUid ? (
+                        {hasAuthAccount(u) ? (
                           <span className="flex items-center gap-1 text-green-400">
                             <Link2 size={10} /> Linked
                           </span>
@@ -429,10 +365,10 @@ export default function AdminImportPage() {
           {existingUsers.length > 0 && (
             <div className="flex gap-6 font-mono text-xs text-gray-500 pt-1">
               <span>
-                <span className="text-green-400">{existingUsers.filter((u) => u.linkedUid).length}</span> linked to accounts
+                <span className="text-green-400">{existingUsers.filter((u) => hasAuthAccount(u)).length}</span> linked to accounts
               </span>
               <span>
-                <span className="text-yellow-400">{existingUsers.filter((u) => !u.linkedUid).length}</span> not yet signed up
+                <span className="text-yellow-400">{existingUsers.filter((u) => !hasAuthAccount(u)).length}</span> not yet signed up
               </span>
               <span>
                 <span className="text-blue-400">{existingUsers.filter((u) => u.joiningInPerson?.toLowerCase().startsWith("y")).length}</span> joining in person

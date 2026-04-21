@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import { Assignment, PreRegisteredUser, Project, Session, UserProfile, UserStatus } from "@/types";
+import { Assignment, Project, Session, UserProfile, UserStatus } from "@/types";
 import { getSessions, upsertSession, deleteSession, seedDefaultSessions } from "@/lib/sessionService";
 import {
   fetchAllUsers, fetchAllAssignments, fetchAllProjects, fetchAttendanceForUsers,
@@ -13,6 +13,7 @@ import {
   updateUserFields,
 } from "@/lib/adminService";
 import { auth } from "@/lib/firebase";
+import { userAuthShowsGoogle, userAuthShowsPassword } from "@/lib/auth";
 import { formatAdminDateTime } from "@/lib/admin/format";
 import { exportAttendeesCsv } from "@/lib/admin/exportAttendeesCsv";
 import { uploadPreRegisteredCsv } from "@/lib/admin/uploadPreRegisteredCsv";
@@ -22,17 +23,49 @@ import SessionEditor from "@/components/admin/SessionEditor";
 import UserEditor from "@/components/admin/UserEditor";
 import StatusDropdown, { STATUS_CONFIG, ALL_STATUSES } from "@/components/admin/StatusDropdown";
 import {
-  Users, BookOpen, Code2, Shield, Search,
-  CheckCircle2, XCircle, ClipboardList, Calendar,
-  RefreshCw, Plus, Pencil, Trash2,
-  Link as LinkIcon, Download, LayoutGrid, Table2, Filter,
-  Clock, UserCheck, Mail, FileText, Link2, AlertTriangle, Upload, Tags,
+  AlertTriangle,
+  BookOpen,
+  Calendar,
+  CheckCircle2,
+  ClipboardList,
+  Clock,
+  Code2,
+  Download,
+  FileText,
+  Filter,
+  LayoutGrid,
+  Link2,
+  Link as LinkIcon,
+  Mail,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Search,
+  Shield,
+  Table2,
+  Tags,
+  Trash2,
+  Upload,
+  UserCheck,
+  Users,
+  X,
+  XCircle,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
 type Tab = "attendance" | "users" | "assignments" | "projects" | "sessions" | "preregistered";
+
+function userDocKey(u: UserProfile): string {
+  return u.firestoreId || u.uid;
+}
+
+/** False for pending email-only imports; true once Firebase Auth profile exists. */
+function hasAuthAccount(u: UserProfile): boolean {
+  if (u.signedIn === false) return false;
+  return Boolean(u.uid);
+}
 
 interface AttendanceMap {
   [userId: string]: {
@@ -58,15 +91,21 @@ export default function AdminPage() {
   const [editingSession, setEditingSession] = useState<Partial<Session> | null | false>(false); // false=closed, null=new
   const [usersView, setUsersView] = useState<"grid" | "table">("grid");
   const [statusFilter, setStatusFilter] = useState<"all" | UserStatus>("all");
-  const [preRegistered, setPreRegistered] = useState<PreRegisteredUser[]>([]);
+  const [preRegistered, setPreRegistered] = useState<UserProfile[]>([]);
   const [preRegLoading, setPreRegLoading] = useState(false);
   const [preRegSearch, setPreRegSearch] = useState("");
   const [preRegFilter, setPreRegFilter] = useState<"all" | "linked" | "unlinked">("all");
   const [csvUploading, setCsvUploading] = useState(false);
   const [seedingTags, setSeedingTags] = useState(false);
-  const [detailUser, setDetailUser] = useState<PreRegisteredUser | null>(null);
+  const [detailUser, setDetailUser] = useState<UserProfile | null>(null);
+  /** Pre-Registered tab: selection for bulk email */
   const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set());
+  /** Users tab: selection for bulk email (separate from pre-reg) */
+  const [selectedUsersEmails, setSelectedUsersEmails] = useState<Set<string>>(new Set());
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
+  const [addPendingOpen, setAddPendingOpen] = useState(false);
+  const [addPendingForm, setAddPendingForm] = useState({ email: "", displayName: "", handle: "" });
+  const [addPendingSubmitting, setAddPendingSubmitting] = useState(false);
 
   // ── Access guard ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -93,7 +132,10 @@ export default function AdminPage() {
       setProjects(loadedProjects);
       setSessions(loadedSessions);
 
-      const attMap = await fetchAttendanceForUsers(loadedUsers.map((u) => u.uid));
+      const attUids = loadedUsers
+        .filter((u) => u.uid && u.signedIn !== false)
+        .map((u) => u.uid);
+      const attMap = await fetchAttendanceForUsers(attUids);
       setAttendance(attMap);
     } catch (err) {
       console.error(err);
@@ -117,7 +159,7 @@ export default function AdminPage() {
       });
       if (!res.ok) throw new Error(await res.text());
       const json = await res.json();
-      const data: PreRegisteredUser[] = json.data ?? [];
+      const data: UserProfile[] = json.data ?? [];
       setPreRegistered(data.sort((a, b) => a.displayName.localeCompare(b.displayName)));
     } catch (e) {
       console.error("loadPreRegistered", e);
@@ -152,6 +194,44 @@ export default function AdminPage() {
     }
   };
 
+  const submitAddPendingUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const email = addPendingForm.email.trim().toLowerCase();
+    if (!email || !email.includes("@")) {
+      toast.error("Enter a valid email address");
+      return;
+    }
+    setAddPendingSubmitting(true);
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      const res = await fetch("/api/admin/pending-user", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          email,
+          displayName: addPendingForm.displayName.trim(),
+          handle: addPendingForm.handle.trim(),
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Request failed");
+      toast.success(
+        "Saved. When they sign in with this email, their account links and pending fields merge."
+      );
+      setAddPendingForm({ email: "", displayName: "", handle: "" });
+      setAddPendingOpen(false);
+      await loadPreRegistered();
+    } catch (err) {
+      console.error(err);
+      toast.error(err instanceof Error ? err.message : "Failed to add pending user");
+    } finally {
+      setAddPendingSubmitting(false);
+    }
+  };
+
   // ── Attendance toggle ─────────────────────────────────────────────────────
   const toggleAttendance = async (userId: string, sessionId: string) => {
     const key = `${userId}_${sessionId}`;
@@ -171,24 +251,24 @@ export default function AdminPage() {
   };
 
   // ── Update user status / role ─────────────────────────────────────────────
-  const updateUserStatus = async (uid: string, status: UserStatus) => {
+  const updateUserStatus = async (userDocId: string, status: UserStatus) => {
     try {
-      await setUserStatus(uid, status);
-      setUsers((prev) => prev.map((u) => u.uid === uid ? { ...u, userStatus: status } : u));
+      await setUserStatus(userDocId, status);
+      setUsers((prev) => prev.map((u) => userDocKey(u) === userDocId ? { ...u, userStatus: status } : u));
       toast.success("Status updated");
     } catch { toast.error("Failed to update status"); }
   };
 
-  const updateUserRole = async (uid: string, role: UserProfile["role"]) => {
+  const updateUserRole = async (userDocId: string, role: UserProfile["role"]) => {
     try {
-      await setUserRole(uid, role);
-      setUsers((prev) => prev.map((u) => u.uid === uid ? { ...u, role } : u));
+      await setUserRole(userDocId, role);
+      setUsers((prev) => prev.map((u) => userDocKey(u) === userDocId ? { ...u, role } : u));
       toast.success("Role updated");
     } catch { toast.error("Failed to update role"); }
   };
 
-  const handleSaveUserEdit = async (uid: string, updates: Record<string, unknown>) => {
-    await updateUserFields(uid, updates);
+  const handleSaveUserEdit = async (userDocId: string, updates: Record<string, unknown>) => {
+    await updateUserFields(userDocId, updates);
     await fetchAll();
     toast.success("User updated");
   };
@@ -220,6 +300,60 @@ export default function AdminPage() {
   const statusFilteredUsers = statusFilter === "all"
     ? filteredUsers
     : filteredUsers.filter((u) => (u.userStatus || "pending") === statusFilter);
+
+  const usersListWithEmail = statusFilteredUsers.filter((u) => Boolean(u.email?.trim()));
+  const allVisibleUsersSelectedForEmail =
+    usersListWithEmail.length > 0 &&
+    usersListWithEmail.every((u) => selectedUsersEmails.has(u.email!));
+
+  const toggleUserEmailSelect = (email: string) => {
+    if (!email) return;
+    setSelectedUsersEmails((prev) => {
+      const next = new Set(prev);
+      if (next.has(email)) next.delete(email);
+      else next.add(email);
+      return next;
+    });
+  };
+
+  const toggleSelectAllUsersForEmail = () => {
+    setSelectedUsersEmails((prev) => {
+      const withE = statusFilteredUsers.filter((u) => u.email?.trim());
+      const allIn = withE.length > 0 && withE.every((u) => prev.has(u.email!));
+      const next = new Set(prev);
+      if (allIn) {
+        withE.forEach((u) => {
+          if (u.email) next.delete(u.email);
+        });
+      } else {
+        withE.forEach((u) => {
+          if (u.email) next.add(u.email);
+        });
+      }
+      return next;
+    });
+  };
+
+  const openEmailToSelectedUsers = () => {
+    const sel = statusFilteredUsers.filter(
+      (u) => u.email && selectedUsersEmails.has(u.email)
+    );
+    if (sel.length === 0) {
+      toast.error("No recipients selected");
+      return;
+    }
+    sessionStorage.setItem(
+      "emailRecipients",
+      JSON.stringify(
+        sel.map((u) => ({ email: u.email!, name: u.displayName || u.email! }))
+      )
+    );
+    window.open("/admin/email?source=selection", "_blank");
+  };
+
+  const attendanceUsers = statusFilteredUsers.filter(
+    (u) => u.uid && u.signedIn !== false
+  );
 
   const pendingUsers = users.filter((u) => (u.userStatus || "pending") === "pending");
 
@@ -326,7 +460,15 @@ export default function AdminPage() {
               <p className="text-xs text-gray-500 font-mono">AI DevCamp 2026 — Build with AI</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2 w-full sm:w-auto">
+            <button
+              type="button"
+              onClick={() => setAddPendingOpen(true)}
+              className="flex items-center gap-2 text-sm font-bold text-gray-950 bg-green-500 hover:bg-green-400 px-4 py-2.5 rounded-lg font-mono transition-all shadow-md shadow-green-500/25 w-full sm:w-auto justify-center"
+            >
+              <Plus size={16} />
+              <span>Add pending user</span>
+            </button>
             <Link href="/admin/email" className="flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 border border-blue-500/20 hover:border-blue-500/40 bg-blue-500/10 px-4 py-2 rounded-lg font-mono transition-all">
               <Mail size={14} /> Email
             </Link>
@@ -427,14 +569,14 @@ export default function AdminPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredUsers.length === 0 && (
+                    {attendanceUsers.length === 0 && (
                       <tr>
                         <td colSpan={sessions.length + 4} className="text-center py-10 text-gray-500 font-mono">
                           No users found
                         </td>
                       </tr>
                     )}
-                    {filteredUsers.map((u, idx) => {
+                    {attendanceUsers.map((u, idx) => {
                       const status = u.userStatus || "pending";
                       const sc = STATUS_CONFIG[status];
                       const country = u.country || "";
@@ -443,7 +585,7 @@ export default function AdminPage() {
 
                       return (
                         <tr
-                          key={u.uid}
+                          key={userDocKey(u) || u.email}
                           className={`border-b border-white/5 transition-colors hover:bg-white/[0.02] ${
                             idx % 2 === 0 ? "bg-transparent" : "bg-white/[0.01]"
                           }`}
@@ -510,7 +652,7 @@ export default function AdminPage() {
                           <td className="px-3 py-3 text-center">
                             <StatusDropdown
                               status={status}
-                              onChange={(s) => updateUserStatus(u.uid, s)}
+                              onChange={(s) => updateUserStatus(userDocKey(u), s)}
                             />
                           </td>
                         </tr>
@@ -558,7 +700,7 @@ export default function AdminPage() {
                     </div>
                     <div className="space-y-2">
                       {pendingUsers.slice(0, 3).map((u) => (
-                        <div key={u.uid} className="flex flex-wrap items-center gap-3 text-sm">
+                        <div key={userDocKey(u) || u.email} className="flex flex-wrap items-center gap-3 text-sm">
                           <div className="w-7 h-7 rounded-full bg-gradient-to-br from-yellow-500 to-yellow-700 flex items-center justify-center text-gray-950 font-bold text-xs flex-shrink-0">
                             {(u.displayName || u.email || "?")[0].toUpperCase()}
                           </div>
@@ -568,13 +710,13 @@ export default function AdminPage() {
                             {formatAdminDateTime(u.createdAt)}
                           </span>
                           <button
-                            onClick={() => updateUserStatus(u.uid, "participated")}
+                            onClick={() => updateUserStatus(userDocKey(u), "participated")}
                             className="flex items-center gap-1 text-xs text-green-400 hover:text-green-300 font-semibold font-mono"
                           >
                             <CheckCircle2 size={13} /> Approve
                           </button>
                           <button
-                            onClick={() => updateUserStatus(u.uid, "not-certified")}
+                            onClick={() => updateUserStatus(userDocKey(u), "not-certified")}
                             className="flex items-center gap-1 text-xs text-red-400 hover:text-red-300 font-semibold font-mono"
                           >
                             <XCircle size={13} /> Decline
@@ -595,6 +737,14 @@ export default function AdminPage() {
 
                 {/* ── Toolbar ── */}
                 <div className="flex flex-wrap items-center gap-2 mb-4">
+                  <button
+                    type="button"
+                    onClick={() => setAddPendingOpen(true)}
+                    className="flex items-center gap-1.5 text-sm font-bold text-gray-950 bg-green-500 hover:bg-green-400 px-3 py-2 rounded-xl font-mono transition-all shadow-md shadow-green-500/20 shrink-0"
+                  >
+                    <Plus size={16} />
+                    Add before login
+                  </button>
                   {/* Status filter */}
                   <div className="flex items-center gap-1.5 bg-gray-900/60 border border-white/8 rounded-xl p-1">
                     {(["all", ...ALL_STATUSES] as const).map((s) => (
@@ -646,22 +796,81 @@ export default function AdminPage() {
                   </div>
                 </div>
 
+                {selectedUsersEmails.size > 0 && (
+                  <div className="flex flex-wrap items-center justify-between bg-blue-500/10 border border-blue-500/30 rounded-xl px-4 py-3 gap-3">
+                    <span className="text-sm text-blue-300 font-mono">
+                      {selectedUsersEmails.size} user{selectedUsersEmails.size > 1 ? "s" : ""} selected for email
+                    </span>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedUsersEmails(new Set())}
+                        className="text-xs text-gray-400 hover:text-white border border-white/10 px-3 py-1.5 rounded-lg font-mono transition-all"
+                      >
+                        Clear
+                      </button>
+                      <button
+                        type="button"
+                        onClick={openEmailToSelectedUsers}
+                        className="flex items-center gap-1.5 text-xs font-mono font-semibold px-4 py-1.5 rounded-lg bg-blue-500 hover:bg-blue-400 text-white transition-all"
+                      >
+                        <Mail size={12} /> Send email to {selectedUsersEmails.size} selected
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {statusFilteredUsers.length === 0 && (
                   <p className="text-center text-gray-500 py-10 font-mono">No users match this filter</p>
                 )}
 
-                {/* ── GRID VIEW ── */}
+                {/* ── GRID (card) VIEW ── */}
                 {usersView === "grid" && (
                   <div className="space-y-3">
+                    <div className="flex items-center gap-3 px-1 text-xs font-mono text-gray-500">
+                      <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          className="w-3.5 h-3.5 rounded accent-green-500"
+                          checked={allVisibleUsersSelectedForEmail}
+                          onChange={toggleSelectAllUsersForEmail}
+                          disabled={usersListWithEmail.length === 0}
+                        />
+                        Select all in view ({usersListWithEmail.length} with email)
+                      </label>
+                    </div>
                     {statusFilteredUsers.map((u) => {
                       const status = u.userStatus || "pending";
                       const sc = STATUS_CONFIG[status];
                       const country = u.country || "";
                       const city = u.city || "";
                       const location = [city, country].filter(Boolean).join(", ");
+                      const canMail = Boolean(u.email?.trim());
+                      const rowSelected = canMail && selectedUsersEmails.has(u.email!);
 
                       return (
-                        <div key={u.uid} className="flex flex-wrap items-center gap-4 bg-gray-900/50 border border-white/8 rounded-xl p-4 hover:border-white/15 transition-all">
+                        <div
+                          key={userDocKey(u) || u.email}
+                          className={`flex flex-wrap items-center gap-4 border rounded-xl p-4 transition-all ${
+                            rowSelected
+                              ? "bg-blue-500/8 border-blue-500/35 hover:border-blue-500/50"
+                              : "bg-gray-900/50 border-white/8 hover:border-white/15"
+                          }`}
+                        >
+                          {canMail && (
+                            <div
+                              className="shrink-0 flex items-center"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <input
+                                type="checkbox"
+                                className="w-4 h-4 rounded accent-blue-500 cursor-pointer"
+                                checked={rowSelected}
+                                onChange={() => toggleUserEmailSelect(u.email!)}
+                                aria-label={`Select ${u.displayName || u.email} for email`}
+                              />
+                            </div>
+                          )}
                           {/* Avatar */}
                           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-400 to-green-700 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
                             {(u.displayName || u.email || "?")[0].toUpperCase()}
@@ -672,6 +881,21 @@ export default function AdminPage() {
                             <div className="flex flex-wrap items-center gap-2">
                               <span className="font-semibold text-white">{u.displayName}</span>
                               {u.handle && <span className="font-mono text-xs text-gray-500">@{u.handle}</span>}
+                              {u.preRegistered && (
+                                <span className="text-[10px] font-mono uppercase tracking-wide text-blue-300 bg-blue-500/15 border border-blue-500/35 px-1.5 py-0.5 rounded">
+                                  Form import
+                                </span>
+                              )}
+                              {userAuthShowsGoogle(u) && (
+                                <span className="text-[10px] font-mono uppercase tracking-wide text-amber-300/90 bg-amber-500/10 border border-amber-500/25 px-1.5 py-0.5 rounded">
+                                  Google
+                                </span>
+                              )}
+                              {userAuthShowsPassword(u) && (
+                                <span className="text-[10px] font-mono uppercase tracking-wide text-gray-400 bg-white/5 border border-white/10 px-1.5 py-0.5 rounded">
+                                  Email
+                                </span>
+                              )}
                               {country && <CountryFlag country={country} size={20} />}
                             </div>
                             <div className="text-xs text-gray-400 font-mono truncate">{u.email}</div>
@@ -695,13 +919,13 @@ export default function AdminPage() {
                           {status === "pending" && (
                             <div className="flex items-center gap-2">
                               <button
-                                onClick={() => updateUserStatus(u.uid, "participated")}
+                                onClick={() => updateUserStatus(userDocKey(u), "participated")}
                                 className="flex items-center gap-1 text-xs text-green-400 hover:text-green-300 border border-green-500/30 hover:bg-green-500/10 px-3 py-1.5 rounded-lg font-mono font-semibold transition-all"
                               >
                                 <CheckCircle2 size={12} /> Approve
                               </button>
                               <button
-                                onClick={() => updateUserStatus(u.uid, "not-certified")}
+                                onClick={() => updateUserStatus(userDocKey(u), "not-certified")}
                                 className="flex items-center gap-1 text-xs text-red-400 hover:text-red-300 border border-red-500/30 hover:bg-red-500/10 px-3 py-1.5 rounded-lg font-mono font-semibold transition-all"
                               >
                                 <XCircle size={12} /> Decline
@@ -720,11 +944,11 @@ export default function AdminPage() {
                             </button>
                             <StatusDropdown
                               status={status}
-                              onChange={(s) => updateUserStatus(u.uid, s)}
+                              onChange={(s) => updateUserStatus(userDocKey(u), s)}
                             />
                             <select
                               value={u.role}
-                              onChange={(e) => updateUserRole(u.uid, e.target.value as UserProfile["role"])}
+                              onChange={(e) => updateUserRole(userDocKey(u), e.target.value as UserProfile["role"])}
                               className="bg-gray-800 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white font-mono focus:outline-none focus:ring-1 focus:ring-green-500 cursor-pointer"
                             >
                               <option value="attendee">Attendee</option>
@@ -744,6 +968,16 @@ export default function AdminPage() {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="bg-gray-900/80 border-b border-white/8">
+                          <th className="w-10 px-3 py-3 text-left">
+                            <input
+                              type="checkbox"
+                              className="w-3.5 h-3.5 rounded accent-blue-500 cursor-pointer"
+                              checked={allVisibleUsersSelectedForEmail}
+                              onChange={toggleSelectAllUsersForEmail}
+                              disabled={usersListWithEmail.length === 0}
+                              title="Select all visible (with email)"
+                            />
+                          </th>
                           {[
                             "Name / Email", "Handle", "Location", "Role", "Status",
                             "Experience", "Sessions", "Skills",
@@ -759,7 +993,7 @@ export default function AdminPage() {
                       <tbody>
                         {statusFilteredUsers.length === 0 && (
                           <tr>
-                            <td colSpan={11} className="text-center py-10 text-gray-500 font-mono">
+                            <td colSpan={12} className="text-center py-10 text-gray-500 font-mono">
                               No users
                             </td>
                           </tr>
@@ -770,14 +1004,30 @@ export default function AdminPage() {
                           const country = u.country || "";
                           const city = u.city || "";
                           const location = [city, country].filter(Boolean).join(", ");
+                          const canMail = Boolean(u.email?.trim());
+                          const rowSelected = canMail && selectedUsersEmails.has(u.email!);
 
                           return (
                             <tr
-                              key={u.uid}
+                              key={userDocKey(u) || u.email}
                               className={`border-b border-white/5 hover:bg-white/[0.02] transition-colors ${
-                                idx % 2 === 0 ? "" : "bg-white/[0.01]"
+                                rowSelected ? "bg-blue-500/5" : idx % 2 === 0 ? "" : "bg-white/[0.01]"
                               }`}
                             >
+                              <td className="px-3 py-3 align-middle w-10">
+                                {canMail ? (
+                                  <input
+                                    type="checkbox"
+                                    className="w-3.5 h-3.5 rounded accent-blue-500 cursor-pointer"
+                                    checked={rowSelected}
+                                    onChange={() => toggleUserEmailSelect(u.email!)}
+                                    aria-label={`Select ${u.displayName || u.email} for email`}
+                                    onClick={(e) => e.stopPropagation()}
+                                  />
+                                ) : (
+                                  <span className="text-gray-700 text-xs" title="No email on record">—</span>
+                                )}
+                              </td>
                               {/* Name */}
                               <td className="px-4 py-3 min-w-[180px]">
                                 <div className="flex items-center gap-2">
@@ -785,7 +1035,18 @@ export default function AdminPage() {
                                     {(u.displayName || u.email || "?")[0].toUpperCase()}
                                   </div>
                                   <div>
-                                    <div className="font-semibold text-white text-sm">{u.displayName}</div>
+                                    <div className="font-semibold text-white text-sm flex flex-wrap items-center gap-1.5">
+                                      {u.displayName}
+                                      {u.preRegistered && (
+                                        <span className="text-[9px] font-mono text-blue-300 border border-blue-500/35 px-1 rounded">form</span>
+                                      )}
+                                      {userAuthShowsGoogle(u) && (
+                                        <span className="text-[9px] font-mono text-amber-300/90 border border-amber-500/25 px-1 rounded">google</span>
+                                      )}
+                                      {userAuthShowsPassword(u) && (
+                                        <span className="text-[9px] font-mono text-gray-500 border border-white/10 px-1 rounded">email</span>
+                                      )}
+                                    </div>
                                     <div className="text-xs text-gray-500 font-mono">{u.email}</div>
                                   </div>
                                 </div>
@@ -805,7 +1066,7 @@ export default function AdminPage() {
                               <td className="px-4 py-3">
                                 <select
                                   value={u.role}
-                                  onChange={(e) => updateUserRole(u.uid, e.target.value as UserProfile["role"])}
+                                  onChange={(e) => updateUserRole(userDocKey(u), e.target.value as UserProfile["role"])}
                                   className="bg-gray-800 border border-white/10 rounded-lg px-2 py-1 text-xs text-white font-mono focus:outline-none focus:ring-1 focus:ring-green-500 cursor-pointer"
                                 >
                                   <option value="attendee">attendee</option>
@@ -817,7 +1078,7 @@ export default function AdminPage() {
                               <td className="px-4 py-3 whitespace-nowrap">
                                 <StatusDropdown
                                   status={status}
-                                  onChange={(s) => updateUserStatus(u.uid, s)}
+                                  onChange={(s) => updateUserStatus(userDocKey(u), s)}
                                 />
                               </td>
                               {/* Experience */}
@@ -868,13 +1129,13 @@ export default function AdminPage() {
                                   {status === "pending" ? (
                                     <div className="flex items-center gap-2">
                                       <button
-                                        onClick={() => updateUserStatus(u.uid, "participated")}
+                                        onClick={() => updateUserStatus(userDocKey(u), "participated")}
                                         className="flex items-center gap-1 text-xs text-green-400 hover:text-green-300 font-mono font-semibold"
                                       >
                                         <CheckCircle2 size={12} /> Approve
                                       </button>
                                       <button
-                                        onClick={() => updateUserStatus(u.uid, "not-certified")}
+                                        onClick={() => updateUserStatus(userDocKey(u), "not-certified")}
                                         className="flex items-center gap-1 text-xs text-red-400 hover:text-red-300 font-mono font-semibold"
                                       >
                                         <XCircle size={12} /> Decline
@@ -1194,8 +1455,8 @@ export default function AdminPage() {
                 const matchSearch = !q || u.email.includes(q) || u.displayName.toLowerCase().includes(q);
                 const matchFilter =
                   preRegFilter === "all" ? true
-                  : preRegFilter === "linked" ? !!u.linkedUid
-                  : !u.linkedUid;
+                  : preRegFilter === "linked" ? hasAuthAccount(u)
+                  : !hasAuthAccount(u);
                 return matchSearch && matchFilter;
               });
               const allVisibleSelected = filteredPreReg.length > 0 && filteredPreReg.every((u) => selectedEmails.has(u.email));
@@ -1216,25 +1477,34 @@ export default function AdminPage() {
 
               return (
               <div className="space-y-5">
-                {/* Top bar */}
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <div className="relative">
+                {/* Top bar — actions on their own row on small screens so the primary CTA is never hidden */}
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-3 flex-wrap min-w-0">
+                    <div className="relative w-full sm:w-56 max-w-full">
                       <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
                       <input value={preRegSearch} onChange={(e) => setPreRegSearch(e.target.value)}
                         placeholder="Search name or email…"
-                        className="pl-8 pr-4 py-2 bg-gray-900/60 border border-white/10 rounded-lg text-sm text-white placeholder:text-gray-600 focus:outline-none focus:ring-1 focus:ring-green-500 font-mono w-56" />
+                        className="w-full pl-8 pr-4 py-2 bg-gray-900/60 border border-white/10 rounded-lg text-sm text-white placeholder:text-gray-600 focus:outline-none focus:ring-1 focus:ring-green-500 font-mono" />
                     </div>
+                    <div className="flex items-center gap-2 flex-wrap">
                     {(["all", "linked", "unlinked"] as const).map((f) => (
                       <button key={f} onClick={() => setPreRegFilter(f)}
                         className={`px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition-all ${preRegFilter === f ? "bg-green-500 text-gray-950" : "border border-white/10 text-gray-400 hover:text-white"}`}>
                         {f === "all" ? `All (${preRegistered.length})`
-                          : f === "linked" ? `Signed up (${preRegistered.filter((u) => u.linkedUid).length})`
-                          : `Not signed up (${preRegistered.filter((u) => !u.linkedUid).length})`}
+                          : f === "linked" ? `Signed up (${preRegistered.filter((u) => hasAuthAccount(u)).length})`
+                          : `Not signed up (${preRegistered.filter((u) => !hasAuthAccount(u)).length})`}
                       </button>
                     ))}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto lg:justify-end lg:shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setAddPendingOpen(true)}
+                      className="flex items-center justify-center gap-1.5 text-xs font-bold text-gray-950 bg-green-500 hover:bg-green-400 px-4 py-2.5 rounded-lg font-mono transition-all shadow-md shadow-green-500/20 order-first sm:order-none"
+                    >
+                      <Plus size={14} /> Add person
+                    </button>
                     <button onClick={loadPreRegistered} disabled={preRegLoading}
                       className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-white border border-white/10 px-3 py-2 rounded-lg font-mono transition-all">
                       <RefreshCw size={12} className={preRegLoading ? "animate-spin" : ""} /> Refresh
@@ -1252,10 +1522,10 @@ export default function AdminPage() {
                 {/* Stats pills */}
                 <div className="flex flex-wrap gap-3 font-mono text-xs">
                   <span className="bg-green-500/10 border border-green-500/20 text-green-400 px-3 py-1 rounded-full">
-                    <Link2 size={10} className="inline mr-1" />{preRegistered.filter((u) => u.linkedUid).length} linked to accounts
+                    <Link2 size={10} className="inline mr-1" />{preRegistered.filter((u) => hasAuthAccount(u)).length} linked to accounts
                   </span>
                   <span className="bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 px-3 py-1 rounded-full">
-                    <AlertTriangle size={10} className="inline mr-1" />{preRegistered.filter((u) => !u.linkedUid).length} haven&apos;t signed up
+                    <AlertTriangle size={10} className="inline mr-1" />{preRegistered.filter((u) => !hasAuthAccount(u)).length} haven&apos;t signed up
                   </span>
                   <span className="bg-blue-500/10 border border-blue-500/20 text-blue-400 px-3 py-1 rounded-full">
                     <UserCheck size={10} className="inline mr-1" />{preRegistered.filter((u) => u.joiningInPerson?.toLowerCase().startsWith("y")).length} joining in person
@@ -1324,7 +1594,7 @@ export default function AdminPage() {
                               {u.formSubmittedAt ? new Date(u.formSubmittedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : "—"}
                             </td>
                             <td className="px-3 py-3 whitespace-nowrap">
-                              {u.linkedUid ? (
+                              {hasAuthAccount(u) ? (
                                 <span className="flex items-center gap-1 text-xs text-green-400 font-mono"><CheckCircle2 size={12} /> Signed up</span>
                               ) : (
                                 <span className="flex items-center gap-1 text-xs text-yellow-500 font-mono"><XCircle size={12} /> Pending</span>
@@ -1340,7 +1610,9 @@ export default function AdminPage() {
                         ))}
                         {filteredPreReg.length === 0 && (
                           <tr><td colSpan={11} className="text-center py-16 text-gray-500 font-mono">
-                            {preRegistered.length === 0 ? "No pre-registered users. Upload a CSV to import." : "No results match your search."}
+                            {preRegistered.length === 0
+                              ? "No pre-registered users. Add a person or upload a CSV — when they sign in with the same email, their account links automatically."
+                              : "No results match your search."}
                           </td></tr>
                         )}
                       </tbody>
@@ -1374,6 +1646,97 @@ export default function AdminPage() {
           onSave={handleSaveSession}
           onClose={() => setEditingSession(false)}
         />
+      )}
+
+      {addPendingOpen && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="add-pending-title"
+          onClick={() => !addPendingSubmitting && setAddPendingOpen(false)}
+        >
+          <form
+            onClick={(e) => e.stopPropagation()}
+            onSubmit={submitAddPendingUser}
+            className="bg-gray-900 border border-white/10 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 id="add-pending-title" className="text-lg font-semibold text-white">
+                  Add pending user
+                </h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  Creates <code className="text-green-400/90">users/{"{email}"}</code> before they
+                  sign in. On first login (Google or email), their profile merges to their account.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => !addPendingSubmitting && setAddPendingOpen(false)}
+                className="text-gray-500 hover:text-white p-1 rounded-lg"
+                aria-label="Close"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-mono text-gray-400 mb-1">Email *</label>
+                <input
+                  type="email"
+                  required
+                  value={addPendingForm.email}
+                  onChange={(e) => setAddPendingForm((f) => ({ ...f, email: e.target.value }))}
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-green-500 font-mono"
+                  placeholder="they@example.com"
+                  autoComplete="email"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-mono text-gray-400 mb-1">Display name</label>
+                <input
+                  type="text"
+                  value={addPendingForm.displayName}
+                  onChange={(e) => setAddPendingForm((f) => ({ ...f, displayName: e.target.value }))}
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-green-500"
+                  placeholder="Optional — defaults to email local part"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-mono text-gray-400 mb-1">Handle</label>
+                <input
+                  type="text"
+                  value={addPendingForm.handle}
+                  onChange={(e) =>
+                    setAddPendingForm((f) => ({
+                      ...f,
+                      handle: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""),
+                    }))
+                  }
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:ring-1 focus:ring-green-500"
+                  placeholder="Optional @handle — else set at sign-up"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => !addPendingSubmitting && setAddPendingOpen(false)}
+                className="px-4 py-2 text-sm text-gray-400 hover:text-white font-mono"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={addPendingSubmitting}
+                className="px-4 py-2 rounded-lg bg-green-500 hover:bg-green-400 text-gray-950 font-mono text-sm font-semibold disabled:opacity-50"
+              >
+                {addPendingSubmitting ? "Saving…" : "Save pending user"}
+              </button>
+            </div>
+          </form>
+        </div>
       )}
     </div>
   );

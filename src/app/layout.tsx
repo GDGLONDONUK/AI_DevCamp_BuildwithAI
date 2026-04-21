@@ -3,6 +3,7 @@ import { Poppins } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 import Navbar from "@/components/Navbar";
+import AuthenticatedMain from "@/components/AuthenticatedMain";
 import { Toaster } from "react-hot-toast";
 
 const poppins = Poppins({
@@ -32,7 +33,7 @@ export default function RootLayout({
       <body className="bg-gray-950 text-white font-poppins antialiased">
         <AuthProvider>
           <Navbar />
-          <main className="pt-16">{children}</main>
+          <AuthenticatedMain>{children}</AuthenticatedMain>
           <Toaster
             position="bottom-right"
             gutter={10}

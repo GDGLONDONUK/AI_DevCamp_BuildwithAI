@@ -93,7 +93,7 @@ export default function UserEditor({ user, onClose, onSave }: UserEditorProps) {
         updates.joiningInPerson = joiningInPerson.trim();
       }
 
-      await onSave(user.uid, updates);
+      await onSave((user.firestoreId || user.uid) as string, updates);
       onClose();
     } catch {
       toast.error("Could not save user");

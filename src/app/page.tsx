@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useCallback, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { SESSIONS, CURRICULUM_WEEKS } from "@/data/sessions";
 import AuthModal from "@/components/AuthModal";
+import OpenLoginFromQuery from "@/components/OpenLoginFromQuery";
 import { useAuth } from "@/contexts/AuthContext";
 
 const STATS = [
@@ -35,9 +36,23 @@ const WEEK_ICONS = [Code2, Brain, BookOpen, Rocket];
 export default function HomePage() {
   const { user } = useAuth();
   const [loginModal, setLoginModal] = useState(false);
+  const [authModalView, setAuthModalView] = useState<"signin" | "forgot">("signin");
+
+  const openLogin = useCallback((options?: { forgot: boolean }) => {
+    setAuthModalView(options?.forgot ? "forgot" : "signin");
+    setLoginModal(true);
+  }, []);
+
+  const closeLogin = useCallback(() => {
+    setLoginModal(false);
+    setAuthModalView("signin");
+  }, []);
 
   return (
     <div className="min-h-screen bg-[#0a0f0a]">
+      <Suspense fallback={null}>
+        <OpenLoginFromQuery onOpen={openLogin} />
+      </Suspense>
 
       {/* ── HERO ── */}
       <section className="relative flex flex-col items-center justify-center min-h-[92vh] pt-8 pb-12 px-4 overflow-hidden">
@@ -169,7 +184,8 @@ export default function HomePage() {
                   <ArrowRight size={18} />
                 </Link>
                 <button
-                  onClick={() => setLoginModal(true)}
+                  type="button"
+                  onClick={() => openLogin()}
                   className="inline-flex items-center gap-2 border-2 border-green-500/60 hover:border-green-400 text-green-300 hover:text-green-200 hover:bg-green-500/10 font-bold font-mono text-base px-8 py-4 rounded-lg transition-all"
                 >
                   $ login
@@ -384,7 +400,8 @@ export default function HomePage() {
                     <ArrowRight size={18} />
                   </Link>
                   <button
-                    onClick={() => setLoginModal(true)}
+                    type="button"
+                    onClick={() => openLogin()}
                     className="inline-flex items-center gap-2 border-2 border-white/30 hover:border-white/60 text-white hover:bg-white/10 font-bold font-mono text-base px-8 py-4 rounded-lg transition-all backdrop-blur-sm"
                   >
                     $ login
@@ -416,7 +433,11 @@ export default function HomePage() {
         </div>
       </footer>
 
-      <AuthModal isOpen={loginModal} onClose={() => setLoginModal(false)} />
+      <AuthModal
+        isOpen={loginModal}
+        onClose={closeLogin}
+        initialView={authModalView}
+      />
     </div>
   );
 }

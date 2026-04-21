@@ -3,31 +3,55 @@
  * UI components call these functions; no raw Firestore calls in admin page.tsx.
  */
 import { collection, doc, getDocs, updateDoc, getDoc, setDoc, orderBy, query, writeBatch, serverTimestamp } from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import { Assignment, PreRegisteredUser, Project, UserProfile, UserStatus } from "@/types";
+import { db, auth } from "@/lib/firebase";
+import { Assignment, Project, UserProfile, UserStatus } from "@/types";
 
 // ── Users ─────────────────────────────────────────────────────────────────────
 
 export async function fetchAllUsers(): Promise<UserProfile[]> {
   const snap = await getDocs(query(collection(db, "users"), orderBy("displayName")));
-  return snap.docs.map((d) => d.data() as UserProfile);
+  return snap.docs.map((d) => {
+    const data = d.data() as UserProfile;
+    const id = d.id;
+    const isEmailKey = id.includes("@");
+    const signedIn =
+      data.signedIn === false
+        ? false
+        : data.signedIn === true
+          ? true
+          : !isEmailKey;
+    const uid =
+      typeof data.uid === "string" && data.uid.length > 0
+        ? data.uid
+        : isEmailKey
+          ? ""
+          : id;
+    return {
+      ...data,
+      email: (data.email && data.email) || (isEmailKey ? id : ""),
+      uid,
+      signedIn,
+      registered: data.registered !== undefined ? data.registered : signedIn,
+      firestoreId: id,
+    } as UserProfile;
+  });
 }
 
-export async function setUserStatus(uid: string, status: UserStatus): Promise<void> {
-  await updateDoc(doc(db, "users", uid), { status, userStatus: status });
+export async function setUserStatus(userDocId: string, status: UserStatus): Promise<void> {
+  await updateDoc(doc(db, "users", userDocId), { status, userStatus: status });
 }
 
-export async function setUserRole(uid: string, role: UserProfile["role"]): Promise<void> {
-  await updateDoc(doc(db, "users", uid), { role });
+export async function setUserRole(userDocId: string, role: UserProfile["role"]): Promise<void> {
+  await updateDoc(doc(db, "users", userDocId), { role });
 }
 
 /** Admin bulk-edit profile fields (Firestore rules: admin may update user docs). */
-export async function updateUserFields(uid: string, data: Record<string, unknown>): Promise<void> {
+export async function updateUserFields(userDocId: string, data: Record<string, unknown>): Promise<void> {
   const payload: Record<string, unknown> = { updatedAt: serverTimestamp() };
   for (const [k, v] of Object.entries(data)) {
     if (v !== undefined) payload[k] = v;
   }
-  await updateDoc(doc(db, "users", uid), payload);
+  await updateDoc(doc(db, "users", userDocId), payload);
 }
 
 // ── Attendance ────────────────────────────────────────────────────────────────
@@ -87,43 +111,32 @@ export async function setProjectStatus(
   await updateDoc(doc(db, "projects", id), { status });
 }
 
-// ── Pre-registered users ───────────────────────────────────────────────────────
+// ── Form registration (imported + pending sign-up) in `users` only ───────────
 
-export async function fetchPreRegisteredUsers(): Promise<PreRegisteredUser[]> {
-  const snap = await getDocs(collection(db, "preRegistered"));
-  return snap.docs.map((d) => d.data() as PreRegisteredUser);
+export async function fetchFormRegisteredUsers(): Promise<UserProfile[]> {
+  const token = await auth.currentUser?.getIdToken();
+  const res = await fetch("/api/admin/preregistered", {
+    headers: { ...(token && { Authorization: `Bearer ${token}` }) },
+  });
+  if (!res.ok) throw new Error("fetchFormRegisteredUsers failed");
+  const json = await res.json();
+  if (!json?.ok) throw new Error(String(json?.error || "not ok"));
+  return (json.data as UserProfile[]) ?? [];
 }
 
-/** Bulk-upsert pre-registered users. Doc ID = normalised email. */
-export async function upsertPreRegisteredUsers(
-  users: PreRegisteredUser[]
-): Promise<void> {
-  const BATCH_SIZE = 499;
-  for (let i = 0; i < users.length; i += BATCH_SIZE) {
-    const batch = writeBatch(db);
-    const chunk = users.slice(i, i + BATCH_SIZE);
-    for (const u of chunk) {
-      const id = u.email.toLowerCase().trim();
-      batch.set(doc(db, "preRegistered", id), u, { merge: true });
-    }
-    await batch.commit();
+/** Bulk upsert — writes `users/{email}` pending rows. */
+export async function upsertRegistrationUsers(users: Record<string, unknown>[]): Promise<void> {
+  const token = await auth.currentUser?.getIdToken();
+  const res = await fetch("/api/admin/preregistered", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token && { Authorization: `Bearer ${token}` }),
+    },
+    body: JSON.stringify({ users }),
+  });
+  if (!res.ok) {
+    const b = await res.json().catch(() => ({}));
+    throw new Error(String(b.error ?? res.status));
   }
-}
-
-export async function getPreRegisteredByEmail(
-  email: string
-): Promise<PreRegisteredUser | null> {
-  const snap = await getDoc(doc(db, "preRegistered", email.toLowerCase().trim()));
-  return snap.exists() ? (snap.data() as PreRegisteredUser) : null;
-}
-
-export async function markPreRegisteredLinked(
-  email: string,
-  uid: string
-): Promise<void> {
-  await setDoc(
-    doc(db, "preRegistered", email.toLowerCase().trim()),
-    { linkedUid: uid, linkedAt: new Date().toISOString() },
-    { merge: true }
-  );
 }

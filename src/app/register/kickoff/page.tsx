@@ -6,7 +6,6 @@ import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { MapPin, MonitorPlay, Loader2, ChevronRight } from "lucide-react";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
-import { getPreRegisteredByEmail } from "@/lib/adminService";
 import { joiningInPersonLabel, SESSION_SKIP_REGISTER_REDIRECT } from "@/lib/kickoffRsvp";
 import toast from "react-hot-toast";
 
@@ -37,25 +36,12 @@ export default function KickoffRsvpPage() {
     }
   }, [loading, user, userProfile, router]);
 
-  // Pre-fill from pre-registered CSV if they said yes to in-person
+  // Pre-fill from profile (form import merged at sign-up) if they said yes in-person
   useEffect(() => {
-    if (!user?.email || choice !== null) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const pre = await getPreRegisteredByEmail(user.email!);
-        if (cancelled || !pre) return;
-        if ((pre.joiningInPerson || "").toLowerCase().trim().startsWith("y")) {
-          setChoice(true);
-        }
-      } catch {
-        /* ignore */
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [user?.email, choice]);
+    if (choice !== null) return;
+    const j = (userProfile?.joiningInPerson || "").toLowerCase().trim();
+    if (j.startsWith("y")) setChoice(true);
+  }, [userProfile?.joiningInPerson, choice]);
 
   const submit = async () => {
     if (choice === null || !user) {

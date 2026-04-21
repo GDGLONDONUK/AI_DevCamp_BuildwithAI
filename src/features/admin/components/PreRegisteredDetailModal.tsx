@@ -1,14 +1,20 @@
 "use client";
 
 import { CheckCircle2, Mail, XCircle } from "lucide-react";
-import { PreRegisteredUser } from "@/types";
+import type { UserProfile } from "@/types";
 
 interface Props {
-  detailUser: PreRegisteredUser;
+  detailUser: UserProfile;
   onClose: () => void;
 }
 
+function hasAuthAccount(u: UserProfile): boolean {
+  if (u.signedIn === false) return false;
+  return Boolean(u.uid);
+}
+
 export default function PreRegisteredDetailModal({ detailUser, onClose }: Props) {
+  const linked = hasAuthAccount(detailUser);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-end bg-black/60 backdrop-blur-sm" onClick={onClose}>
       <div
@@ -45,11 +51,11 @@ export default function PreRegisteredDetailModal({ detailUser, onClose }: Props)
         </div>
 
         <div className="px-6 pt-5 pb-2">
-          {detailUser.linkedUid ? (
+          {linked ? (
             <span className="inline-flex items-center gap-1.5 text-xs font-mono bg-green-500/15 text-green-400 border border-green-500/25 px-3 py-1.5 rounded-full">
               <CheckCircle2 size={12} /> Account created · signed up
-              {detailUser.linkedAt && (
-                <span className="text-green-600 ml-1">{new Date(detailUser.linkedAt).toLocaleDateString("en-GB")}</span>
+              {detailUser.importLinkedAt && (
+                <span className="text-green-600 ml-1">{new Date(detailUser.importLinkedAt).toLocaleDateString("en-GB")}</span>
               )}
             </span>
           ) : (
@@ -115,18 +121,18 @@ export default function PreRegisteredDetailModal({ detailUser, onClose }: Props)
             </p>
           </section>
 
-          {detailUser.linkedUid && (
+          {linked && detailUser.uid && (
             <section>
               <div className="text-[10px] font-mono text-gray-500 uppercase tracking-widest mb-3 pb-1 border-b border-white/6">Internal</div>
               <dl className="space-y-2">
                 <div className="flex gap-3">
                   <dt className="text-xs text-gray-500 font-mono w-44 shrink-0">Firebase UID</dt>
-                  <dd className="text-xs text-gray-400 font-mono break-all">{detailUser.linkedUid}</dd>
+                  <dd className="text-xs text-gray-400 font-mono break-all">{detailUser.uid}</dd>
                 </div>
-                {detailUser.linkedAt && (
+                {detailUser.importLinkedAt && (
                   <div className="flex gap-3">
-                    <dt className="text-xs text-gray-500 font-mono w-44 shrink-0">Linked At</dt>
-                    <dd className="text-xs text-gray-400">{new Date(detailUser.linkedAt).toLocaleString("en-GB")}</dd>
+                    <dt className="text-xs text-gray-500 font-mono w-44 shrink-0">Profile linked at</dt>
+                    <dd className="text-xs text-gray-400">{new Date(detailUser.importLinkedAt).toLocaleString("en-GB")}</dd>
                   </div>
                 )}
               </dl>

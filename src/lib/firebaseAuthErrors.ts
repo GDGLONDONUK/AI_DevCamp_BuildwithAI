@@ -19,6 +19,12 @@ export function firebaseAuthErrorMessage(err: unknown): string {
       return "Sign-in was cancelled.";
     case "auth/network-request-failed":
       return "Network error. Check your connection and try again.";
+    case "auth/invalid-email":
+      return "That email address doesn’t look valid. Check for typos.";
+    case "auth/missing-email":
+      return "Enter the email you use for your account.";
+    case "auth/user-not-found":
+      return "No password account found for that email. Try Google sign-in, or register with email and password.";
     case "auth/account-exists-with-different-credential":
       return "An account already exists with this email using a different sign-in method. Try email/password or the provider you used before.";
     default:

@@ -9,7 +9,8 @@ import {
 } from "react";
 import { User, onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
-import { getUserProfile } from "@/lib/auth";
+import { getUserProfile, syncAuthProvidersToUserDoc } from "@/lib/auth";
+import { ensureProfileOnServer } from "@/lib/meApi";
 import { UserProfile } from "@/types";
 
 interface AuthContextType {
@@ -33,7 +34,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshProfile = async () => {
     if (user) {
-      const profile = await getUserProfile(user.uid);
+      let profile = await getUserProfile(user.uid);
+      if (!profile) {
+        try {
+          await ensureProfileOnServer();
+          profile = await getUserProfile(user.uid);
+        } catch (e) {
+          console.error("ensureProfileOnServer", e);
+        }
+      }
+      if (profile) {
+        try {
+          await syncAuthProvidersToUserDoc(user);
+          profile = (await getUserProfile(user.uid)) ?? profile;
+        } catch (e) {
+          console.error("syncAuthProvidersToUserDoc", e);
+        }
+      }
       setUserProfile(profile);
     }
   };
@@ -45,7 +62,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Set a session cookie so the Edge proxy can detect auth state
         // The cookie has no sensitive data — real security is in Firestore rules
         document.cookie = "firebase-session=1; path=/; SameSite=Lax";
-        const profile = await getUserProfile(firebaseUser.uid);
+        let profile = await getUserProfile(firebaseUser.uid);
+        if (!profile) {
+          try {
+            await ensureProfileOnServer();
+            profile = await getUserProfile(firebaseUser.uid);
+          } catch (e) {
+            console.error("ensureProfileOnServer", e);
+          }
+        }
+        if (profile) {
+          try {
+            await syncAuthProvidersToUserDoc(firebaseUser);
+            profile = (await getUserProfile(firebaseUser.uid)) ?? profile;
+          } catch (e) {
+            console.error("syncAuthProvidersToUserDoc", e);
+          }
+        }
         setUserProfile(profile);
       } else {
         // Clear session cookie on sign-out

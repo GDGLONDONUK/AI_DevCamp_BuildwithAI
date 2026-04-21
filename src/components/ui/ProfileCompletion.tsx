@@ -3,98 +3,10 @@
 import Link from "next/link";
 import { CheckCircle2, Circle, ArrowRight } from "lucide-react";
 import { UserProfile } from "@/types";
-
-// ── Field definitions ────────────────────────────────────────────────────────
-
-interface Field {
-  key: string;
-  label: string;
-  hint: string;
-  check: (p: UserProfile) => boolean;
-  section?: string; // anchor on the profile page
-}
-
-const FIELDS: Field[] = [
-  {
-    key: "displayName",
-    label: "Full name",
-    hint: "Add your name so others know who you are",
-    check: (p) => Boolean(p.displayName?.trim()),
-    section: "displayName",
-  },
-  {
-    key: "bio",
-    label: "Bio",
-    hint: "Tell the community about your background and goals",
-    check: (p) => Boolean(p.bio && p.bio.trim().length >= 20),
-    section: "bio",
-  },
-  {
-    key: "location",
-    label: "Location",
-    hint: "Add your city and country",
-    check: (p) => Boolean(p.city || p.country),
-    section: "location",
-  },
-  {
-    key: "experienceLevel",
-    label: "Experience level",
-    hint: "Let us know your AI experience level",
-    check: (p) => Boolean(p.experienceLevel),
-    section: "experience",
-  },
-  {
-    key: "skills",
-    label: "Programming skills",
-    hint: "Add at least one skill you know",
-    check: (p) => Array.isArray(p.skills) && p.skills.length > 0,
-    section: "skills",
-  },
-  {
-    key: "expertise",
-    label: "Domain expertise",
-    hint: "Share your domain knowledge area",
-    check: (p) => Array.isArray(p.expertise) && p.expertise.length > 0,
-    section: "skills",
-  },
-  {
-    key: "wantToLearn",
-    label: "Learning goals",
-    hint: "What do you want to learn at AI DevCamp?",
-    check: (p) => Array.isArray(p.wantToLearn) && p.wantToLearn.length > 0,
-    section: "learning",
-  },
-  {
-    key: "canOffer",
-    label: "What you can offer",
-    hint: "How can you help other attendees?",
-    check: (p) => Array.isArray(p.canOffer) && p.canOffer.length > 0,
-    section: "learning",
-  },
-  {
-    key: "linkedinUrl",
-    label: "LinkedIn",
-    hint: "Connect professionally with other attendees",
-    check: (p) => Boolean(p.linkedinUrl?.trim()),
-    section: "links",
-  },
-  {
-    key: "githubUrl",
-    label: "GitHub",
-    hint: "Show your code to the community",
-    check: (p) => Boolean(p.githubUrl?.trim()),
-    section: "links",
-  },
-];
-
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
-function calcCompletion(profile: UserProfile) {
-  const done = FIELDS.filter((f) => f.check(profile));
-  const pct  = Math.round((done.length / FIELDS.length) * 100);
-  const missing = FIELDS.filter((f) => !f.check(profile));
-  return { pct, done: done.length, total: FIELDS.length, missing };
-}
+import {
+  PROFILE_COMPLETION_FIELDS,
+  calcProfileCompletion,
+} from "@/lib/profileCompletion";
 
 function colorClass(pct: number) {
   if (pct === 100) return { bar: "bg-green-500",  text: "text-green-400",  ring: "border-green-500/40" };
@@ -114,7 +26,7 @@ interface Props {
 export default function ProfileCompletion({ profile, variant = "full" }: Props) {
   if (!profile) return null;
 
-  const { pct, done, total, missing } = calcCompletion(profile);
+  const { pct, done, total, missing } = calcProfileCompletion(profile);
   const { bar, text, ring } = colorClass(pct);
 
   if (variant === "compact") {
@@ -196,7 +108,7 @@ export default function ProfileCompletion({ profile, variant = "full" }: Props) 
               Still to fill in
             </p>
             <div className="grid sm:grid-cols-2 gap-2">
-              {FIELDS.map((field) => {
+              {PROFILE_COMPLETION_FIELDS.map((field) => {
                 const isDone = field.check(profile);
                 return (
                   <div

@@ -1,20 +1,44 @@
 /**
- * GET  /api/admin/preregistered  — list all pre-registered users (admin only)
- * POST /api/admin/preregistered  — bulk-upsert pre-registered users (admin only)
+ * GET  /api/admin/preregistered  — list form-registered people (admin only) — from `users` with `preRegistered: true`
+ * POST /api/admin/preregistered  — bulk-upsert pending import rows to `users/{email}` (admin only)
  */
 
 import { NextRequest } from "next/server";
+import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase-admin";
 import { ok, err, requireAdmin } from "@/lib/api-helpers";
 import { parseLocationFields } from "@/lib/locationCleanup";
-import { PreRegisteredUser } from "@/types";
+import { formTimestampToIso } from "@/lib/formTimestamp";
+import { userSnapshotToAdminProfile } from "@/lib/server/userAdminView";
+import type { UserProfile } from "@/types";
 
-function normalizePreRegisteredLocation(u: PreRegisteredUser): PreRegisteredUser {
-  const raw =
-    (u.location && u.location.trim()) ||
+function normalizeImportPayload(u: Record<string, unknown>, email: string): Record<string, unknown> {
+  const raw = String(u.formSubmittedAt ?? u.importCreatedAt ?? "").trim();
+  const isoFromRaw = formTimestampToIso(raw);
+  const isAlreadyIso = /^\d{4}-\d{2}-\d{2}T/.test(raw);
+  const at = (isAlreadyIso ? raw : isoFromRaw) ?? u.registeredAt ?? u.importCreatedAt ?? raw;
+
+  const locRaw =
+    (typeof u.location === "string" && u.location.trim()) ||
     [u.city, u.country].filter(Boolean).join(", ");
-  const { location, city, country } = parseLocationFields(raw || "");
-  return { ...u, location, city, country };
+  const { location, city, country } = parseLocationFields(String(locRaw || ""));
+
+  return {
+    ...u,
+    email,
+    location,
+    city,
+    country,
+    formSubmittedAt: at,
+    registeredAt: u.registeredAt ?? at,
+    importCreatedAt: u.importCreatedAt ?? at,
+    createdAt: u.createdAt ?? at,
+    preRegistered: true,
+    registered: false,
+    signedIn: false,
+    uid: "",
+    updatedAt: FieldValue.serverTimestamp(),
+  };
 }
 
 export async function GET(request: NextRequest) {
@@ -22,12 +46,16 @@ export async function GET(request: NextRequest) {
   if (auth instanceof Response) return auth;
 
   try {
-    const snap = await adminDb().collection("preRegistered").get();
-    const users = snap.docs.map((d) => d.data() as PreRegisteredUser);
+    const snap = await adminDb()
+      .collection("users")
+      .where("preRegistered", "==", true)
+      .get();
+    const users: UserProfile[] = snap.docs.map((d) => userSnapshotToAdminProfile(d));
+    users.sort((a, b) => a.displayName.localeCompare(b.displayName));
     return ok(users);
   } catch (e) {
     console.error("GET /api/admin/preregistered", e);
-    return err("Failed to fetch pre-registered users", 500);
+    return err("Failed to fetch form-registered users", 500);
   }
 }
 
@@ -37,7 +65,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const users: PreRegisteredUser[] = body.users;
+    const users: Record<string, unknown>[] = body.users;
 
     if (!Array.isArray(users) || users.length === 0) {
       return err("users array is required and must not be empty");
@@ -49,10 +77,16 @@ export async function POST(request: NextRequest) {
     for (let i = 0; i < users.length; i += BATCH_SIZE) {
       const batch = db.batch();
       const chunk = users.slice(i, i + BATCH_SIZE);
-      for (const u of chunk) {
-        const id = u.email.toLowerCase().trim();
-        const normalized = normalizePreRegisteredLocation({ ...u, email: id });
-        batch.set(db.collection("preRegistered").doc(id), normalized, { merge: true });
+      for (const row of chunk) {
+        const email = String((row as { email?: string }).email ?? "")
+          .toLowerCase()
+          .trim();
+        if (!email || !email.includes("@")) continue;
+        const normalized = normalizeImportPayload(
+          { ...row, email } as Record<string, unknown>,
+          email
+        );
+        batch.set(db.collection("users").doc(email), normalized, { merge: true });
       }
       await batch.commit();
     }
@@ -60,6 +94,6 @@ export async function POST(request: NextRequest) {
     return ok({ upserted: users.length });
   } catch (e) {
     console.error("POST /api/admin/preregistered", e);
-    return err("Failed to upsert pre-registered users", 500);
+    return err("Failed to upsert form registration rows", 500);
   }
 }
