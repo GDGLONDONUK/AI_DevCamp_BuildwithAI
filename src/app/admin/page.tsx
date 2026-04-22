@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
@@ -9,6 +9,7 @@ import { getSessions, upsertSession, deleteSession, seedDefaultSessions } from "
 import {
   fetchAllUsers, fetchAllAssignments, fetchAllProjects, fetchAttendanceForUsers,
   setUserStatus, setUserRole, setAssignmentStatus, setProjectStatus,
+  updateProjectFields,
   toggleAttendance as toggleAttendanceSvc,
   updateUserFields,
 } from "@/lib/adminService";
@@ -21,12 +22,15 @@ import CountryFlag from "@/components/ui/CountryFlag";
 import PreRegisteredDetailModal from "@/features/admin/components/PreRegisteredDetailModal";
 import SessionEditor from "@/components/admin/SessionEditor";
 import UserEditor from "@/components/admin/UserEditor";
+import ProjectDetailModal from "@/components/admin/ProjectDetailModal";
 import StatusDropdown, { STATUS_CONFIG, ALL_STATUSES } from "@/components/admin/StatusDropdown";
 import {
   AlertTriangle,
   BookOpen,
   Calendar,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   ClipboardList,
   Clock,
   Code2,
@@ -106,6 +110,17 @@ export default function AdminPage() {
   const [addPendingOpen, setAddPendingOpen] = useState(false);
   const [addPendingForm, setAddPendingForm] = useState({ email: "", displayName: "", handle: "" });
   const [addPendingSubmitting, setAddPendingSubmitting] = useState(false);
+
+  const USERS_PER_PAGE = 12;
+  const [usersPage, setUsersPage] = useState(1);
+  const [usersRoleFilter, setUsersRoleFilter] = useState<"all" | UserProfile["role"]>("all");
+  const [usersAuthFilter, setUsersAuthFilter] = useState<"all" | "google" | "password">("all");
+
+  const [projectsQuery, setProjectsQuery] = useState("");
+  const [projectsStatusFilter, setProjectsStatusFilter] = useState<"all" | Project["status"]>("all");
+  const [projectsPage, setProjectsPage] = useState(1);
+  const PROJECTS_PER_PAGE = 10;
+  const [viewingProject, setViewingProject] = useState<Project | null>(null);
 
   // ── Access guard ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -285,8 +300,29 @@ export default function AdminPage() {
     try {
       await setProjectStatus(id, status);
       setProjects((prev) => prev.map((p) => p.id === id ? { ...p, status } : p));
+      if (viewingProject?.id === id) {
+        setViewingProject((vp) => (vp && vp.id === id ? { ...vp, status } : vp));
+      }
       toast.success("Project updated");
     } catch { toast.error("Failed"); }
+  };
+
+  const saveProjectFromModal = async (
+    id: string,
+    data: { status: Project["status"]; feedback: string }
+  ) => {
+    try {
+      await updateProjectFields(id, { status: data.status, feedback: data.feedback || undefined });
+      setProjects((prev) =>
+        prev.map((p) =>
+          p.id === id ? { ...p, status: data.status, feedback: data.feedback || undefined } : p
+        )
+      );
+      setViewingProject(null);
+      toast.success("Project updated");
+    } catch {
+      toast.error("Failed to update project");
+    }
   };
 
   // ── Filtered data ─────────────────────────────────────────────────────────
@@ -301,7 +337,39 @@ export default function AdminPage() {
     ? filteredUsers
     : filteredUsers.filter((u) => (u.userStatus || "pending") === statusFilter);
 
-  const usersListWithEmail = statusFilteredUsers.filter((u) => Boolean(u.email?.trim()));
+  const usersRoleFiltered = useMemo(() => {
+    if (usersRoleFilter === "all") return statusFilteredUsers;
+    return statusFilteredUsers.filter((u) => u.role === usersRoleFilter);
+  }, [statusFilteredUsers, usersRoleFilter]);
+
+  const usersAuthFiltered = useMemo(() => {
+    if (usersAuthFilter === "all") return usersRoleFiltered;
+    if (usersAuthFilter === "google") {
+      return usersRoleFiltered.filter((u) => userAuthShowsGoogle(u));
+    }
+    return usersRoleFiltered.filter((u) => userAuthShowsPassword(u));
+  }, [usersRoleFiltered, usersAuthFilter]);
+
+  const usersTotalPages = Math.max(1, Math.ceil(usersAuthFiltered.length / USERS_PER_PAGE));
+  const paginatedUsers = useMemo(
+    () =>
+      usersAuthFiltered.slice(
+        (usersPage - 1) * USERS_PER_PAGE,
+        usersPage * USERS_PER_PAGE
+      ),
+    [usersAuthFiltered, usersPage, USERS_PER_PAGE]
+  );
+
+  useEffect(() => {
+    setUsersPage(1);
+  }, [statusFilter, usersRoleFilter, usersAuthFilter, search]);
+
+  useEffect(() => {
+    const max = Math.max(1, Math.ceil(usersAuthFiltered.length / USERS_PER_PAGE));
+    setUsersPage((p) => (p > max ? max : p));
+  }, [usersAuthFiltered.length, USERS_PER_PAGE]);
+
+  const usersListWithEmail = usersAuthFiltered.filter((u) => Boolean(u.email?.trim()));
   const allVisibleUsersSelectedForEmail =
     usersListWithEmail.length > 0 &&
     usersListWithEmail.every((u) => selectedUsersEmails.has(u.email!));
@@ -318,7 +386,7 @@ export default function AdminPage() {
 
   const toggleSelectAllUsersForEmail = () => {
     setSelectedUsersEmails((prev) => {
-      const withE = statusFilteredUsers.filter((u) => u.email?.trim());
+      const withE = usersAuthFiltered.filter((u) => u.email?.trim());
       const allIn = withE.length > 0 && withE.every((u) => prev.has(u.email!));
       const next = new Set(prev);
       if (allIn) {
@@ -335,7 +403,7 @@ export default function AdminPage() {
   };
 
   const openEmailToSelectedUsers = () => {
-    const sel = statusFilteredUsers.filter(
+    const sel = usersAuthFiltered.filter(
       (u) => u.email && selectedUsersEmails.has(u.email)
     );
     if (sel.length === 0) {
@@ -363,11 +431,41 @@ export default function AdminPage() {
       a.title?.toLowerCase().includes(search.toLowerCase())
   );
 
-  const filteredProjects = projects.filter(
-    (p) =>
-      p.userName?.toLowerCase().includes(search.toLowerCase()) ||
-      p.title?.toLowerCase().includes(search.toLowerCase())
+  const filteredProjectsBase = useMemo(() => {
+    const q = projectsQuery.toLowerCase().trim();
+    return projects.filter(
+      (p) =>
+        !q ||
+        p.userName?.toLowerCase().includes(q) ||
+        p.userEmail?.toLowerCase().includes(q) ||
+        p.title?.toLowerCase().includes(q) ||
+        p.description?.toLowerCase().includes(q)
+    );
+  }, [projects, projectsQuery]);
+
+  const filteredProjects = useMemo(() => {
+    if (projectsStatusFilter === "all") return filteredProjectsBase;
+    return filteredProjectsBase.filter((p) => p.status === projectsStatusFilter);
+  }, [filteredProjectsBase, projectsStatusFilter]);
+
+  const projectsTotalPages = Math.max(1, Math.ceil(filteredProjects.length / PROJECTS_PER_PAGE));
+  const paginatedProjects = useMemo(
+    () =>
+      filteredProjects.slice(
+        (projectsPage - 1) * PROJECTS_PER_PAGE,
+        projectsPage * PROJECTS_PER_PAGE
+      ),
+    [filteredProjects, projectsPage, PROJECTS_PER_PAGE]
   );
+
+  useEffect(() => {
+    setProjectsPage(1);
+  }, [projectsQuery, projectsStatusFilter]);
+
+  useEffect(() => {
+    const max = Math.max(1, Math.ceil(filteredProjects.length / PROJECTS_PER_PAGE));
+    setProjectsPage((p) => (p > max ? max : p));
+  }, [filteredProjects.length, PROJECTS_PER_PAGE]);
 
   // ── Session CRUD ──────────────────────────────────────────────────────────
   const handleSaveSession = async (s: Session) => {
@@ -765,6 +863,42 @@ export default function AdminPage() {
                     ))}
                   </div>
 
+                  <div className="flex items-center gap-2 bg-gray-900/60 border border-white/8 rounded-xl px-2 py-1">
+                    <Filter size={12} className="text-gray-500 shrink-0" />
+                    <select
+                      value={usersRoleFilter}
+                      onChange={(e) =>
+                        setUsersRoleFilter(e.target.value as "all" | UserProfile["role"])
+                      }
+                      className="bg-transparent text-xs font-mono text-white border-0 rounded-lg py-1.5 pr-6 focus:ring-0 cursor-pointer max-w-[130px]"
+                      title="Filter by role"
+                    >
+                      <option value="all">All roles</option>
+                      <option value="attendee">Attendee</option>
+                      <option value="moderator">Moderator</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-2 bg-gray-900/60 border border-white/8 rounded-xl px-2 py-1">
+                    <select
+                      value={usersAuthFilter}
+                      onChange={(e) =>
+                        setUsersAuthFilter(e.target.value as "all" | "google" | "password")
+                      }
+                      className="bg-transparent text-xs font-mono text-white border-0 rounded-lg py-1.5 pr-6 focus:ring-0 cursor-pointer max-w-[150px]"
+                      title="Filter by sign-in method"
+                    >
+                      <option value="all">All sign-in</option>
+                      <option value="google">Google</option>
+                      <option value="password">Email/password</option>
+                    </select>
+                  </div>
+
+                  <span className="text-xs text-gray-600 font-mono hidden md:inline">
+                    {usersAuthFiltered.length} match
+                    {usersRoleFilter !== "all" || usersAuthFilter !== "all" ? " (filtered)" : ""}
+                  </span>
+
                   <div className="flex items-center gap-2 ml-auto">
                     {/* View toggle */}
                     <div className="flex items-center bg-gray-900/60 border border-white/8 rounded-xl p-1">
@@ -786,9 +920,9 @@ export default function AdminPage() {
 
                     {/* CSV export */}
                     <button
-                      onClick={() => exportAttendeesCsv(statusFilteredUsers, attendance, sessions)}
+                      onClick={() => exportAttendeesCsv(usersAuthFiltered, attendance, sessions)}
                       className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-white border border-white/10 hover:border-white/20 px-3 py-2 rounded-xl font-mono transition-all"
-                      title="Download as CSV"
+                      title="Export current filter results"
                     >
                       <Download size={14} />
                       CSV
@@ -820,14 +954,14 @@ export default function AdminPage() {
                   </div>
                 )}
 
-                {statusFilteredUsers.length === 0 && (
-                  <p className="text-center text-gray-500 py-10 font-mono">No users match this filter</p>
+                {usersAuthFiltered.length === 0 && (
+                  <p className="text-center text-gray-500 py-10 font-mono">No users match these filters</p>
                 )}
 
                 {/* ── GRID (card) VIEW ── */}
                 {usersView === "grid" && (
                   <div className="space-y-3">
-                    <div className="flex items-center gap-3 px-1 text-xs font-mono text-gray-500">
+                    <div className="flex flex-wrap items-center justify-between gap-3 px-1 text-xs font-mono text-gray-500">
                       <label className="inline-flex items-center gap-2 cursor-pointer select-none">
                         <input
                           type="checkbox"
@@ -836,10 +970,17 @@ export default function AdminPage() {
                           onChange={toggleSelectAllUsersForEmail}
                           disabled={usersListWithEmail.length === 0}
                         />
-                        Select all in view ({usersListWithEmail.length} with email)
+                        Select all matching filters ({usersListWithEmail.length} with email)
                       </label>
+                      {usersAuthFiltered.length > 0 && (
+                        <span>
+                          Page {usersPage} / {usersTotalPages} · {(usersPage - 1) * USERS_PER_PAGE + 1}–
+                          {Math.min(usersPage * USERS_PER_PAGE, usersAuthFiltered.length)} of{" "}
+                          {usersAuthFiltered.length}
+                        </span>
+                      )}
                     </div>
-                    {statusFilteredUsers.map((u) => {
+                    {paginatedUsers.map((u) => {
                       const status = u.userStatus || "pending";
                       const sc = STATUS_CONFIG[status];
                       const country = u.country || "";
@@ -959,11 +1100,61 @@ export default function AdminPage() {
                         </div>
                       );
                     })}
+                    {usersTotalPages > 1 && (
+                      <div className="flex flex-wrap items-center justify-center gap-4 py-3 border-t border-white/5">
+                        <button
+                          type="button"
+                          disabled={usersPage <= 1}
+                          onClick={() => setUsersPage((p) => Math.max(1, p - 1))}
+                          className="inline-flex items-center gap-1 text-sm text-gray-400 hover:text-white disabled:opacity-30 font-mono px-2"
+                        >
+                          <ChevronLeft size={16} /> Previous
+                        </button>
+                        <span className="text-xs text-gray-600 font-mono">
+                          {usersPage} / {usersTotalPages}
+                        </span>
+                        <button
+                          type="button"
+                          disabled={usersPage >= usersTotalPages}
+                          onClick={() => setUsersPage((p) => Math.min(usersTotalPages, p + 1))}
+                          className="inline-flex items-center gap-1 text-sm text-gray-400 hover:text-white disabled:opacity-30 font-mono px-2"
+                        >
+                          Next <ChevronRight size={16} />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
 
                 {/* ── TABLE VIEW ── */}
                 {usersView === "table" && (
+                  <div className="space-y-2">
+                    {usersAuthFiltered.length > 0 && usersTotalPages > 1 && (
+                      <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-xs font-mono text-gray-500">
+                        <span>
+                          Page {usersPage} / {usersTotalPages} · rows {(usersPage - 1) * USERS_PER_PAGE + 1}–
+                          {Math.min(usersPage * USERS_PER_PAGE, usersAuthFiltered.length)} of {usersAuthFiltered.length}
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            disabled={usersPage <= 1}
+                            onClick={() => setUsersPage((p) => Math.max(1, p - 1))}
+                            className="inline-flex items-center gap-0.5 text-gray-400 hover:text-white disabled:opacity-30"
+                          >
+                            <ChevronLeft size={14} /> Prev
+                          </button>
+                          <button
+                            type="button"
+                            disabled={usersPage >= usersTotalPages}
+                            onClick={() => setUsersPage((p) => Math.min(usersTotalPages, p + 1))}
+                            className="inline-flex items-center gap-0.5 text-gray-400 hover:text-white disabled:opacity-30"
+                          >
+                            Next <ChevronRight size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   <div className="overflow-x-auto rounded-xl border border-white/8">
                     <table className="w-full text-sm">
                       <thead>
@@ -975,7 +1166,7 @@ export default function AdminPage() {
                               checked={allVisibleUsersSelectedForEmail}
                               onChange={toggleSelectAllUsersForEmail}
                               disabled={usersListWithEmail.length === 0}
-                              title="Select all visible (with email)"
+                              title="Select all matching filters (with email)"
                             />
                           </th>
                           {[
@@ -991,14 +1182,14 @@ export default function AdminPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {statusFilteredUsers.length === 0 && (
+                        {usersAuthFiltered.length === 0 && (
                           <tr>
                             <td colSpan={12} className="text-center py-10 text-gray-500 font-mono">
                               No users
                             </td>
                           </tr>
                         )}
-                        {statusFilteredUsers.map((u, idx) => {
+                        {paginatedUsers.map((u, idx) => {
                           const status = u.userStatus || "pending";
                           const sc = STATUS_CONFIG[status];
                           const country = u.country || "";
@@ -1156,15 +1347,19 @@ export default function AdminPage() {
                     {/* Table footer */}
                     <div className="px-4 py-3 bg-gray-900/40 border-t border-white/5 flex items-center justify-between">
                       <span className="font-mono text-xs text-gray-500">
-                        Showing {statusFilteredUsers.length} of {users.length} users
+                        Showing {usersAuthFiltered.length} of {users.length} users
+                        {usersTotalPages > 1
+                          ? ` (page ${usersPage}/${usersTotalPages})`
+                          : ""}
                       </span>
                       <button
-                        onClick={() => exportAttendeesCsv(statusFilteredUsers, attendance, sessions)}
+                        onClick={() => exportAttendeesCsv(usersAuthFiltered, attendance, sessions)}
                         className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-white font-mono transition-colors"
                       >
                         <Download size={12} /> Download CSV
                       </button>
                     </div>
+                  </div>
                   </div>
                 )}
               </div>
@@ -1220,11 +1415,41 @@ export default function AdminPage() {
 
             {/* ── PROJECTS TAB ── */}
             {activeTab === "projects" && (
-              <div className="space-y-3">
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="relative flex-1 min-w-[200px] max-w-md">
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                    <input
+                      value={projectsQuery}
+                      onChange={(e) => setProjectsQuery(e.target.value)}
+                      placeholder="Search title, person, email, description…"
+                      className="w-full pl-9 pr-3 py-2 bg-gray-900/60 border border-white/10 rounded-lg text-sm text-white placeholder:text-gray-600 focus:outline-none focus:ring-1 focus:ring-green-500 font-mono"
+                    />
+                  </div>
+                  <select
+                    value={projectsStatusFilter}
+                    onChange={(e) =>
+                      setProjectsStatusFilter(e.target.value as "all" | Project["status"])
+                    }
+                    className="bg-gray-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-white font-mono"
+                  >
+                    <option value="all">All statuses</option>
+                    <option value="submitted">Submitted</option>
+                    <option value="reviewed">Reviewed</option>
+                    <option value="shortlisted">Shortlisted</option>
+                    <option value="winner">Winner</option>
+                    <option value="passed">Passed</option>
+                  </select>
+                  <span className="text-xs text-gray-600 font-mono">
+                    {filteredProjects.length} project{filteredProjects.length === 1 ? "" : "s"}
+                  </span>
+                </div>
+
                 {filteredProjects.length === 0 && (
-                  <p className="text-center text-gray-500 py-10 font-mono">No projects submitted yet</p>
+                  <p className="text-center text-gray-500 py-10 font-mono">No projects match your filters</p>
                 )}
-                {filteredProjects.map((p) => (
+
+                {paginatedProjects.map((p) => (
                   <div key={p.id} className="bg-gray-900/50 border border-white/8 rounded-xl p-4 hover:border-white/15 transition-all">
                     <div className="flex flex-wrap items-start gap-4">
                       <div className="flex-1 min-w-0">
@@ -1232,6 +1457,17 @@ export default function AdminPage() {
                           <span className="font-semibold text-white">{p.title}</span>
                           <span className="font-mono text-xs bg-white/8 text-gray-400 border border-white/10 px-2 py-0.5 rounded-full">
                             Week {p.weekCompleted}
+                          </span>
+                          <span
+                            className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded ${
+                              p.status === "passed"
+                                ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                                : p.status === "winner"
+                                  ? "bg-amber-500/15 text-amber-300 border border-amber-500/30"
+                                  : "bg-white/5 text-gray-500 border border-white/10"
+                            }`}
+                          >
+                            {p.status}
                           </span>
                         </div>
                         <p className="text-sm text-gray-400">{p.userName} · {p.userEmail}</p>
@@ -1245,7 +1481,7 @@ export default function AdminPage() {
                             ))}
                           </div>
                         )}
-                        <div className="flex gap-3 mt-2">
+                        <div className="flex flex-wrap gap-3 mt-2 items-center">
                           {p.githubUrl && (
                             <a href={p.githubUrl} target="_blank" rel="noopener noreferrer"
                               className="text-xs text-blue-400 hover:underline font-mono">GitHub →</a>
@@ -1254,21 +1490,54 @@ export default function AdminPage() {
                             <a href={p.demoUrl} target="_blank" rel="noopener noreferrer"
                               className="text-xs text-blue-400 hover:underline font-mono">Demo →</a>
                           )}
+                          <button
+                            type="button"
+                            onClick={() => setViewingProject(p)}
+                            className="text-xs text-green-400 hover:text-green-300 font-mono font-semibold border border-green-500/30 hover:bg-green-500/10 px-2 py-1 rounded-lg transition-all"
+                          >
+                            Details &amp; status
+                          </button>
                         </div>
                       </div>
                       <select
                         value={p.status}
                         onChange={(e) => updateProjectStatus(p.id!, e.target.value as Project["status"])}
                         className="bg-gray-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:ring-1 focus:ring-green-500 flex-shrink-0"
+                        title="Quick status change"
                       >
                         <option value="submitted">Submitted</option>
                         <option value="reviewed">Reviewed</option>
                         <option value="shortlisted">Shortlisted ⭐</option>
                         <option value="winner">Winner 🏆</option>
+                        <option value="passed">Passed</option>
                       </select>
                     </div>
                   </div>
                 ))}
+
+                {projectsTotalPages > 1 && filteredProjects.length > 0 && (
+                  <div className="flex items-center justify-center gap-4 py-2">
+                    <button
+                      type="button"
+                      disabled={projectsPage <= 1}
+                      onClick={() => setProjectsPage((x) => Math.max(1, x - 1))}
+                      className="inline-flex items-center gap-1 text-sm text-gray-400 hover:text-white disabled:opacity-30 font-mono"
+                    >
+                      <ChevronLeft size={16} /> Previous
+                    </button>
+                    <span className="text-xs text-gray-600 font-mono">
+                      {projectsPage} / {projectsTotalPages}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={projectsPage >= projectsTotalPages}
+                      onClick={() => setProjectsPage((x) => Math.min(projectsTotalPages, x + 1))}
+                      className="inline-flex items-center gap-1 text-sm text-gray-400 hover:text-white disabled:opacity-30 font-mono"
+                    >
+                      Next <ChevronRight size={16} />
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
@@ -1636,6 +1905,14 @@ export default function AdminPage() {
           user={editingUser}
           onClose={() => setEditingUser(null)}
           onSave={handleSaveUserEdit}
+        />
+      )}
+
+      {viewingProject && (
+        <ProjectDetailModal
+          project={viewingProject}
+          onClose={() => setViewingProject(null)}
+          onSave={saveProjectFromModal}
         />
       )}
 

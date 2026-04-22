@@ -3,7 +3,7 @@
  * PATCH /api/projects/[id]  — update status or feedback (admin/moderator only)
  *
  * PATCH body:
- *   { status: "submitted" | "reviewed" | "shortlisted" | "winner", feedback?: string }
+ *   { status: "submitted" | "reviewed" | "shortlisted" | "winner" | "passed", feedback?: string }
  */
 
 import { NextRequest } from "next/server";
@@ -13,7 +13,7 @@ import { FieldValue } from "firebase-admin/firestore";
 
 type Params = { params: Promise<{ id: string }> };
 
-const VALID_STATUSES = ["submitted", "reviewed", "shortlisted", "winner"];
+const VALID_STATUSES = ["submitted", "reviewed", "shortlisted", "winner", "passed"];
 
 export async function GET(request: NextRequest, { params }: Params) {
   const { id } = await params;

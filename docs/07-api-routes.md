@@ -232,7 +232,7 @@ Valid statuses: `submitted` → `reviewed` → `approved`
 }
 ```
 
-Valid statuses: `submitted` → `reviewed` → `shortlisted` → `winner`
+Valid statuses: `submitted` → `reviewed` → `shortlisted` → `winner`; admins may also set `passed` (e.g. programme completion without a competition win).
 
 ---
 

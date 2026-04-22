@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { MapPin, MonitorPlay, Loader2, ChevronRight } from "lucide-react";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
+import { ensureProfileOnServer } from "@/lib/meApi";
 import { joiningInPersonLabel, SESSION_SKIP_REGISTER_REDIRECT } from "@/lib/kickoffRsvp";
 import toast from "react-hot-toast";
 
@@ -50,7 +51,15 @@ export default function KickoffRsvpPage() {
     }
     setSaving(true);
     try {
-      await updateDoc(doc(db, "users", user.uid), {
+      const userRef = doc(db, "users", user.uid);
+      const existing = await getDoc(userRef);
+      if (!existing.exists()) {
+        await ensureProfileOnServer();
+        if (!(await getDoc(userRef)).exists()) {
+          throw new Error("Profile not ready. Try signing out and back in.");
+        }
+      }
+      await updateDoc(userRef, {
         kickoffInPersonRsvp: choice,
         joiningInPerson: joiningInPersonLabel(choice),
         updatedAt: serverTimestamp(),
@@ -59,8 +68,13 @@ export default function KickoffRsvpPage() {
       await refreshProfile();
       toast.success("You are all set — see you at DevCamp!");
       router.replace("/dashboard");
-    } catch {
-      toast.error("Could not save — try again");
+    } catch (err) {
+      console.error("Kickoff RSVP save failed:", err);
+      const msg =
+        err instanceof Error && err.message
+          ? err.message
+          : "Could not save — try again";
+      toast.error(msg);
     } finally {
       setSaving(false);
     }

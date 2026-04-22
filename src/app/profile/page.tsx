@@ -3,8 +3,9 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { ensureProfileOnServer } from "@/lib/meApi";
 import { User, Globe, Save } from "lucide-react";
 import LocationPicker from "@/components/ui/LocationPicker";
 import SkillsSelector from "@/components/ui/SkillsSelector";
@@ -74,7 +75,17 @@ export default function ProfilePage() {
     if (!user) return;
     setSaving(true);
     try {
-      await updateDoc(doc(db, "users", user.uid), {
+      const userRef = doc(db, "users", user.uid);
+      const existing = await getDoc(userRef);
+      if (!existing.exists()) {
+        await ensureProfileOnServer();
+        if (!(await getDoc(userRef)).exists()) {
+          throw new Error(
+            "No profile document. Try signing out and back in, or check your network."
+          );
+        }
+      }
+      await updateDoc(userRef, {
         displayName: form.displayName,
         bio: form.bio,
         city: form.city,
@@ -92,8 +103,13 @@ export default function ProfilePage() {
       });
       await refreshProfile();
       toast.success("Profile updated!");
-    } catch {
-      toast.error("Failed to update profile");
+    } catch (err) {
+      console.error("Profile save failed:", err);
+      const msg =
+        err instanceof Error && err.message
+          ? err.message
+          : "Failed to update profile. Try again or sign out and back in.";
+      toast.error(msg);
     } finally {
       setSaving(false);
     }

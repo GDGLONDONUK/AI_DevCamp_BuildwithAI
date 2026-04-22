@@ -108,7 +108,18 @@ export async function setProjectStatus(
   id: string,
   status: Project["status"]
 ): Promise<void> {
-  await updateDoc(doc(db, "projects", id), { status });
+  await updateDoc(doc(db, "projects", id), { status, updatedAt: serverTimestamp() });
+}
+
+/** Update project status and/or admin feedback in one write. */
+export async function updateProjectFields(
+  id: string,
+  data: { status?: Project["status"]; feedback?: string }
+): Promise<void> {
+  const payload: Record<string, unknown> = { updatedAt: serverTimestamp() };
+  if (data.status !== undefined) payload.status = data.status;
+  if (data.feedback !== undefined) payload.feedback = data.feedback;
+  await updateDoc(doc(db, "projects", id), payload);
 }
 
 // ── Form registration (imported + pending sign-up) in `users` only ───────────

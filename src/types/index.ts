@@ -161,7 +161,7 @@ export interface Project {
   demoUrl?: string;
   screenshotUrls?: string[];
   submittedAt: Date | string;
-  status: "submitted" | "reviewed" | "shortlisted" | "winner";
+  status: "submitted" | "reviewed" | "shortlisted" | "winner" | "passed";
   feedback?: string;
   weekCompleted: number;
 }
