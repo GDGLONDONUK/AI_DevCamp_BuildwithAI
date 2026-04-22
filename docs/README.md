@@ -13,6 +13,7 @@ Welcome! This folder contains everything you need to understand and contribute t
 | [05-key-concepts.md](./05-key-concepts.md) | React patterns, hooks, context, services |
 | [06-getting-started.md](./06-getting-started.md) | How to run the project locally |
 | [07-api-routes.md](./07-api-routes.md) | REST API reference — endpoints, auth, request/response shapes |
+| [08-site-deployment-and-admin.md](./08-site-deployment-and-admin.md) | Production URL, env vars, Discord, admin features, `me` & pending-user APIs |
 
 ## Quick orientation
 
@@ -28,14 +29,16 @@ User visits site
 
 ## Recent changes (for returning contributors)
 
-- **`src/lib/admin/`** — Admin domain helpers: CSV parsing and deduplication for pre-registered imports (`csvPreRegistered.ts`), attendee CSV download (`exportAttendeesCsv.ts`), shared datetime formatting (`format.ts`), and pre-reg upload with toast (`uploadPreRegisteredCsv.ts`). Used by the main admin page (and intended for import flows) so logic is not duplicated in huge route files.
-- **`src/features/admin/`** — Feature-scoped admin UI (e.g. `PreRegisteredDetailModal`) and small shared types; add more tab/modal components here as `/admin` is split up.
-- **`src/proxy.ts`** — renamed from `middleware.ts` (Next.js 16 convention). Export is now `proxy()`, not `middleware()`.
-- **`UserProfile` type** — extended with `city`, `country`, `handle`, `roleTitle`, `websiteUrl`, `skills`, `expertise`, `wantToLearn`, `canOffer`, `keepUpdated` fields.
-- **Session content gating** — session recordings, resources, and build ideas are only visible to users with `userStatus: "participated"` or `"certified"`.
-- **Session registration removed** — users no longer register for individual sessions; access is granted by an admin setting `userStatus`.
-- **`src/data/tags.ts`** — centralised skill/expertise tag presets (used by register and profile pages).
-- **`src/lib/adminService.ts`** — all admin Firestore mutations are here (previously inline in the page).
-- **`src/hooks/useSessions.ts` / `useAdminData.ts`** — custom hooks for data fetching.
+- **Production** — See [08-site-deployment-and-admin.md](./08-site-deployment-and-admin.md): canonical URL `https://aidevcamp.gdg.london`, set `NEXT_PUBLIC_SITE_URL` and `NEXT_PUBLIC_APP_URL` on Vercel, add the hostname under Firebase **authorized domains**. Custom domains are **not** covered by `VERCEL_URL` in CORS.
+- **Home page** — Discord invite (`DISCORD_INVITE_URL` in `src/app/page.tsx`) and `OpenLoginFromQuery` for `/?login=1` and `/?login=1&reset=1`.
+- **Auth** — Password reset in `AuthModal`; `sendPasswordResetEmail` in `src/lib/auth.ts`; `authProviders` on `users` synced on sign-in; `syncAuthProvidersToUserDoc` / `userAuthShowsGoogle` for admin badges.
+- **Users / imports** — Pending rows at `users/{email}`; `POST /api/me/ensure-profile` merges on first sign-in; `POST /api/admin/pending-user` for “Add pending user”. Merge helper: `src/lib/server/mergePendingUserIntoProfile.ts`. Schema: [03 · Database schema](./03-database-schema.md) (section *Pending user rows*).
+- **Admin** — Users tab: checkboxes, grid + table, bulk **Send email**; header + Users + Pre-Registered **Add pending user**; pre-reg table unchanged. API additions: [07-api-routes.md](./07-api-routes.md).
+- **`src/lib/admin/`** — Admin domain helpers: CSV for pre-registered imports, attendee export, `format.ts`, `uploadPreRegisteredCsv.ts`.
+- **`src/features/admin/`** — e.g. `PreRegisteredDetailModal`.
+- **`src/proxy.ts`** — Next.js 16 (formerly `middleware.ts`); CORS + route guards.
+- **`UserProfile` type** — `authProviders`, `importSource`, `createdByAdmin`, and other import/pre-reg fields; see `src/types/index.ts`.
+- **Session gating** — Recordings and resources for `userStatus: "participated"` or `"certified"`.
+- **`src/data/tags.ts`**, **`src/lib/adminService.ts`**, **hooks** — as before.
 
 Start with [01-project-overview.md](./01-project-overview.md) →

@@ -95,6 +95,28 @@ Every response is JSON with a consistent envelope:
 | `GET` | `/api/users/[uid]` | Admin / Moderator or self | Get a user's profile |
 | `PATCH` | `/api/users/[uid]` | Admin/Mod (privileged) or self (own fields) | Update a user |
 
+---
+
+### “Me” — profile and pending imports (Bearer required)
+
+| Method | Path | Description |
+|--------|------|--------------|
+| `POST` | `/api/me/ensure-profile` | Create `users/{uid}` if missing; merge and delete `users/{email}` when present. |
+| `GET` | `/api/me/preregistered` | Returns pending `users/{email}` row for the signed-in user’s email (for registration UI). |
+| `POST` | `/api/me/link-preregister` | Idempotently clean up after linking (removes email doc if still pending). |
+
+Merge logic and field list: `src/lib/server/mergePendingUserIntoProfile.ts`.
+
+---
+
+### Admin — pre-registration and pending users (admin / moderator)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/admin/preregistered` | List `users` with `preRegistered == true` (form imports / pending). |
+| `POST` | `/api/admin/preregistered` | Batch upsert rows to `users/{email}` (CSV pipeline). |
+| `POST` | `/api/admin/pending-user` | Create or update a **single** pending `users/{email}` from the admin “Add pending user” flow (`importSource: "admin"`, `createdByAdmin: true`). |
+
 **PATCH body — admin/moderator** (can set privileged fields):
 ```json
 {
@@ -269,6 +291,10 @@ Client sends request with Authorization: Bearer <idToken>
 ```
 
 The Firebase Admin SDK uses your service account private key to verify tokens **without a network round-trip** (the public keys are cached locally). This is fast and doesn't count toward Firebase usage quotas.
+
+---
+
+For production URL, CORS, and admin UX (user selection, email), see [08-site-deployment-and-admin.md](./08-site-deployment-and-admin.md).
 
 ---
 

@@ -2,7 +2,7 @@
 
 ## What is this?
 
-**AI DevCamp 2026 — Build with AI** is a learning platform for a 3-week in-person programme held in London. It lets organisers manage sessions and attendees, while participants can:
+**AI DevCamp 2026 — Build with AI** is a learning platform for a 3-week in-person programme held in London. The public site is deployed at **[aidevcamp.gdg.london](https://aidevcamp.gdg.london)**; community chat is linked from the home page ([Discord](https://discord.gg/asrXvYeA)). It lets organisers manage sessions and attendees, while participants can:
 
 - Register and build a profile
 - Browse the session schedule and curriculum

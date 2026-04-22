@@ -31,8 +31,12 @@ npm install
 Create a file called `.env.local` in the project root (copy from `.env.example` if it exists):
 
 ```bash
-# Site URL — used by the CORS allowlist in src/proxy.ts
+# Site URL — used by the CORS allowlist in src/proxy.ts (no trailing slash)
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
+
+# Public app URL — password reset continue link + admin email templates (no trailing slash)
+# In production, set to your real domain, e.g. https://aidevcamp.gdg.london
+NEXT_PUBLIC_APP_URL=http://localhost:3000
 
 # Firebase config — get values from Firebase Console → Project Settings → Your apps → Web app
 NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key
@@ -43,7 +47,7 @@ NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
 NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
 ```
 
-> When deploying to Vercel, set `NEXT_PUBLIC_SITE_URL` to your production domain (e.g. `https://yourapp.vercel.app`) in the Vercel dashboard → Settings → Environment Variables so the CORS allowlist works correctly in production.
+> When deploying to Vercel, set `NEXT_PUBLIC_SITE_URL` and `NEXT_PUBLIC_APP_URL` to your **canonical production URL** (e.g. `https://aidevcamp.gdg.london` — no trailing slash) in **Settings → Environment Variables**. `NEXT_PUBLIC_SITE_URL` is required for CORS on `/api/*` from the browser; `NEXT_PUBLIC_APP_URL` is used for Firebase **password reset** links and for merge fields in **admin email** (`/admin/email`).
 
 > ⚠️ Never commit `.env.local` to git. It's already in `.gitignore`.
 
@@ -75,9 +79,10 @@ In [Vercel](https://vercel.com) → your project → **Settings** → **Environm
 - `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`
 - `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`
 - `NEXT_PUBLIC_FIREBASE_APP_ID`
-- `NEXT_PUBLIC_SITE_URL` — set to your live URL, e.g. `https://ai-dev-camp-buildwith-ai.vercel.app` (**no trailing slash**). Used by `src/proxy.ts` for CORS so `fetch("/api/...")` calls (including **Send email**) are allowed from your domain.
+- `NEXT_PUBLIC_SITE_URL` — your **live origin** (e.g. `https://aidevcamp.gdg.london` or your `*.vercel.app` host) — **no trailing slash**. Used by `src/proxy.ts` for CORS so `fetch("/api/...")` calls (including **Send email** in admin) are allowed from the browser.
+- `NEXT_PUBLIC_APP_URL` — same host as the public app (e.g. `https://aidevcamp.gdg.london`) for **password reset** and **admin email** content.
 
-On Vercel, the platform also sets **`VERCEL_URL`** (hostname only). The proxy adds `https://${VERCEL_URL}` automatically so preview and production deployments work even if `NEXT_PUBLIC_SITE_URL` was missing once — but you should still set `NEXT_PUBLIC_SITE_URL` to your canonical URL.
+On Vercel, the platform also sets **`VERCEL_URL`** (hostname only). The proxy adds `https://${VERCEL_URL}` automatically for the default Vercel hostname. **Custom domains** (e.g. `aidevcamp.gdg.london`) do **not** match `VERCEL_URL` — you must set `NEXT_PUBLIC_SITE_URL` to that custom URL or browser `fetch` to `/api/*` from that origin will be blocked.
 
 Redeploy after changing variables.
 

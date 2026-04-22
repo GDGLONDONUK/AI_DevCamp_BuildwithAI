@@ -46,6 +46,7 @@ Full developer docs are in the [`docs/`](./docs/README.md) folder:
 - [Key Concepts](./docs/05-key-concepts.md) — layers, services, and where admin helpers belong
 - [Getting Started](./docs/06-getting-started.md)
 - [API Routes](./docs/07-api-routes.md)
+- [Site, deployment & admin](./docs/08-site-deployment-and-admin.md) — production URL, env vars, Discord, bulk email, pending users
 
 ## Firebase project
 

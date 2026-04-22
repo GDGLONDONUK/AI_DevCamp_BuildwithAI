@@ -56,8 +56,30 @@ Document ID = Firebase Auth UID (same for every user across the whole system).
   keepUpdated?:     boolean         // Newsletter / updates opt-in
   createdAt:        Timestamp       // Set once at registration via serverTimestamp()
   updatedAt:        Timestamp       // Updated on every profile save
+
+  // Pre-registration & imports (optional)
+  preRegistered?:   boolean         // Matched a form import or pending row
+  registered?:     boolean
+  signedIn?:       boolean         // false = pending import not yet linked to Auth
+  registrationSource?: "google" | "password"  // How the account was first created (legacy + ensure-profile)
+  authProviders?:  string[]       // e.g. ["google.com", "password"] — synced from Firebase on sign-in
+  importSource?:   string         // e.g. "admin", "csv" — how a pending row was created
+  createdByAdmin?: boolean         // Row added from admin “Add pending user” before first login
+  importLinkedAt?:  string         // ISO time when a pending row was merged into users/{uid}
+  firestoreId?:    string         // In admin list views: doc id when it differs from uid (email-keyed pending)
+  // ... plus form import fields: formRole, yearsOfExperience, areasOfInterest, whyJoin, etc.
 }
 ```
+
+### Pending user rows — `users/{email}`
+
+Some documents use the **user’s email** as the document id (lowercase) while they are **not** yet linked to Firebase Auth: **pending** CSV/form imports, or **Add pending user** from admin. Conventions:
+
+- `signedIn: false` (and often `preRegistered: true` for list queries).
+- `uid: ""` until merged.
+- On **first sign-in** with the same email, `POST /api/me/ensure-profile` creates `users/{uid}`, **merges** fields from the email document, and **deletes** `users/{email}`.
+
+See [08-site-deployment-and-admin.md](./08-site-deployment-and-admin.md).
 
 ### User status lifecycle
 

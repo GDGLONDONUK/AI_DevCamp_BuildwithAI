@@ -4,7 +4,7 @@
 
 We use **Firebase Authentication** for identity. It handles:
 
-- Email/password signup and login
+- Email/password signup and login (including **password reset** via Firebase `sendPasswordResetEmail` — see [08-site-deployment-and-admin.md](./08-site-deployment-and-admin.md))
 - Google OAuth ("Sign in with Google")
 - Issuing and refreshing short-lived **ID tokens** (JWT)
 - Persisting the session in the browser (IndexedDB)
@@ -26,9 +26,20 @@ User clicks "Sign In"
             ▼
        getUserProfile() reads the user doc from Firestore
             │
+            ├─ If no profile: POST /api/me/ensure-profile (merge pending users/{email} if any)
+            ├─ syncAuthProvidersToUserDoc() — writes authProviders to Firestore
             ▼
        userProfile state populated → UI updates
 ```
+
+### Deep link: `/?login=1` and password reset
+
+The home page includes `OpenLoginFromQuery` (inside `<Suspense>`). Query params:
+
+- `?login=1` — opens the auth modal to sign in.
+- `?login=1&reset=1` — opens the modal in **forgot password** mode.
+
+`NEXT_PUBLIC_APP_URL` should match the deployed origin so password-reset email links point at the right host.
 
 ### Google sign-in on production (e.g. Vercel)
 
