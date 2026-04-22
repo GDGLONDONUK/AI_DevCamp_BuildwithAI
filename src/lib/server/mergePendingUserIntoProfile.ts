@@ -108,7 +108,8 @@ export function applyPendingRowToEnsureProfileData(
   }
   const s = pre.userStatus;
   if (s && VALID_STATUS.includes(s as UserStatus)) {
-    userData.userStatus = s;
+    // Pre-reg rows no longer use "pending" as application gate; treat as approved access.
+    userData.userStatus = s === "pending" ? "participated" : (s as UserStatus);
   }
 
   userData.preRegistered = true;

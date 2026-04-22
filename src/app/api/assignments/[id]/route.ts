@@ -9,6 +9,7 @@
 import { NextRequest } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
 import { ok, err, verifyAuth, requireAdmin, isErrorResponse } from "@/lib/api-helpers";
+import { logServerRouteException } from "@/lib/server/appErrorLog";
 import { FieldValue } from "firebase-admin/firestore";
 
 type Params = { params: Promise<{ id: string }> };
@@ -31,7 +32,7 @@ export async function GET(request: NextRequest, { params }: Params) {
 
     return ok({ id: snap.id, ...data });
   } catch (e) {
-    console.error(`GET /api/assignments/${id}`, e);
+    logServerRouteException(`GET /api/assignments/${id}`, e);
     return err("Failed to fetch assignment", 500);
   }
 }
@@ -58,7 +59,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     const updated = await adminDb().collection("assignments").doc(id).get();
     return ok({ id: updated.id, ...updated.data() });
   } catch (e) {
-    console.error(`PATCH /api/assignments/${id}`, e);
+    logServerRouteException(`PATCH /api/assignments/${id}`, e);
     return err("Failed to update assignment", 500);
   }
 }

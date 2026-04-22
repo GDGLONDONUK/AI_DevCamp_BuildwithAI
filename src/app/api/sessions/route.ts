@@ -6,6 +6,7 @@
 import { NextRequest } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
 import { ok, created, err, requireAdmin, isErrorResponse } from "@/lib/api-helpers";
+import { logServerRouteException } from "@/lib/server/appErrorLog";
 import { FieldValue } from "firebase-admin/firestore";
 
 export async function GET() {
@@ -18,7 +19,7 @@ export async function GET() {
     const sessions = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     return ok(sessions);
   } catch (e) {
-    console.error("GET /api/sessions", e);
+    logServerRouteException("GET /api/sessions", e);
     return err("Failed to fetch sessions", 500);
   }
 }
@@ -41,7 +42,7 @@ export async function POST(request: NextRequest) {
     await adminDb().collection("sessions").doc(id).set(sessionData);
     return created({ id, ...sessionData });
   } catch (e) {
-    console.error("POST /api/sessions", e);
+    logServerRouteException("POST /api/sessions", e);
     return err("Failed to create session", 500);
   }
 }

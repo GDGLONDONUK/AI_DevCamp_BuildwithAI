@@ -89,7 +89,7 @@ Service files:
 | File | Responsibility |
 |------|---------------|
 | `lib/auth.ts` | Register, login, logout, create user document |
-| `lib/adminService.ts` | Admin reads/writes (users, attendance, assignments, projects) |
+| `lib/adminService.ts` | Admin reads/writes (users, attendance, assignments, projects) and authenticated calls to admin APIs (e.g. `fetchErrorLogsFromServer`, `fetchUsersLocationMap`) |
 | `lib/sessionService.ts` | Session CRUD + seeding from static data |
 
 ---

@@ -7,6 +7,7 @@
 import { NextRequest } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
 import { ok, err, requireAdmin, isErrorResponse } from "@/lib/api-helpers";
+import { logServerRouteException } from "@/lib/server/appErrorLog";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -17,7 +18,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
     if (!snap.exists) return err("Session not found", 404);
     return ok({ id: snap.id, ...snap.data() });
   } catch (e) {
-    console.error(`GET /api/sessions/${id}`, e);
+    logServerRouteException(`GET /api/sessions/${id}`, e);
     return err("Failed to fetch session", 500);
   }
 }
@@ -38,7 +39,7 @@ export async function PUT(request: NextRequest, { params }: Params) {
     const updated = await adminDb().collection("sessions").doc(id).get();
     return ok({ id: updated.id, ...updated.data() });
   } catch (e) {
-    console.error(`PUT /api/sessions/${id}`, e);
+    logServerRouteException(`PUT /api/sessions/${id}`, e);
     return err("Failed to update session", 500);
   }
 }
@@ -53,7 +54,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     await adminDb().collection("sessions").doc(id).delete();
     return ok({ deleted: id });
   } catch (e) {
-    console.error(`DELETE /api/sessions/${id}`, e);
+    logServerRouteException(`DELETE /api/sessions/${id}`, e);
     return err("Failed to delete session", 500);
   }
 }

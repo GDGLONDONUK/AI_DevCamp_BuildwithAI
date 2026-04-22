@@ -27,9 +27,10 @@ export default function SessionsPage() {
   const [authModal, setAuthModal] = useState(false);
   const [attendance, setAttendance] = useState<Record<string, boolean>>({});
 
-  const isApproved =
-    user &&
-    ["participated", "certified"].includes(userProfile?.userStatus ?? "");
+  /** Attendees with account issues only: legacy "application pending" or course failed. */
+  const st = userProfile?.userStatus;
+  const hasSessionAccess =
+    Boolean(user && userProfile) && st !== "pending" && st !== "failed";
 
   useEffect(() => {
     if (!user) return;
@@ -68,30 +69,45 @@ export default function SessionsPage() {
           <div className="flex items-start gap-3 bg-blue-500/10 border border-blue-500/20 rounded-2xl p-5 mb-10 text-base text-blue-300">
             <BookOpen size={18} className="flex-shrink-0 mt-0.5" />
             <span>
-              Sessions are open to approved DevCamp attendees.{" "}
+              Sign in with your DevCamp account to see session details, resources, and recordings.{" "}
               <button
                 onClick={() => setAuthModal(true)}
                 className="font-semibold underline underline-offset-2 hover:text-blue-200"
               >
                 Sign in
-              </button>{" "}
-              to see your access level.
+              </button>
             </span>
           </div>
         )}
 
-        {user && !isApproved && (
-          <div className="flex items-start gap-3 bg-yellow-500/10 border border-yellow-500/20 rounded-2xl p-5 mb-10 text-base text-yellow-300">
+        {user && userProfile && (st === "pending" || st === "failed") && (
+          <div
+            className={`flex items-start gap-3 rounded-2xl p-5 mb-10 text-base ${
+              st === "failed"
+                ? "bg-red-500/10 border border-red-500/25 text-red-200"
+                : "bg-yellow-500/10 border border-yellow-500/20 text-yellow-200"
+            }`}
+          >
             <Clock size={18} className="flex-shrink-0 mt-0.5" />
             <span>
-              Your application is <strong>pending approval</strong>. Once approved you will get
-              full access to all session materials, recordings, and resources.
+              {st === "failed" ? (
+                <>
+                  This programme track is marked <strong>not completed</strong>. If that is a
+                  mistake, contact the team.
+                </>
+              ) : (
+                <>
+                  Your account is still on <strong>pending</strong> status in our system. An admin
+                  can open access for everyone from the Admin tab, or it will clear when your record
+                  is updated to <strong>participated</strong>.
+                </>
+              )}
             </span>
           </div>
         )}
 
         {/* ── Attendance legend ── */}
-        {user && isApproved && (
+        {user && hasSessionAccess && (
           <div className="flex items-center gap-3 bg-green-500/8 border border-green-500/20 rounded-xl px-4 py-3 mb-10 font-mono text-sm text-gray-400">
             <CheckCircle2 size={15} className="text-green-400 flex-shrink-0" />
             <span>Sessions you attended are marked in green. Attendance is recorded by the organising team.</span>
@@ -284,7 +300,7 @@ export default function SessionsPage() {
 
                                   {/* What you'll learn + Build ideas — approved only */}
                                   {(session.whatYouWillLearn?.length || session.buildIdeas?.length) && (
-                                    isApproved ? (
+                                    hasSessionAccess ? (
                                       <div className="grid sm:grid-cols-2 gap-5">
                                         {session.whatYouWillLearn && session.whatYouWillLearn.length > 0 && (
                                           <div>
@@ -333,7 +349,7 @@ export default function SessionsPage() {
                                       <div className="text-sm font-bold text-gray-400 mb-3 uppercase tracking-wider">
                                         Resources
                                       </div>
-                                      {isApproved ? (
+                                      {hasSessionAccess ? (
                                         <div className="flex flex-wrap gap-2">
                                           {session.resources.map((r) => (
                                             <a
@@ -359,7 +375,7 @@ export default function SessionsPage() {
                                   {(session.videoUrl || session.resourcesFolderUrl) && (
                                     <div className="flex flex-wrap gap-3">
                                       {session.videoUrl && (
-                                        isApproved ? (
+                                        hasSessionAccess ? (
                                           <a
                                             href={session.videoUrl}
                                             target="_blank"
@@ -375,7 +391,7 @@ export default function SessionsPage() {
                                         )
                                       )}
                                       {session.resourcesFolderUrl && (
-                                        isApproved ? (
+                                        hasSessionAccess ? (
                                           <a
                                             href={session.resourcesFolderUrl}
                                             target="_blank"

@@ -7,6 +7,7 @@
 import { NextRequest } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
 import { ok, err, requireAdmin, isErrorResponse } from "@/lib/api-helpers";
+import { logServerRouteException } from "@/lib/server/appErrorLog";
 
 export async function GET(request: NextRequest) {
   const auth = await requireAdmin(request);
@@ -20,7 +21,7 @@ export async function GET(request: NextRequest) {
     });
     return ok(attendance);
   } catch (e) {
-    console.error("GET /api/attendance", e);
+    logServerRouteException("GET /api/attendance", e);
     return err("Failed to fetch attendance", 500);
   }
 }

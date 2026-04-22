@@ -10,6 +10,7 @@ import { NextRequest } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase-admin";
 import { ok, err, requireAdmin } from "@/lib/api-helpers";
+import { logServerRouteException } from "@/lib/server/appErrorLog";
 import { parseLocationFields } from "@/lib/locationCleanup";
 import { formTimestampToIso } from "@/lib/formTimestamp";
 
@@ -54,7 +55,7 @@ export async function POST(request: NextRequest) {
       displayName: displayName || email.split("@")[0] || "User",
       uid: "",
       role: "attendee",
-      userStatus: "pending",
+      userStatus: "participated",
       registeredSessions: [],
       photoURL: "",
       preRegistered: true,
@@ -92,7 +93,7 @@ export async function POST(request: NextRequest) {
 
     return ok({ email, updated: true });
   } catch (e) {
-    console.error("POST /api/admin/pending-user", e);
+    logServerRouteException("POST /api/admin/pending-user", e);
     return err("Failed to save pending user", 500);
   }
 }

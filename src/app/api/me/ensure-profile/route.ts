@@ -10,6 +10,7 @@
 
 import { NextRequest } from "next/server";
 import { verifyAuth, ok, err, isErrorResponse } from "@/lib/api-helpers";
+import { logServerRouteException } from "@/lib/server/appErrorLog";
 import { ensureUserProfileForUid } from "@/lib/server/ensureUserProfileDocument";
 
 export async function POST(request: NextRequest) {
@@ -31,6 +32,7 @@ export async function POST(request: NextRequest) {
     if (message.includes("no email")) {
       return err("Account has no email; cannot create profile", 400);
     }
+    logServerRouteException("POST /api/me/ensure-profile", e);
     return err(message, 500);
   }
 }

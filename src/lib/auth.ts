@@ -51,7 +51,7 @@ export async function createUserDocument(
       displayName: additionalData?.displayName || user.displayName || "Anonymous",
       photoURL: user.photoURL || "",
       role: "attendee",
-      userStatus: "pending",
+      userStatus: "participated",
       registeredSessions: [],
       ...additionalData,
     };

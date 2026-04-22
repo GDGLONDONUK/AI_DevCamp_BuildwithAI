@@ -56,6 +56,11 @@ export interface UserProfile {
   priorAIKnowledgeTags?: string[];
   /** RSVP for the 23 Apr kick-off: in person (London) vs online only. */
   kickoffInPersonRsvp?: boolean;
+  /**
+   * ISO 8601 time when the user last set or changed their 23 Apr kick-off RSVP
+   * (`kickoffInPersonRsvp` + `joiningInPerson`), including via admin.
+   */
+  kickoffRsvpUpdatedAt?: string;
   /** Human-readable; use with kickoffInPersonRsvp (e.g. from kickoffRsvp.joiningInPersonLabel). */
   joiningInPerson?: string;
   handle?: string;
@@ -74,9 +79,16 @@ export interface UserProfile {
    */
   authProviders?: string[];
   /**
-   * How the pending `users/{email}` row was created before first login, e.g. `csv`, `admin`.
+   * How the pending `users/{email}` row was created before first login, e.g. `csv`, `admin`, `bevy`.
    */
   importSource?: string;
+  /**
+   * When this person was present on a Bevy export; ISO. Used to reconcile the former Bevy
+   * registration list with this app. See admin Bevy merge tool.
+   */
+  bevyRegisteredAt?: string;
+  /** Name as on the Bevy export at merge time (audit / name-mismatch review). */
+  bevyNameSnapshot?: string;
   /** Set when a moderator created the row from admin before the user signed in. */
   createdByAdmin?: boolean;
   /**
@@ -165,3 +177,43 @@ export interface Project {
   feedback?: string;
   weekCompleted: number;
 }
+
+/** Row in Firestore `error_logs` (written only via Admin SDK / API). */
+export interface AppErrorLog {
+  id: string;
+  message: string;
+  name?: string;
+  stack?: string;
+  /** e.g. window | unhandledrejection | react | api | test */
+  source: string;
+  path?: string;
+  url?: string;
+  userId?: string;
+  userEmail?: string;
+  userAgent?: string;
+  /** ISO 8601 from server */
+  createdAt: string;
+}
+
+/** Admin: users on map (geocoded from location string) */
+export type UserMapPoint = {
+  docId: string;
+  displayName: string;
+  email: string;
+  label: string;
+  lat: number;
+  lon: number;
+  userStatus?: string;
+};
+
+export type UserMapFailedEntry = {
+  displayName: string;
+  email: string;
+  label: string;
+};
+
+export type UserMapPayload = {
+  points: UserMapPoint[];
+  failed: UserMapFailedEntry[];
+  skippedNoLocation: number;
+};

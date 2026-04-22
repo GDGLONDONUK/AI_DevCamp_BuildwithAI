@@ -70,8 +70,9 @@ After handling, the component strips `login` and `reset` from the URL with `hist
 
 | Area | Features |
 |------|----------|
-| **Header** | **Add pending user** (opens modal) — same as pre-reg flow. |
-| **Users** | **Grid (cards)** and **table** view; **checkboxes** per user (with email); **select all**; bulk bar **Send email to N selected** (opens `/admin/email?source=selection` with `sessionStorage` recipients). |
+| **Header** | **Add pending user** (opens modal) — same as pre-reg flow. Quick links: **Email**, **CSV Import**, **Users map** (`/admin/users-map`), **Error logs**, **Seed tags**, **Refresh**. **Bevy merge** is at `/admin/bevy` (also linked from `/admin/import`). |
+| **Users** | **Grid (cards)** and **table** view; **checkboxes** per user (with email); **select all**; bulk bar **Send email to N selected** (opens `/admin/email?source=selection` with `sessionStorage` recipients). **Download CSV** exports attendees with session attendance counts and profile fields, including **Kickoff in-person RSVP** (Yes/No) and **Joining in person** (text from `UserProfile.joiningInPerson`). |
+| **Users map** | `/admin/users-map` — map of where users are joining from when `location` or `city`/`country` is present. Server geocodes unique labels with **OpenStreetMap Nominatim** (rate-limited, cached in process). Admin-only UI; API `GET /api/admin/users-location-map` allows **admin** and **moderator** (same `requireAdmin` as other admin tools). |
 | **Pre-Registered** | Table with checkboxes, CSV upload, **Add person**, filters, detail modal. |
 | **User list** | Badges for **Google** / **email** sign-in from `authProviders` (or legacy `registrationSource`). |
 

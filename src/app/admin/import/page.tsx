@@ -10,6 +10,10 @@ import {
   rowToPreRegistered,
   buildPreRegisteredUsersFromRows,
   duplicateMetaFromRows,
+  isTicketEventExportFormat,
+  buildTicketUsersFromRows,
+  duplicateMetaFromTicketRows,
+  rowToPreRegisteredFromTicket,
 } from "@/lib/admin/csvPreRegistered";
 import {
   Upload, FileText, CheckCircle2, XCircle, AlertTriangle,
@@ -40,6 +44,8 @@ export default function AdminImportPage() {
   const [loadingExisting, setLoadingExisting] = useState(false);
   const [search, setSearch] = useState("");
   const [dragging, setDragging] = useState(false);
+  const [csvKind, setCsvKind] = useState<"form" | "ticket">("form");
+  const [dupCount, setDupCount] = useState(0);
 
   useEffect(() => {
     if (!loading && userProfile?.role !== "admin") router.push("/");
@@ -66,16 +72,35 @@ export default function AdminImportPage() {
     reader.onload = (e) => {
       const text = e.target?.result as string;
       const rows = parseCSVText(text);
+      if (isTicketEventExportFormat(rows)) {
+        setCsvKind("ticket");
+        const users: UserProfile[] = [];
+        const header = rows[0] ?? [];
+        for (let i = 1; i < rows.length; i++) {
+          const u = rowToPreRegisteredFromTicket(header, rows[i]);
+          if (u) users.push(u as UserProfile);
+        }
+        const { unique: u, duplicateCount } = buildTicketUsersFromRows(rows);
+        const d = duplicateMetaFromTicketRows(rows);
+        setParsed(users);
+        setUnique(u as UserProfile[]);
+        setDuplicates(d);
+        setDupCount(duplicateCount);
+        setUploaded(false);
+        return;
+      }
+      setCsvKind("form");
       const users: UserProfile[] = [];
       for (let i = 1; i < rows.length; i++) {
-        const u = rowToPreRegistered(rows[i]);
-        if (u) users.push(u as UserProfile);
+        const x = rowToPreRegistered(rows[i]);
+        if (x) users.push(x as UserProfile);
       }
-      const { unique: u } = buildPreRegisteredUsersFromRows(rows);
+      const { unique: u, duplicateCount } = buildPreRegisteredUsersFromRows(rows);
       const d = duplicateMetaFromRows(rows);
       setParsed(users);
       setUnique(u as UserProfile[]);
       setDuplicates(d);
+      setDupCount(duplicateCount);
       setUploaded(false);
     };
     reader.readAsText(file);
@@ -131,7 +156,11 @@ export default function AdminImportPage() {
           <div>
             <h1 className="text-2xl font-bold text-white font-mono">CSV Import</h1>
             <p className="text-sm text-gray-400 mt-0.5">
-              Upload Google Form responses → <code className="text-green-400">users</code> (pending by email) + flags
+              Google Form export <em>or</em> Luma / GDG <strong>ticket CSV</strong> (Order number, Ticket number, First Name…). New emails become{" "}
+              <code className="text-green-400">users/{"{email}"}</code>; existing app accounts get kickoff fields only (no auth reset).{" "}
+              <Link href="/admin/bevy" className="text-amber-400/90 hover:text-amber-300 underline">
+                Bevy reconcile
+              </Link>
             </p>
           </div>
         </div>
@@ -140,7 +169,7 @@ export default function AdminImportPage() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {[
             { label: "Rows in CSV", value: parsed.length, icon: FileText, color: "text-blue-400" },
-            { label: "Duplicates removed", value: duplicates.length, icon: AlertTriangle, color: "text-yellow-400" },
+            { label: "Duplicates removed", value: dupCount, icon: AlertTriangle, color: "text-yellow-400" },
             { label: "Unique to upload", value: unique.length, icon: Users, color: "text-green-400" },
             { label: "In Firestore now", value: existingUsers.length, icon: CheckCircle2, color: "text-purple-400" },
           ].map(({ label, value, icon: Icon, color }) => (
@@ -154,9 +183,18 @@ export default function AdminImportPage() {
 
         {/* Upload zone */}
         <div className="bg-gray-900 border border-white/10 rounded-2xl p-6 space-y-5">
-          <h2 className="font-bold text-white flex items-center gap-2">
+          <h2 className="font-bold text-white flex items-center gap-2 flex-wrap">
             <Upload size={16} className="text-green-400" />
             Upload CSV
+            {fileName && (
+              <span
+                className={`text-xs font-mono font-normal px-2 py-0.5 rounded ${
+                  csvKind === "ticket" ? "bg-amber-500/15 text-amber-200" : "bg-blue-500/15 text-blue-200"
+                }`}
+              >
+                {csvKind === "ticket" ? "Detected: Luma / ticket" : "Detected: Google Form"}
+              </span>
+            )}
           </h2>
 
           <div
@@ -177,7 +215,9 @@ export default function AdminImportPage() {
             ) : (
               <>
                 <p className="text-gray-300 text-sm font-medium">Drop your CSV here or click to browse</p>
-                <p className="text-gray-600 text-xs mt-1 font-mono">Google Form export · _AI DevCamp 2026 - Registration.csv</p>
+                <p className="text-gray-600 text-xs mt-1 font-mono">
+                  Form export (Timestamp, Name, Email…) or ticket export (Order number, Ticket number, First Name…)
+                </p>
               </>
             )}
           </div>
@@ -234,20 +274,43 @@ export default function AdminImportPage() {
                 <table className="w-full text-xs font-mono">
                   <thead>
                     <tr className="border-b border-white/10 bg-white/[0.02]">
-                      {["Name", "Email", "Role", "Experience", "In Person", "Location", "Duplicate"].map((h) => (
-                        <th key={h} className="text-left px-3 py-2.5 text-gray-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
+                      {(
+                        csvKind === "ticket"
+                          ? ["Name", "Email", "Title", "Company", "Paid (UTC)", "In person", "Dup"]
+                          : ["Name", "Email", "Role", "Experience", "In Person", "Location", "Duplicate"]
+                      ).map((h) => (
+                        <th key={h} className="text-left px-3 py-2.5 text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                          {h}
+                        </th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {unique.slice(0, 100).map((u) => {
                       const isDup = duplicates.some((d) => d.email === u.email);
+                      if (csvKind === "ticket") {
+                        return (
+                          <tr key={u.email} className="border-b border-white/5 hover:bg-white/[0.02]">
+                            <td className="px-3 py-2 text-white whitespace-nowrap">{u.displayName}</td>
+                            <td className="px-3 py-2 text-green-400 whitespace-nowrap">{u.email}</td>
+                            <td className="px-3 py-2 text-gray-300 whitespace-nowrap">{(u as UserProfile & { formRole?: string }).formRole || "—"}</td>
+                            <td className="px-3 py-2 text-gray-400 whitespace-nowrap">{(u as UserProfile & { roleTitle?: string }).roleTitle || "—"}</td>
+                            <td className="px-3 py-2 text-gray-400 whitespace-nowrap">{(u as UserProfile & { formSubmittedAt?: string }).formSubmittedAt || "—"}</td>
+                            <td className="px-3 py-2 text-gray-300 whitespace-nowrap text-[10px]">{u.joiningInPerson || "—"}</td>
+                            <td className="px-3 py-2 text-center">
+                              {isDup ? (
+                                <span className="text-yellow-400 text-[10px]">×{duplicates.find((d) => d.email === u.email)?.count}</span>
+                              ) : null}
+                            </td>
+                          </tr>
+                        );
+                      }
                       return (
                         <tr key={u.email} className="border-b border-white/5 hover:bg-white/[0.02]">
                           <td className="px-3 py-2 text-white whitespace-nowrap">{u.displayName}</td>
                           <td className="px-3 py-2 text-green-400 whitespace-nowrap">{u.email}</td>
-                          <td className="px-3 py-2 text-gray-300 whitespace-nowrap">{u.formRole}</td>
-                          <td className="px-3 py-2 text-gray-400 whitespace-nowrap">{u.yearsOfExperience}</td>
+                          <td className="px-3 py-2 text-gray-300 whitespace-nowrap">{(u as UserProfile & { formRole?: string }).formRole}</td>
+                          <td className="px-3 py-2 text-gray-400 whitespace-nowrap">{(u as UserProfile & { yearsOfExperience?: string }).yearsOfExperience}</td>
                           <td className="px-3 py-2 whitespace-nowrap">
                             <span className={`px-1.5 py-0.5 rounded text-[10px] ${
                               (u.joiningInPerson || "").toLowerCase().startsWith("y")

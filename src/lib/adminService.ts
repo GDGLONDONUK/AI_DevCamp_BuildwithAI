@@ -4,7 +4,8 @@
  */
 import { collection, doc, getDocs, updateDoc, getDoc, setDoc, orderBy, query, writeBatch, serverTimestamp } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
-import { Assignment, Project, UserProfile, UserStatus } from "@/types";
+import { Assignment, AppErrorLog, Project, UserMapPayload, UserProfile, UserStatus } from "@/types";
+import type { BevyCsvRow, BevyMergePlan } from "@/lib/admin/bevyMerge";
 
 // ── Users ─────────────────────────────────────────────────────────────────────
 
@@ -150,4 +151,118 @@ export async function upsertRegistrationUsers(users: Record<string, unknown>[]):
     const b = await res.json().catch(() => ({}));
     throw new Error(String(b.error ?? res.status));
   }
+}
+
+export type BevyMergeResponse = {
+  plan: Pick<
+    BevyMergePlan,
+    "inAppNotInBevy" | "inBevyNotInApp" | "nameMismatches" | "stats"
+  >;
+  written: { updated: number; created: number };
+};
+
+/** Apply Bevy export reconciliation (see /admin/bevy). */
+/** One-shot: set every `pending` (or missing) `userStatus` to `participated`. */
+export async function approveAllPendingUsersFromServer(): Promise<{
+  updated: number;
+  message?: string;
+}> {
+  const token = await auth.currentUser?.getIdToken();
+  const res = await fetch("/api/admin/approve-all-users", {
+    method: "POST",
+    headers: {
+      ...(token && { Authorization: `Bearer ${token}` }),
+    },
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(String(json.error ?? res.status));
+  }
+  if (!json?.ok) {
+    throw new Error(String(json.error ?? "not ok"));
+  }
+  return json.data as { updated: number; message?: string };
+}
+
+export async function applyBevyMerge(bevyRows: BevyCsvRow[]): Promise<BevyMergeResponse> {
+  const token = await auth.currentUser?.getIdToken();
+  const res = await fetch("/api/admin/bevy-merge", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token && { Authorization: `Bearer ${token}` }),
+    },
+    body: JSON.stringify({ bevyRows }),
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(String(json.error ?? res.status));
+  }
+  if (!json?.ok) {
+    throw new Error(String(json.error ?? "not ok"));
+  }
+  return json.data as BevyMergeResponse;
+}
+
+/** Geocoded user locations for the admin map (Nominatim; may be slow on first load). */
+export async function fetchUsersLocationMap(): Promise<UserMapPayload> {
+  const token = await auth.currentUser?.getIdToken();
+  if (!token) throw new Error("Not signed in");
+  const res = await fetch("/api/admin/users-location-map", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(String(json.error ?? res.status));
+  }
+  if (!json?.ok) {
+    throw new Error(String(json.error ?? "not ok"));
+  }
+  return json.data as UserMapPayload;
+}
+
+export type ErrorLogsResponse = { logs: AppErrorLog[]; scanned: number; returned: number };
+
+export async function fetchErrorLogsFromServer(options: {
+  from?: string;
+  to?: string;
+  q?: string;
+  limit?: number;
+}): Promise<ErrorLogsResponse> {
+  const token = await auth.currentUser?.getIdToken();
+  if (!token) throw new Error("Not signed in");
+  const p = new URLSearchParams();
+  if (options.from) p.set("from", options.from);
+  if (options.to) p.set("to", options.to);
+  if (options.q) p.set("q", options.q);
+  if (options.limit) p.set("limit", String(options.limit));
+  const res = await fetch(`/api/admin/error-logs?${p.toString()}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(String(json.error ?? res.status));
+  }
+  if (!json?.ok) {
+    throw new Error(String(json.error ?? "not ok"));
+  }
+  return json.data as ErrorLogsResponse;
+}
+
+/** Write one `error_logs` row (verifies collection + admin credentials). */
+export async function postTestErrorLogEntry(): Promise<string> {
+  const token = await auth.currentUser?.getIdToken();
+  if (!token) throw new Error("Not signed in");
+  const res = await fetch("/api/admin/error-logs/test", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(String(json.error ?? res.status));
+  }
+  if (!json?.ok) {
+    throw new Error(String(json.error ?? "not ok"));
+  }
+  return String((json.data as { id?: string })?.id ?? "");
 }

@@ -33,7 +33,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const refreshProfile = async () => {
-    if (user) {
+    if (!user) return;
+    try {
       let profile = await getUserProfile(user.uid);
       if (!profile) {
         try {
@@ -52,6 +53,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
       setUserProfile(profile);
+    } catch (e) {
+      // Network blips on getUserProfile must not look like a failed "save" after updateDoc
+      console.error("refreshProfile", e);
     }
   };
 

@@ -15,6 +15,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 import { requireAdmin, isErrorResponse } from "@/lib/api-helpers";
+import { insertErrorLog } from "@/lib/server/appErrorLog";
 
 const GMAIL_USER = process.env.GMAIL_USER ?? "";
 const GMAIL_PASS = process.env.GMAIL_APP_PASSWORD ?? "";
@@ -106,6 +107,19 @@ export async function POST(request: NextRequest) {
     if (i + CONCURRENCY < recipients.length) {
       await new Promise((r) => setTimeout(r, 300));
     }
+  }
+
+  if (failed.length > 0) {
+    void insertErrorLog({
+      source: "api",
+      message: `POST /api/email/send: ${failed.length} of ${recipients.length} failed (${sent} sent)`,
+      name: "EmailSendPartialFailure",
+      path: "/api/email/send",
+      stack: failed
+        .slice(0, 40)
+        .map((f) => `${f.email}: ${f.error}`)
+        .join("\n"),
+    });
   }
 
   return NextResponse.json({ ok: true, data: { sent, failed, total: recipients.length } });

@@ -4,6 +4,7 @@ import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 import Navbar from "@/components/Navbar";
 import AuthenticatedMain from "@/components/AuthenticatedMain";
+import ClientErrorRoot from "@/components/ClientErrorRoot";
 import { Toaster } from "react-hot-toast";
 
 const poppins = Poppins({
@@ -32,47 +33,54 @@ export default function RootLayout({
     <html lang="en" className={poppins.variable}>
       <body className="bg-gray-950 text-white font-poppins antialiased">
         <AuthProvider>
-          <Navbar />
-          <AuthenticatedMain>{children}</AuthenticatedMain>
+          <ClientErrorRoot>
+            <Navbar />
+            <AuthenticatedMain>{children}</AuthenticatedMain>
+          </ClientErrorRoot>
           <Toaster
-            position="bottom-right"
-            gutter={10}
+            position="top-right"
+            gutter={12}
+            containerClassName="!z-[100]"
+            containerStyle={{ top: 72, right: 12 }}
             toastOptions={{
-              duration: 3500,
+              duration: 4200,
+              className: "font-sans",
               style: {
                 background: "#111827",
                 color: "#f9fafb",
-                border: "1px solid rgba(255,255,255,0.12)",
-                borderRadius: "14px",
-                fontSize: "15px",
-                fontWeight: "500",
-                padding: "14px 18px",
-                maxWidth: "400px",
-                boxShadow: "0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05)",
+                border: "2px solid rgba(255,255,255,0.14)",
+                borderRadius: "16px",
+                fontSize: "16px",
+                fontWeight: "600",
+                lineHeight: 1.4,
+                padding: "16px 20px",
+                minWidth: "min(100vw - 2rem, 360px)",
+                maxWidth: "420px",
+                boxShadow: "0 12px 40px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.08)",
               },
               success: {
-                duration: 3000,
+                duration: 3800,
                 style: {
-                  background: "#052e16",
+                  background: "linear-gradient(135deg, #052e16 0%, #0f172a 100%)",
                   color: "#bbf7d0",
-                  border: "1px solid rgba(34,197,94,0.35)",
-                  boxShadow: "0 8px 32px rgba(0,0,0,0.5), 0 0 20px rgba(34,197,94,0.12)",
+                  border: "2px solid rgba(34,197,94,0.45)",
+                  boxShadow: "0 12px 40px rgba(0,0,0,0.5), 0 0 24px rgba(34,197,94,0.2)",
                 },
                 iconTheme: {
-                  primary: "#22c55e",
+                  primary: "#4ade80",
                   secondary: "#052e16",
                 },
               },
               error: {
-                duration: 4500,
+                duration: 5000,
                 style: {
-                  background: "#2d0a0a",
-                  color: "#fca5a5",
-                  border: "1px solid rgba(239,68,68,0.35)",
-                  boxShadow: "0 8px 32px rgba(0,0,0,0.5), 0 0 20px rgba(239,68,68,0.12)",
+                  background: "linear-gradient(135deg, #2d0a0a 0%, #1f1315 100%)",
+                  color: "#fecaca",
+                  border: "2px solid rgba(248,113,113,0.4)",
+                  boxShadow: "0 12px 40px rgba(0,0,0,0.5), 0 0 24px rgba(248,113,113,0.2)",
                 },
                 iconTheme: {
-                  primary: "#ef4444",
+                  primary: "#f87171",
                   secondary: "#2d0a0a",
                 },
               },

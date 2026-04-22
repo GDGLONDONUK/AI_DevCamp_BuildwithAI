@@ -12,6 +12,7 @@ import {
   updateProjectFields,
   toggleAttendance as toggleAttendanceSvc,
   updateUserFields,
+  approveAllPendingUsersFromServer,
 } from "@/lib/adminService";
 import { auth } from "@/lib/firebase";
 import { userAuthShowsGoogle, userAuthShowsPassword } from "@/lib/auth";
@@ -26,6 +27,7 @@ import ProjectDetailModal from "@/components/admin/ProjectDetailModal";
 import StatusDropdown, { STATUS_CONFIG, ALL_STATUSES } from "@/components/admin/StatusDropdown";
 import {
   AlertTriangle,
+  Bug,
   BookOpen,
   Calendar,
   CheckCircle2,
@@ -34,6 +36,7 @@ import {
   ClipboardList,
   Clock,
   Code2,
+  Copy,
   Download,
   FileText,
   Filter,
@@ -41,6 +44,8 @@ import {
   Link2,
   Link as LinkIcon,
   Mail,
+  MapPin,
+  MonitorPlay,
   Pencil,
   Plus,
   RefreshCw,
@@ -71,6 +76,65 @@ function hasAuthAccount(u: UserProfile): boolean {
   return Boolean(u.uid);
 }
 
+/** Same mailbox for duplicate detection (gmail ↔ googlemail). */
+function canonicalPreRegEmail(raw: string | undefined): string {
+  if (!raw?.trim()) return "";
+  let e = raw.toLowerCase().trim();
+  if (e.endsWith("@googlemail.com")) e = e.replace("@googlemail.com", "@gmail.com");
+  return e;
+}
+
+/**
+ * Pre-registered list can contain e.g. `users/{email}` and `users/{uid}` with the same
+ * address — multiple rows with the same canonical email = duplicates to review.
+ */
+function getPreRegDuplicateInfo(users: UserProfile[]): {
+  duplicateKeys: Set<string>;
+  nKeys: number;
+  nRows: number;
+} {
+  const by = new Map<string, UserProfile[]>();
+  for (const u of users) {
+    const k = canonicalPreRegEmail(u.email);
+    if (!k) continue;
+    const list = by.get(k) ?? [];
+    list.push(u);
+    by.set(k, list);
+  }
+  const duplicateKeys = new Set<string>();
+  let nRows = 0;
+  for (const [k, list] of by) {
+    if (list.length > 1) {
+      duplicateKeys.add(k);
+      nRows += list.length;
+    }
+  }
+  return { duplicateKeys, nKeys: duplicateKeys.size, nRows };
+}
+
+type KickoffRsvpFilter = "all" | "inPerson" | "online" | "notSet";
+
+function userMatchesKickoffRsvpFilter(
+  u: UserProfile,
+  f: KickoffRsvpFilter
+): boolean {
+  if (f === "all") return true;
+  const r = u.kickoffInPersonRsvp;
+  if (f === "notSet") return typeof r !== "boolean";
+  if (f === "inPerson") {
+    if (typeof r === "boolean") return r;
+    const j = (u.joiningInPerson || "").toLowerCase().trim();
+    if (j.startsWith("y")) return true;
+    if (j.includes("in person") || j.includes("in-person")) return true;
+    return false;
+  }
+  if (f === "online") {
+    if (typeof r === "boolean") return !r;
+    return (u.joiningInPerson || "").toLowerCase().includes("online");
+  }
+  return true;
+}
+
 interface AttendanceMap {
   [userId: string]: {
     [sessionId: string]: boolean;
@@ -98,7 +162,9 @@ export default function AdminPage() {
   const [preRegistered, setPreRegistered] = useState<UserProfile[]>([]);
   const [preRegLoading, setPreRegLoading] = useState(false);
   const [preRegSearch, setPreRegSearch] = useState("");
-  const [preRegFilter, setPreRegFilter] = useState<"all" | "linked" | "unlinked">("all");
+  const [preRegFilter, setPreRegFilter] = useState<
+    "all" | "linked" | "unlinked" | "inPerson" | "duplicates"
+  >("all");
   const [csvUploading, setCsvUploading] = useState(false);
   const [seedingTags, setSeedingTags] = useState(false);
   const [detailUser, setDetailUser] = useState<UserProfile | null>(null);
@@ -115,6 +181,8 @@ export default function AdminPage() {
   const [usersPage, setUsersPage] = useState(1);
   const [usersRoleFilter, setUsersRoleFilter] = useState<"all" | UserProfile["role"]>("all");
   const [usersAuthFilter, setUsersAuthFilter] = useState<"all" | "google" | "password">("all");
+  const [usersKickoffFilter, setUsersKickoffFilter] = useState<KickoffRsvpFilter>("all");
+  const [approveAllBusy, setApproveAllBusy] = useState(false);
 
   const [projectsQuery, setProjectsQuery] = useState("");
   const [projectsStatusFilter, setProjectsStatusFilter] = useState<"all" | Project["status"]>("all");
@@ -274,6 +342,30 @@ export default function AdminPage() {
     } catch { toast.error("Failed to update status"); }
   };
 
+  const approveAllPendingUsers = async () => {
+    if (
+      !window.confirm(
+        "Set every user with status ‘pending’ (or no status) to ‘participated’? This gives them full access to session materials, recordings, and resources."
+      )
+    ) {
+      return;
+    }
+    setApproveAllBusy(true);
+    try {
+      const r = await approveAllPendingUsersFromServer();
+      if (r.updated > 0) {
+        toast.success(`Approved ${r.updated} user(s) — they now have full access.`);
+      } else {
+        toast.success("No one left in pending; everyone already has a status set.");
+      }
+      await fetchAll();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Bulk approve failed");
+    } finally {
+      setApproveAllBusy(false);
+    }
+  };
+
   const updateUserRole = async (userDocId: string, role: UserProfile["role"]) => {
     try {
       await setUserRole(userDocId, role);
@@ -350,26 +442,32 @@ export default function AdminPage() {
     return usersRoleFiltered.filter((u) => userAuthShowsPassword(u));
   }, [usersRoleFiltered, usersAuthFilter]);
 
-  const usersTotalPages = Math.max(1, Math.ceil(usersAuthFiltered.length / USERS_PER_PAGE));
+  const usersKickoffFiltered = useMemo(
+    () =>
+      usersAuthFiltered.filter((u) => userMatchesKickoffRsvpFilter(u, usersKickoffFilter)),
+    [usersAuthFiltered, usersKickoffFilter]
+  );
+
+  const usersTotalPages = Math.max(1, Math.ceil(usersKickoffFiltered.length / USERS_PER_PAGE));
   const paginatedUsers = useMemo(
     () =>
-      usersAuthFiltered.slice(
+      usersKickoffFiltered.slice(
         (usersPage - 1) * USERS_PER_PAGE,
         usersPage * USERS_PER_PAGE
       ),
-    [usersAuthFiltered, usersPage, USERS_PER_PAGE]
+    [usersKickoffFiltered, usersPage, USERS_PER_PAGE]
   );
 
   useEffect(() => {
     setUsersPage(1);
-  }, [statusFilter, usersRoleFilter, usersAuthFilter, search]);
+  }, [statusFilter, usersRoleFilter, usersAuthFilter, usersKickoffFilter, search]);
 
   useEffect(() => {
-    const max = Math.max(1, Math.ceil(usersAuthFiltered.length / USERS_PER_PAGE));
+    const max = Math.max(1, Math.ceil(usersKickoffFiltered.length / USERS_PER_PAGE));
     setUsersPage((p) => (p > max ? max : p));
-  }, [usersAuthFiltered.length, USERS_PER_PAGE]);
+  }, [usersKickoffFiltered.length, USERS_PER_PAGE]);
 
-  const usersListWithEmail = usersAuthFiltered.filter((u) => Boolean(u.email?.trim()));
+  const usersListWithEmail = usersKickoffFiltered.filter((u) => Boolean(u.email?.trim()));
   const allVisibleUsersSelectedForEmail =
     usersListWithEmail.length > 0 &&
     usersListWithEmail.every((u) => selectedUsersEmails.has(u.email!));
@@ -386,7 +484,7 @@ export default function AdminPage() {
 
   const toggleSelectAllUsersForEmail = () => {
     setSelectedUsersEmails((prev) => {
-      const withE = usersAuthFiltered.filter((u) => u.email?.trim());
+      const withE = usersKickoffFiltered.filter((u) => u.email?.trim());
       const allIn = withE.length > 0 && withE.every((u) => prev.has(u.email!));
       const next = new Set(prev);
       if (allIn) {
@@ -403,7 +501,7 @@ export default function AdminPage() {
   };
 
   const openEmailToSelectedUsers = () => {
-    const sel = usersAuthFiltered.filter(
+    const sel = usersKickoffFiltered.filter(
       (u) => u.email && selectedUsersEmails.has(u.email)
     );
     if (sel.length === 0) {
@@ -572,6 +670,12 @@ export default function AdminPage() {
             </Link>
             <Link href="/admin/import" className="flex items-center gap-2 text-sm text-purple-400 hover:text-purple-300 border border-purple-500/20 hover:border-purple-500/40 bg-purple-500/10 px-4 py-2 rounded-lg font-mono transition-all">
               <Download size={14} /> CSV Import
+            </Link>
+            <Link href="/admin/users-map" className="flex items-center gap-2 text-sm text-emerald-400 hover:text-emerald-300 border border-emerald-500/20 hover:border-emerald-500/40 bg-emerald-500/10 px-4 py-2 rounded-lg font-mono transition-all">
+              <MapPin size={14} /> Users map
+            </Link>
+            <Link href="/admin/errors" className="flex items-center gap-2 text-sm text-rose-400 hover:text-rose-300 border border-rose-500/20 hover:border-rose-500/40 bg-rose-500/10 px-4 py-2 rounded-lg font-mono transition-all">
+              <Bug size={14} /> Error logs
             </Link>
             <button
               type="button"
@@ -788,6 +892,16 @@ export default function AdminPage() {
                       {pendingUsers.length} Pending Approval
                     </button>
                   )}
+                  <button
+                    type="button"
+                    onClick={approveAllPendingUsers}
+                    disabled={approveAllBusy}
+                    className="flex items-center gap-1.5 text-xs font-mono font-bold text-gray-950 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed px-3 py-1.5 rounded-lg shadow-md"
+                    title="Sets userStatus to participated for all pending or status-missing users"
+                  >
+                    {approveAllBusy ? <RefreshCw size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
+                    Approve all (bulk)
+                  </button>
                 </div>
 
                 {/* ── Pending quick-approve strip ── */}
@@ -893,10 +1007,27 @@ export default function AdminPage() {
                       <option value="password">Email/password</option>
                     </select>
                   </div>
+                  <div className="flex items-center gap-2 bg-gray-900/60 border border-white/8 rounded-xl px-2 py-1">
+                    <MapPin size={12} className="text-amber-400/90 shrink-0" aria-hidden />
+                    <select
+                      value={usersKickoffFilter}
+                      onChange={(e) => setUsersKickoffFilter(e.target.value as KickoffRsvpFilter)}
+                      className="bg-transparent text-xs font-mono text-white border-0 rounded-lg py-1.5 pr-6 focus:ring-0 cursor-pointer max-w-[200px]"
+                      title="23 April kick-off RSVP (filter)"
+                    >
+                      <option value="all">23 Apr RSVP: all</option>
+                      <option value="inPerson">In person (London)</option>
+                      <option value="online">Online only</option>
+                      <option value="notSet">RSVP not set</option>
+                    </select>
+                    <MonitorPlay size={12} className="text-sky-400/80 shrink-0" aria-hidden />
+                  </div>
 
                   <span className="text-xs text-gray-600 font-mono hidden md:inline">
-                    {usersAuthFiltered.length} match
-                    {usersRoleFilter !== "all" || usersAuthFilter !== "all" ? " (filtered)" : ""}
+                    {usersKickoffFiltered.length} match
+                    {usersRoleFilter !== "all" || usersAuthFilter !== "all" || usersKickoffFilter !== "all"
+                      ? " (filtered)"
+                      : ""}
                   </span>
 
                   <div className="flex items-center gap-2 ml-auto">
@@ -920,7 +1051,7 @@ export default function AdminPage() {
 
                     {/* CSV export */}
                     <button
-                      onClick={() => exportAttendeesCsv(usersAuthFiltered, attendance, sessions)}
+                      onClick={() => exportAttendeesCsv(usersKickoffFiltered, attendance, sessions)}
                       className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-white border border-white/10 hover:border-white/20 px-3 py-2 rounded-xl font-mono transition-all"
                       title="Export current filter results"
                     >
@@ -954,7 +1085,7 @@ export default function AdminPage() {
                   </div>
                 )}
 
-                {usersAuthFiltered.length === 0 && (
+                {usersKickoffFiltered.length === 0 && (
                   <p className="text-center text-gray-500 py-10 font-mono">No users match these filters</p>
                 )}
 
@@ -972,11 +1103,11 @@ export default function AdminPage() {
                         />
                         Select all matching filters ({usersListWithEmail.length} with email)
                       </label>
-                      {usersAuthFiltered.length > 0 && (
+                      {usersKickoffFiltered.length > 0 && (
                         <span>
                           Page {usersPage} / {usersTotalPages} · {(usersPage - 1) * USERS_PER_PAGE + 1}–
-                          {Math.min(usersPage * USERS_PER_PAGE, usersAuthFiltered.length)} of{" "}
-                          {usersAuthFiltered.length}
+                          {Math.min(usersPage * USERS_PER_PAGE, usersKickoffFiltered.length)} of{" "}
+                          {usersKickoffFiltered.length}
                         </span>
                       )}
                     </div>
@@ -1129,11 +1260,11 @@ export default function AdminPage() {
                 {/* ── TABLE VIEW ── */}
                 {usersView === "table" && (
                   <div className="space-y-2">
-                    {usersAuthFiltered.length > 0 && usersTotalPages > 1 && (
+                    {usersKickoffFiltered.length > 0 && usersTotalPages > 1 && (
                       <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-xs font-mono text-gray-500">
                         <span>
                           Page {usersPage} / {usersTotalPages} · rows {(usersPage - 1) * USERS_PER_PAGE + 1}–
-                          {Math.min(usersPage * USERS_PER_PAGE, usersAuthFiltered.length)} of {usersAuthFiltered.length}
+                          {Math.min(usersPage * USERS_PER_PAGE, usersKickoffFiltered.length)} of {usersKickoffFiltered.length}
                         </span>
                         <div className="flex items-center gap-2">
                           <button
@@ -1182,7 +1313,7 @@ export default function AdminPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {usersAuthFiltered.length === 0 && (
+                        {usersKickoffFiltered.length === 0 && (
                           <tr>
                             <td colSpan={12} className="text-center py-10 text-gray-500 font-mono">
                               No users
@@ -1347,13 +1478,13 @@ export default function AdminPage() {
                     {/* Table footer */}
                     <div className="px-4 py-3 bg-gray-900/40 border-t border-white/5 flex items-center justify-between">
                       <span className="font-mono text-xs text-gray-500">
-                        Showing {usersAuthFiltered.length} of {users.length} users
+                        Showing {usersKickoffFiltered.length} of {users.length} users
                         {usersTotalPages > 1
                           ? ` (page ${usersPage}/${usersTotalPages})`
                           : ""}
                       </span>
                       <button
-                        onClick={() => exportAttendeesCsv(usersAuthFiltered, attendance, sessions)}
+                        onClick={() => exportAttendeesCsv(usersKickoffFiltered, attendance, sessions)}
                         className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-white font-mono transition-colors"
                       >
                         <Download size={12} /> Download CSV
@@ -1719,15 +1850,27 @@ export default function AdminPage() {
             )}
             {/* ── PRE-REGISTERED TAB ── */}
             {activeTab === "preregistered" && (() => {
+              const { duplicateKeys, nKeys: nDupKeys, nRows: nDupRows } = getPreRegDuplicateInfo(
+                preRegistered
+              );
               const filteredPreReg = preRegistered.filter((u) => {
                 const q = preRegSearch.toLowerCase();
                 const matchSearch = !q || u.email.includes(q) || u.displayName.toLowerCase().includes(q);
+                const cEmail = canonicalPreRegEmail(u.email);
                 const matchFilter =
                   preRegFilter === "all" ? true
                   : preRegFilter === "linked" ? hasAuthAccount(u)
-                  : !hasAuthAccount(u);
+                  : preRegFilter === "unlinked" ? !hasAuthAccount(u)
+                  : preRegFilter === "inPerson" ? userMatchesKickoffRsvpFilter(u, "inPerson")
+                  : preRegFilter === "duplicates" ? Boolean(cEmail && duplicateKeys.has(cEmail))
+                  : true;
                 return matchSearch && matchFilter;
               });
+              const nLinked = preRegistered.filter((u) => hasAuthAccount(u)).length;
+              const nUnlinked = preRegistered.filter((u) => !hasAuthAccount(u)).length;
+              const nInPerson = preRegistered.filter((u) =>
+                userMatchesKickoffRsvpFilter(u, "inPerson")
+              ).length;
               const allVisibleSelected = filteredPreReg.length > 0 && filteredPreReg.every((u) => selectedEmails.has(u.email));
 
               const toggleSelect = (email: string) =>
@@ -1756,12 +1899,43 @@ export default function AdminPage() {
                         className="w-full pl-8 pr-4 py-2 bg-gray-900/60 border border-white/10 rounded-lg text-sm text-white placeholder:text-gray-600 focus:outline-none focus:ring-1 focus:ring-green-500 font-mono" />
                     </div>
                     <div className="flex items-center gap-2 flex-wrap">
-                    {(["all", "linked", "unlinked"] as const).map((f) => (
-                      <button key={f} onClick={() => setPreRegFilter(f)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition-all ${preRegFilter === f ? "bg-green-500 text-gray-950" : "border border-white/10 text-gray-400 hover:text-white"}`}>
-                        {f === "all" ? `All (${preRegistered.length})`
-                          : f === "linked" ? `Signed up (${preRegistered.filter((u) => hasAuthAccount(u)).length})`
-                          : `Not signed up (${preRegistered.filter((u) => !hasAuthAccount(u)).length})`}
+                    {(
+                      [
+                        "all",
+                        "linked",
+                        "unlinked",
+                        "inPerson",
+                        "duplicates",
+                      ] as const
+                    ).map((f) => (
+                      <button
+                        key={f}
+                        type="button"
+                        onClick={() => setPreRegFilter(f)}
+                        disabled={f === "duplicates" && nDupKeys === 0}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition-all ${
+                          f === "duplicates" && nDupKeys === 0
+                            ? "border border-white/5 text-gray-600 cursor-not-allowed"
+                            : preRegFilter === f
+                            ? f === "inPerson"
+                              ? "bg-sky-500 text-gray-950"
+                              : f === "duplicates"
+                                ? "bg-amber-500 text-gray-950"
+                                : "bg-green-500 text-gray-950"
+                            : "border border-white/10 text-gray-400 hover:text-white"
+                        }`}
+                      >
+                        {f === "all"
+                          ? `All (${preRegistered.length})`
+                          : f === "linked"
+                            ? `Linked (${nLinked})`
+                            : f === "unlinked"
+                              ? `Not signed up (${nUnlinked})`
+                              : f === "inPerson"
+                                ? `In person (${nInPerson})`
+                                : nDupKeys === 0
+                                  ? "Duplicates (0)"
+                                  : `Duplicates (${nDupRows} in ${nDupKeys})`}
                       </button>
                     ))}
                     </div>
@@ -1788,17 +1962,58 @@ export default function AdminPage() {
                   </div>
                 </div>
 
-                {/* Stats pills */}
+                {/* Stats pills — click to apply the same filter as the row above */}
                 <div className="flex flex-wrap gap-3 font-mono text-xs">
-                  <span className="bg-green-500/10 border border-green-500/20 text-green-400 px-3 py-1 rounded-full">
-                    <Link2 size={10} className="inline mr-1" />{preRegistered.filter((u) => hasAuthAccount(u)).length} linked to accounts
-                  </span>
-                  <span className="bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 px-3 py-1 rounded-full">
-                    <AlertTriangle size={10} className="inline mr-1" />{preRegistered.filter((u) => !hasAuthAccount(u)).length} haven&apos;t signed up
-                  </span>
-                  <span className="bg-blue-500/10 border border-blue-500/20 text-blue-400 px-3 py-1 rounded-full">
-                    <UserCheck size={10} className="inline mr-1" />{preRegistered.filter((u) => u.joiningInPerson?.toLowerCase().startsWith("y")).length} joining in person
-                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setPreRegFilter("linked")}
+                    className={`rounded-full px-3 py-1.5 text-left border transition-all ${
+                      preRegFilter === "linked"
+                        ? "bg-green-500/25 border-green-500/50 text-green-300 ring-1 ring-green-500/40"
+                        : "bg-green-500/10 border-green-500/20 text-green-400 hover:bg-green-500/15"
+                    }`}
+                  >
+                    <Link2 size={10} className="inline mr-1" />
+                    {nLinked} linked to accounts
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPreRegFilter("unlinked")}
+                    className={`rounded-full px-3 py-1.5 text-left border transition-all ${
+                      preRegFilter === "unlinked"
+                        ? "bg-yellow-500/25 border-yellow-500/50 text-yellow-200 ring-1 ring-yellow-500/40"
+                        : "bg-yellow-500/10 border-yellow-500/20 text-yellow-400 hover:bg-yellow-500/15"
+                    }`}
+                  >
+                    <AlertTriangle size={10} className="inline mr-1" />
+                    {nUnlinked} haven&apos;t signed up
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPreRegFilter("inPerson")}
+                    className={`rounded-full px-3 py-1.5 text-left border transition-all ${
+                      preRegFilter === "inPerson"
+                        ? "bg-blue-500/25 border-blue-500/50 text-sky-200 ring-1 ring-sky-500/40"
+                        : "bg-blue-500/10 border-blue-500/20 text-blue-400 hover:bg-blue-500/15"
+                    }`}
+                  >
+                    <UserCheck size={10} className="inline mr-1" />
+                    {nInPerson} joining in person
+                  </button>
+                  {nDupKeys > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setPreRegFilter("duplicates")}
+                      className={`rounded-full px-3 py-1.5 text-left border transition-all ${
+                        preRegFilter === "duplicates"
+                          ? "bg-amber-500/25 border-amber-500/50 text-amber-100 ring-1 ring-amber-500/40"
+                          : "bg-amber-500/10 border-amber-500/20 text-amber-300 hover:bg-amber-500/15"
+                      }`}
+                    >
+                      <Copy size={10} className="inline mr-1" />
+                      {nDupKeys} duplicate email{nDupKeys !== 1 ? "s" : ""} · {nDupRows} rows
+                    </button>
+                  )}
                 </div>
 
                 {/* Bulk action bar */}
@@ -1832,21 +2047,37 @@ export default function AdminPage() {
                             <input type="checkbox" checked={allVisibleSelected} onChange={toggleSelectAll}
                               className="w-3.5 h-3.5 rounded accent-green-500 cursor-pointer" />
                           </th>
-                          {["Name", "Email", "Role", "Experience", "AI Knowledge", "In Person", "Location", "Submitted", "Status", ""].map((h) => (
+                          {["Name", "Dup", "Email", "Role", "Experience", "AI Knowledge", "In Person", "Location", "Submitted", "Status", ""].map((h) => (
                             <th key={h} className="text-left px-3 py-3 font-mono text-xs text-gray-400 uppercase tracking-wider whitespace-nowrap">{h}</th>
                           ))}
                         </tr>
                       </thead>
                       <tbody>
-                        {filteredPreReg.map((u, idx) => (
-                          <tr key={u.email}
-                            className={`border-b border-white/5 transition-colors cursor-pointer ${selectedEmails.has(u.email) ? "bg-blue-500/5" : idx % 2 === 0 ? "hover:bg-white/[0.02]" : "bg-white/[0.01] hover:bg-white/[0.03]"}`}
+                        {filteredPreReg.map((u, idx) => {
+                          const cEmail = canonicalPreRegEmail(u.email);
+                          const isDup = Boolean(cEmail && duplicateKeys.has(cEmail));
+                          const rowKey = u.firestoreId || `${u.email}#${u.uid || idx}`;
+                          return (
+                          <tr key={rowKey}
+                            className={`border-b border-white/5 transition-colors cursor-pointer ${selectedEmails.has(u.email) ? "bg-blue-500/5" : isDup ? "bg-amber-500/5" : idx % 2 === 0 ? "hover:bg-white/[0.02]" : "bg-white/[0.01] hover:bg-white/[0.03]"}`}
                             onClick={() => setDetailUser(u)}>
                             <td className="px-3 py-3" onClick={(e) => { e.stopPropagation(); toggleSelect(u.email); }}>
                               <input type="checkbox" checked={selectedEmails.has(u.email)} onChange={() => toggleSelect(u.email)}
                                 className="w-3.5 h-3.5 rounded accent-green-500 cursor-pointer" />
                             </td>
                             <td className="px-3 py-3 font-semibold text-white whitespace-nowrap">{u.displayName}</td>
+                            <td
+                              className="px-2 py-3 text-center w-10"
+                              title={isDup ? "Same email as another row (see Firestore doc id in details)" : undefined}
+                            >
+                              {isDup ? (
+                                <span className="inline-flex text-amber-400" aria-label="Duplicate email">
+                                  <Copy size={14} />
+                                </span>
+                              ) : (
+                                <span className="text-gray-700">—</span>
+                              )}
+                            </td>
                             <td className="px-3 py-3 font-mono text-xs text-green-400 whitespace-nowrap">{u.email}</td>
                             <td className="px-3 py-3 text-gray-300 whitespace-nowrap text-xs max-w-[120px] truncate">{u.formRole || "—"}</td>
                             <td className="px-3 py-3 text-gray-400 whitespace-nowrap text-xs text-center">{u.yearsOfExperience || "—"}</td>
@@ -1854,8 +2085,16 @@ export default function AdminPage() {
                               <span className="line-clamp-2 leading-tight">{u.priorAIKnowledge || "—"}</span>
                             </td>
                             <td className="px-3 py-3 whitespace-nowrap">
-                              <span className={`px-2 py-0.5 rounded-full text-xs font-mono ${u.joiningInPerson?.toLowerCase().startsWith("y") ? "bg-green-500/20 text-green-400" : "bg-gray-500/15 text-gray-500"}`}>
-                                {u.joiningInPerson?.toLowerCase().startsWith("y") ? "Yes" : u.joiningInPerson || "—"}
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-xs font-mono ${
+                                  userMatchesKickoffRsvpFilter(u, "inPerson")
+                                    ? "bg-green-500/20 text-green-400"
+                                    : "bg-gray-500/15 text-gray-500"
+                                }`}
+                              >
+                                {userMatchesKickoffRsvpFilter(u, "inPerson")
+                                  ? "Yes"
+                                  : u.joiningInPerson || "—"}
                               </span>
                             </td>
                             <td className="px-3 py-3 text-gray-400 text-xs whitespace-nowrap">{u.location || "—"}</td>
@@ -1876,12 +2115,13 @@ export default function AdminPage() {
                               </button>
                             </td>
                           </tr>
-                        ))}
+                          );
+                        })}
                         {filteredPreReg.length === 0 && (
-                          <tr><td colSpan={11} className="text-center py-16 text-gray-500 font-mono">
+                          <tr><td colSpan={12} className="text-center py-16 text-gray-500 font-mono">
                             {preRegistered.length === 0
                               ? "No pre-registered users. Add a person or upload a CSV — when they sign in with the same email, their account links automatically."
-                              : "No results match your search."}
+                              : "No results match your search or filter — try All, or clear the search box."}
                           </td></tr>
                         )}
                       </tbody>

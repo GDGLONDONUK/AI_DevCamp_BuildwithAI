@@ -9,6 +9,7 @@
 import { NextRequest } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
 import { ok, err, requireAdmin, requireAdminOrSelf, isErrorResponse } from "@/lib/api-helpers";
+import { logServerRouteException } from "@/lib/server/appErrorLog";
 
 type Params = { params: Promise<{ uid: string }> };
 
@@ -22,7 +23,7 @@ export async function GET(request: NextRequest, { params }: Params) {
     const snap = await adminDb().collection("attendance").doc(uid).get();
     return ok(snap.exists ? snap.data() : {});
   } catch (e) {
-    console.error(`GET /api/attendance/${uid}`, e);
+    logServerRouteException(`GET /api/attendance/${uid}`, e);
     return err("Failed to fetch attendance", 500);
   }
 }
@@ -47,7 +48,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     const updated = await adminDb().collection("attendance").doc(uid).get();
     return ok(updated.data() ?? {});
   } catch (e) {
-    console.error(`PATCH /api/attendance/${uid}`, e);
+    logServerRouteException(`PATCH /api/attendance/${uid}`, e);
     return err("Failed to update attendance", 500);
   }
 }

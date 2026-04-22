@@ -1,10 +1,14 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { AlertCircle, ArrowRight } from "lucide-react";
+import { useRef, useLayoutEffect, useState, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { calcProfileCompletion } from "@/lib/profileCompletion";
+import { userNeedsKickoffRsvp } from "@/lib/kickoffRsvp";
+import KickoffRsvpBanner from "@/components/KickoffRsvpBanner";
+import ProfileCompletionTopBanner from "@/components/ProfileCompletionTopBanner";
+
+const NAV_PX = 64;
 
 export default function AuthenticatedMain({
   children,
@@ -13,58 +17,76 @@ export default function AuthenticatedMain({
 }) {
   const { user, userProfile, loading } = useAuth();
   const pathname = usePathname();
+  const topShellRef = useRef<HTMLDivElement>(null);
+  const [mainPaddingTop, setMainPaddingTop] = useState(NAV_PX);
 
-  const excludedPath =
-    pathname.startsWith("/register") || pathname === "/profile";
+  const onKickoffPage = pathname.startsWith("/register/kickoff");
+  const showKickoffGate =
+    !loading &&
+    Boolean(user && userProfile && userNeedsKickoffRsvp(userProfile)) &&
+    !onKickoffPage;
 
-  let showBanner = false;
+  const profileExcludedPath = pathname.startsWith("/register");
+
+  let showProfileBanner = false;
   let pct = 100;
   let missingLabels: string[] = [];
 
-  if (!loading && user && userProfile && !excludedPath) {
+  if (!loading && user && userProfile && !profileExcludedPath) {
     const c = calcProfileCompletion(userProfile);
     if (c.pct < 100) {
-      showBanner = true;
+      showProfileBanner = true;
       pct = c.pct;
       missingLabels = c.missing.map((f) => f.label);
     }
   }
 
+  const showTopShell = showKickoffGate || showProfileBanner;
+
+  const updateMainPadding = useCallback(() => {
+    const el = topShellRef.current;
+    if (!el || !showTopShell) {
+      setMainPaddingTop(NAV_PX);
+      return;
+    }
+    setMainPaddingTop(NAV_PX + el.offsetHeight);
+  }, [showTopShell]);
+
+  useLayoutEffect(() => {
+    updateMainPadding();
+  }, [updateMainPadding, showKickoffGate, showProfileBanner, pathname]);
+
+  useLayoutEffect(() => {
+    if (!showTopShell || !topShellRef.current) return;
+    const el = topShellRef.current;
+    const ro = new ResizeObserver(() => updateMainPadding());
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [showTopShell, updateMainPadding]);
+
   return (
     <>
-      {showBanner && (
+      {showTopShell && (
         <div
-          className="fixed top-16 left-0 right-0 z-[35] border-b border-amber-500/35 bg-amber-950/95 backdrop-blur-md px-4 py-2.5 shadow-lg shadow-black/25"
-          role="status"
+          ref={topShellRef}
+          className="fixed top-16 left-0 right-0 z-30 flex flex-col shadow-2xl shadow-black/30"
         >
-          <div className="mx-auto flex max-w-6xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-            <div className="flex min-w-0 items-start gap-2 sm:items-center">
-              <AlertCircle
-                className="h-5 w-5 shrink-0 text-amber-400 mt-0.5 sm:mt-0"
-                aria-hidden
-              />
-              <p className="text-sm text-amber-50">
-                <span className="font-semibold">Your profile is incomplete ({pct}%)</span>
-                <span className="text-amber-100/90">
-                  {" "}
-                  — still needed:{" "}
-                  {missingLabels.slice(0, 3).join(", ")}
-                  {missingLabels.length > 3
-                    ? ` +${missingLabels.length - 3} more`
-                    : ""}
-                </span>
-              </p>
-            </div>
-            <Link
-              href="/profile"
-              className="inline-flex shrink-0 items-center justify-center gap-1.5 self-stretch rounded-lg bg-amber-500 px-3 py-2 text-xs font-bold text-gray-950 hover:bg-amber-400 sm:self-auto sm:py-1.5 font-mono"
-            >
-              Complete profile <ArrowRight className="h-3.5 w-3.5" />
-            </Link>
-          </div>
+          {showKickoffGate && <KickoffRsvpBanner />}
+          {showProfileBanner && (
+            <ProfileCompletionTopBanner
+              pct={pct}
+              missingLabels={missingLabels}
+              stackedAfterKickoff={showKickoffGate}
+            />
+          )}
         </div>
       )}
-      <main className={showBanner ? "pt-28" : "pt-16"}>{children}</main>
+      <main
+        className="min-h-0"
+        style={{ paddingTop: mainPaddingTop }}
+      >
+        {children}
+      </main>
     </>
   );
 }

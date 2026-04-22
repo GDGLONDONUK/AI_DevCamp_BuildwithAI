@@ -5,6 +5,7 @@
 
 import { adminDb } from "@/lib/firebase-admin";
 import { ok, err } from "@/lib/api-helpers";
+import { logServerRouteException } from "@/lib/server/appErrorLog";
 import { TagCategoryDocument } from "@/types";
 
 export async function GET() {
@@ -28,7 +29,7 @@ export async function GET() {
 
     return ok(list);
   } catch (e) {
-    console.error("GET /api/tags", e);
+    logServerRouteException("GET /api/tags", e);
     return err("Failed to load tags", 500);
   }
 }

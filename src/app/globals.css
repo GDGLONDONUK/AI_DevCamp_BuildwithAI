@@ -13,6 +13,16 @@
    text-lg  → ~20px  (was 18px) */
 html {
   font-size: 18px;
+  /* Native <select> / form controls: use dark system styling (fixes light popup + white text on Windows) */
+  color-scheme: dark;
+}
+
+/* Fallback where browsers still draw a light option list; pair with explicit text color */
+select,
+select option,
+select optgroup {
+  background-color: #111827;
+  color: #e5e7eb;
 }
 
 body {

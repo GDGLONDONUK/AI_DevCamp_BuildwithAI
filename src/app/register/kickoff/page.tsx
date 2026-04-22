@@ -7,7 +7,11 @@ import { MapPin, MonitorPlay, Loader2, ChevronRight } from "lucide-react";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { ensureProfileOnServer } from "@/lib/meApi";
-import { joiningInPersonLabel, SESSION_SKIP_REGISTER_REDIRECT } from "@/lib/kickoffRsvp";
+import {
+  kickoffRsvpWritePayload,
+  KICKOFF_IN_PERSON_RSVP_POLICY,
+  SESSION_SKIP_REGISTER_REDIRECT,
+} from "@/lib/kickoffRsvp";
 import toast from "react-hot-toast";
 
 /**
@@ -60,8 +64,7 @@ export default function KickoffRsvpPage() {
         }
       }
       await updateDoc(userRef, {
-        kickoffInPersonRsvp: choice,
-        joiningInPerson: joiningInPersonLabel(choice),
+        ...kickoffRsvpWritePayload(choice),
         updatedAt: serverTimestamp(),
       });
       sessionStorage.removeItem(SESSION_SKIP_REGISTER_REDIRECT);
@@ -97,10 +100,13 @@ export default function KickoffRsvpPage() {
         <h1 className="text-3xl sm:text-4xl font-extrabold text-white text-center mb-2">
           23 April <span className="text-green-400">kick-off</span>
         </h1>
-        <p className="text-gray-400 text-center text-sm mb-8">
+        <p className="text-gray-300 text-center text-sm mb-2 leading-relaxed">
+          {KICKOFF_IN_PERSON_RSVP_POLICY}
+        </p>
+        <p className="text-gray-500 text-center text-xs mb-8">
           Will you join <strong className="text-gray-300">in person in London</strong> or{" "}
-          <strong className="text-gray-300">online only</strong>? We need numbers for the venue — and{" "}
-          <span className="text-amber-400/90">swag is available for in-person attendees</span> while stocks last.
+          <strong className="text-gray-300">online only</strong>?{" "}
+          <span className="text-amber-400/90">In-person swag</span> while stocks last.
         </p>
 
         <div className="space-y-2 mb-8">

@@ -6,6 +6,7 @@
 import { NextRequest } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
 import { ok, err, requireAdmin } from "@/lib/api-helpers";
+import { logServerRouteException } from "@/lib/server/appErrorLog";
 import { TAG_CATALOG } from "@/data/tagCatalog";
 
 export async function POST(request: NextRequest) {
@@ -40,7 +41,7 @@ export async function POST(request: NextRequest) {
     await batch.commit();
     return ok({ upserted: TAG_CATALOG.length, ids: TAG_CATALOG.map((c) => c.id) });
   } catch (e) {
-    console.error("POST /api/admin/tags", e);
+    logServerRouteException("POST /api/admin/tags", e);
     return err("Failed to seed tags", 500);
   }
 }

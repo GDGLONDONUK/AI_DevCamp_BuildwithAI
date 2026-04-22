@@ -13,6 +13,8 @@ export function exportAttendeesCsv(
     "Email",
     "Role",
     "Status",
+    "Kickoff in-person RSVP",
+    "Joining in person",
     "Experience",
     "City",
     "Country",
@@ -36,6 +38,12 @@ export function exportAttendeesCsv(
     u.email || "",
     u.role || "",
     u.userStatus || "pending",
+    u.kickoffInPersonRsvp === true
+      ? "Yes"
+      : u.kickoffInPersonRsvp === false
+        ? "No"
+        : "",
+    u.joiningInPerson || "",
     u.experienceLevel || "",
     u.city || "",
     u.country || "",

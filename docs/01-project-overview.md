@@ -42,7 +42,7 @@ Admins use a dedicated panel to take attendance, approve users, review submissio
 │    /dashboard    User progress             │
 │    /submit       Assignment & project      │
 │    /profile      Edit profile              │
-│    /admin        Admin panel               │
+│    /admin        Admin (…/email, /import, /bevy, /errors, /users-map)  │
 │                                             │
 │  Shared state: AuthContext (React Context) │
 │  Data layer:   lib/ service files          │

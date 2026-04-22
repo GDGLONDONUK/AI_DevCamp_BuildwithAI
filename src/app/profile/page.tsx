@@ -27,6 +27,7 @@ import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
 import ProfileCompletion from "@/components/ui/ProfileCompletion";
 import toast from "react-hot-toast";
+import { unknownErrorMessage } from "@/lib/unknownErrorMessage";
 
 export default function ProfilePage() {
   const { user, userProfile, loading, refreshProfile } = useAuth();
@@ -85,7 +86,7 @@ export default function ProfilePage() {
           );
         }
       }
-      await updateDoc(userRef, {
+      const updatePayload: Record<string, unknown> = {
         displayName: form.displayName,
         bio: form.bio,
         city: form.city,
@@ -100,15 +101,21 @@ export default function ProfilePage() {
         websiteUrl: form.websiteUrl,
         experienceLevel: form.experienceLevel,
         updatedAt: serverTimestamp(),
-      });
+      };
+      for (const key of Object.keys(updatePayload)) {
+        if (updatePayload[key] === undefined) {
+          delete updatePayload[key];
+        }
+      }
+      await updateDoc(userRef, updatePayload);
       await refreshProfile();
       toast.success("Profile updated!");
     } catch (err) {
       console.error("Profile save failed:", err);
-      const msg =
-        err instanceof Error && err.message
-          ? err.message
-          : "Failed to update profile. Try again or sign out and back in.";
+      const msg = unknownErrorMessage(
+        err,
+        "Failed to update profile. Try again or sign out and back in."
+      );
       toast.error(msg);
     } finally {
       setSaving(false);

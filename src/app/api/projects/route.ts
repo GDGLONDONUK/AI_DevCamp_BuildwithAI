@@ -12,6 +12,7 @@
 import { NextRequest } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
 import { ok, created, err, verifyAuth, isErrorResponse } from "@/lib/api-helpers";
+import { logServerRouteException } from "@/lib/server/appErrorLog";
 import { FieldValue } from "firebase-admin/firestore";
 
 export async function GET(request: NextRequest) {
@@ -30,7 +31,7 @@ export async function GET(request: NextRequest) {
     const projects = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     return ok(projects);
   } catch (e) {
-    console.error("GET /api/projects", e);
+    logServerRouteException("GET /api/projects", e);
     return err("Failed to fetch projects", 500);
   }
 }
@@ -67,7 +68,7 @@ export async function POST(request: NextRequest) {
     const ref = await adminDb().collection("projects").add(project);
     return created({ id: ref.id, ...project });
   } catch (e) {
-    console.error("POST /api/projects", e);
+    logServerRouteException("POST /api/projects", e);
     return err("Failed to submit project", 500);
   }
 }

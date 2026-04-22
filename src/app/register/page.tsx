@@ -58,7 +58,11 @@ import {
   fetchMyPreregisteredRow,
   linkPreregisterRowOnServer,
 } from "@/lib/meApi";
-import { joiningInPersonLabel, SESSION_SKIP_REGISTER_REDIRECT } from "@/lib/kickoffRsvp";
+import {
+  kickoffRsvpWritePayload,
+  KICKOFF_IN_PERSON_RSVP_POLICY,
+  SESSION_SKIP_REGISTER_REDIRECT,
+} from "@/lib/kickoffRsvp";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useAuth } from "@/contexts/AuthContext";
 import toast from "react-hot-toast";
@@ -288,7 +292,7 @@ export default function RegisterPage() {
         handle: form.handle.toLowerCase(),
         photoURL,
         role: "attendee",
-        userStatus: "pending",
+        userStatus: "participated",
         registrationSource: "password" as const,
         authProviders: newUser.providerData.map((p) => p.providerId),
         roleTitle: form.roleTitle,
@@ -306,9 +310,6 @@ export default function RegisterPage() {
         canOffer: form.canOffer,
         keepUpdated: form.keepUpdated,
         registeredSessions: [],
-        kickoffInPersonRsvp: form.kickoffInPersonRsvp!,
-        joiningInPerson: joiningInPersonLabel(form.kickoffInPersonRsvp!),
-        // Merge Google Form fields if pre-registered (RSVP above overrides CSV in-person)
         signedIn: true,
         registered: true,
         ...(preReg && {
@@ -318,11 +319,12 @@ export default function RegisterPage() {
           areasOfInterest: preReg.areasOfInterest,
           whyJoin: preReg.whyJoin,
           formSubmittedAt: preReg.formSubmittedAt,
-          joiningInPerson: preReg.joiningInPerson,
           knowsProgramming: preReg.knowsProgramming,
           commitment: preReg.commitment,
           preRegistered: true,
         }),
+        // Kick-off RSVP overrides any imported joiningInPerson from pre-registration
+        ...kickoffRsvpWritePayload(form.kickoffInPersonRsvp!),
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       };
@@ -633,8 +635,10 @@ export default function RegisterPage() {
                   <label className="block text-sm font-medium text-gray-300 mb-1.5">
                     23 April kick-off — how will you join? <span className="text-red-400">*</span>
                   </label>
-                  <p className="text-xs text-gray-500 mb-3">
-                    We need a headcount for the London venue. <span className="text-amber-400/90">Swag may be available for in-person attendees</span> (while stocks last).
+                  <p className="text-xs text-gray-400 mb-3 leading-relaxed">
+                    {KICKOFF_IN_PERSON_RSVP_POLICY}{" "}
+                    <span className="text-amber-400/90">Swag may be available for in-person attendees</span> (while
+                    stocks last).
                   </p>
                   <div className="space-y-2">
                     <button

@@ -12,6 +12,10 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import toast from "react-hot-toast";
+import {
+  KICKOFF_IN_PERSON_MAX_CAPACITY,
+  KICKOFF_IN_PERSON_RSVP_POLICY,
+} from "@/lib/kickoffRsvp";
 
 function hasAuthAccount(u: UserProfile): boolean {
   if (u.signedIn === false) return false;
@@ -58,7 +62,7 @@ const TEMPLATES = {
       <table style="width: 100%; border-collapse: collapse;">
         <tr><td style="padding: 6px 0; color: #6b7280; font-size: 13px; width: 110px; vertical-align: top;">Format</td><td style="padding: 6px 0; color: #e5e7eb; font-size: 13px; font-weight: 600;">Online <strong style="color: #9ca3af; font-weight: 600;">+</strong> optional in-person sessions</td></tr>
         <tr><td style="padding: 6px 0; color: #6b7280; font-size: 13px; vertical-align: top;">Kick-off</td><td style="padding: 6px 0; color: #e5e7eb; font-size: 13px; font-weight: 600;">23 April 2026 · 6:00 PM (UK)</td></tr>
-        <tr><td style="padding: 6px 0; color: #6b7280; font-size: 13px; vertical-align: top;">In-person</td><td style="padding: 6px 0; color: #e5e7eb; font-size: 13px; font-weight: 600;">Skyscanner HQ · London · W1D 4AL — <span style="color: #4ade80;">RSVP required</span></td></tr>
+        <tr><td style="padding: 6px 0; color: #6b7280; font-size: 13px; vertical-align: top;">In-person</td><td style="padding: 6px 0; color: #e5e7eb; font-size: 13px; font-weight: 600;">Skyscanner HQ · London · W1D 4AL — <span style="color: #4ade80;">RSVP required</span> — max <strong style="color: #e5e7eb;">${KICKOFF_IN_PERSON_MAX_CAPACITY}</strong> people (if full, we may refuse entry)</td></tr>
         <tr><td style="padding: 6px 0; color: #6b7280; font-size: 13px; vertical-align: top;">Sessions</td><td style="padding: 6px 0; color: #e5e7eb; font-size: 13px; font-weight: 600;">6 sessions · 23 Apr – 19 May 2026</td></tr>
         <tr><td style="padding: 6px 0; color: #6b7280; font-size: 13px;">Cost</td><td style="padding: 6px 0; color: #4ade80; font-size: 13px; font-weight: 700;">Free</td></tr>
       </table>
@@ -66,7 +70,7 @@ const TEMPLATES = {
 
     <div style="background: #14532d22; border: 1px solid #14532d55; border-radius: 12px; padding: 16px 18px; margin: 0 0 20px;">
       <p style="font-size: 13px; color: #a7f3d0; line-height: 1.65; margin: 0;">
-        <strong style="color: #4ade80;">Planning to join in London?</strong> After you create your account, please <strong>confirm whether you are attending the 23 April kick-off in person</strong> — we need accurate numbers for the venue. <strong style="color: #fef08a;">Limited swag is available for in-person attendees</strong> (while stocks last).
+        <strong style="color: #4ade80;">Planning to join in London?</strong> You’ll confirm in the app after sign-up. ${KICKOFF_IN_PERSON_RSVP_POLICY} <strong style="color: #fef08a;">Limited swag for in-person attendees</strong> (while stocks last).
       </p>
     </div>
 
@@ -119,7 +123,7 @@ const TEMPLATES = {
 
     <div style="background: #14532d22; border: 1px solid #14532d55; border-radius: 12px; padding: 16px 18px; margin: 0 0 20px;">
       <p style="font-size: 13px; color: #a7f3d0; line-height: 1.65; margin: 0;">
-        Sessions run <strong style="color: #fff;">online and in-person</strong> where noted. Please <strong>confirm in your account</strong> if you are coming to the <strong>23 April kick-off in person</strong> (London) — we use this for venue numbers. <strong style="color: #fef08a;">Swag for in-person attendees</strong> while stocks last.
+        Sessions run <strong style="color: #fff;">online and in-person</strong> where noted. ${KICKOFF_IN_PERSON_RSVP_POLICY} <strong style="color: #fef08a;">Swag for in-person attendees</strong> while stocks last.
       </p>
     </div>
 

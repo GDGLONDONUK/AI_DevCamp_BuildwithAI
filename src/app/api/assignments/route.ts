@@ -12,6 +12,7 @@
 import { NextRequest } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
 import { ok, created, err, verifyAuth, requireAdmin, isErrorResponse } from "@/lib/api-helpers";
+import { logServerRouteException } from "@/lib/server/appErrorLog";
 import { FieldValue } from "firebase-admin/firestore";
 
 export async function GET(request: NextRequest) {
@@ -31,7 +32,7 @@ export async function GET(request: NextRequest) {
     const assignments = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     return ok(assignments);
   } catch (e) {
-    console.error("GET /api/assignments", e);
+    logServerRouteException("GET /api/assignments", e);
     return err("Failed to fetch assignments", 500);
   }
 }
@@ -70,7 +71,7 @@ export async function POST(request: NextRequest) {
     const ref = await adminDb().collection("assignments").add(assignment);
     return created({ id: ref.id, ...assignment });
   } catch (e) {
-    console.error("POST /api/assignments", e);
+    logServerRouteException("POST /api/assignments", e);
     return err("Failed to submit assignment", 500);
   }
 }

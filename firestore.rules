@@ -2,6 +2,11 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // ── App error log (server / Admin SDK only) ────────────────────────────
+    match /error_logs/{id} {
+      allow read, write: if false;
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────────
     function isSignedIn() {
       return request.auth != null;
@@ -39,7 +44,7 @@ service cloud.firestore {
                     && !('role' in request.resource.data
                          ? request.resource.data.role != 'attendee'
                          : false)
-                    && request.resource.data.userStatus == 'pending';
+                    && request.resource.data.userStatus in ['pending', 'participated'];
 
       // Self-updates: allowed, UNLESS they touch role or userStatus.
       // Admins/mods may update anything.

@@ -95,6 +95,26 @@ Every response is JSON with a consistent envelope:
 | `GET` | `/api/users/[uid]` | Admin / Moderator or self | Get a user's profile |
 | `PATCH` | `/api/users/[uid]` | Admin/Mod (privileged) or self (own fields) | Update a user |
 
+**PATCH /api/users/[uid] — body for admin or moderator** (privileged fields):
+```json
+{
+  "userStatus": "participated",
+  "role": "moderator"
+}
+```
+
+**PATCH /api/users/[uid] — body for self** (non-privileged fields only; `role` / `userStatus` return 403):
+```json
+{
+  "displayName": "Jane Doe",
+  "bio": "I love AI",
+  "city": "London",
+  "country": "United Kingdom",
+  "skills": ["Python", "TensorFlow"],
+  "experienceLevel": "intermediate"
+}
+```
+
 ---
 
 ### “Me” — profile and pending imports (Bearer required)
@@ -117,25 +137,28 @@ Merge logic and field list: `src/lib/server/mergePendingUserIntoProfile.ts`.
 | `POST` | `/api/admin/preregistered` | Batch upsert rows to `users/{email}` (CSV pipeline). |
 | `POST` | `/api/admin/pending-user` | Create or update a **single** pending `users/{email}` from the admin “Add pending user” flow (`importSource: "admin"`, `createdByAdmin: true`). |
 
-**PATCH body — admin/moderator** (can set privileged fields):
-```json
-{
-  "userStatus": "participated",
-  "role": "moderator"
-}
-```
+---
 
-**PATCH body — self** (non-privileged fields only; attempting `role`/`userStatus` returns 403):
-```json
-{
-  "displayName": "Jane Doe",
-  "bio": "I love AI",
-  "city": "London",
-  "country": "United Kingdom",
-  "skills": ["Python", "TensorFlow"],
-  "experienceLevel": "intermediate"
-}
-```
+### Admin — maps, Bevy, tags, error logs, bulk actions
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/admin/users-location-map` | Admin / Moderator | Returns geocoded points for the users map (Nominatim; slow on first run for many unique places). |
+| `GET` | `/api/admin/error-logs` | **Admin only** | Query `error_logs` (date range, search). |
+| `POST` | `/api/admin/error-logs/test` | **Admin only** | Inserts a test document into `error_logs` (e.g. from `/admin/errors`). |
+| `POST` | `/api/admin/tags` | Admin / Moderator | Seed or upsert tag categories. |
+| `POST` | `/api/admin/bevy-merge` | Admin / Moderator | Reconcile Bevy export rows with `users`. |
+| `POST` | `/api/admin/approve-all-users` | Admin / Moderator | Bulk-approve pending users (see handler for behaviour). |
+
+---
+
+### Other
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/tags` | Public | Tag categories for forms (ordered list from Firestore `tags`). |
+| `POST` | `/api/log-error` | Optional Bearer | Client error reports → `error_logs` via Admin SDK; user attached when token present. |
+| `POST` | `/api/email/send` | Admin / Moderator | Bulk email (SMTP; used from `/admin/email`). |
 
 ---
 
@@ -236,31 +259,29 @@ Valid statuses: `submitted` → `reviewed` → `shortlisted` → `winner`; admin
 
 ---
 
-## File structure
+## File structure (high level)
 
 ```
 src/
 ├── lib/
 │   ├── firebase-admin.ts     ← Admin SDK init (server-only)
-│   └── api-helpers.ts        ← verifyAuth, requireAdmin, ok/err helpers
+│   ├── api-helpers.ts        ← verifyAuth, requireAdmin, ok/err helpers
+│   └── server/               ← Nominatim, merge pending user, user admin view, app error log, …
 └── app/
     └── api/
-        ├── sessions/
-        │   ├── route.ts      ← GET (list), POST (create)
-        │   └── [id]/route.ts ← GET, PUT, DELETE
-        ├── users/
-        │   ├── route.ts      ← GET (list, admin only)
-        │   └── [uid]/route.ts← GET, PATCH
+        ├── sessions/          ← GET (list), POST, GET/PUT/DELETE by id
+        ├── users/             ← GET (list), GET/PATCH by uid
+        ├── me/                ← ensure-profile, preregistered, link-preregister
         ├── attendance/
-        │   ├── route.ts      ← GET all (admin only)
-        │   └── [uid]/route.ts← GET, PATCH
         ├── assignments/
-        │   ├── route.ts      ← GET (list), POST (submit)
-        │   └── [id]/route.ts ← GET, PATCH
-        └── projects/
-            ├── route.ts      ← GET (list), POST (submit)
-            └── [id]/route.ts ← GET, PATCH
+        ├── projects/
+        ├── email/send/
+        ├── log-error/
+        ├── tags/
+        └── admin/             ← preregistered, pending-user, users-location-map, error-logs, …
 ```
+
+For the full list of route files, see `src/app/api/**/route.ts` in the repo.
 
 ---
 

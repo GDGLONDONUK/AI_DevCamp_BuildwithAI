@@ -5,7 +5,7 @@ import { X, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 import { UserProfile, UserRole, UserStatus } from "@/types";
 import StatusDropdown from "@/components/admin/StatusDropdown";
-import { joiningInPersonLabel } from "@/lib/kickoffRsvp";
+import { joiningInPersonLabel, KICKOFF_IN_PERSON_RSVP_POLICY } from "@/lib/kickoffRsvp";
 
 function splitList(s: string): string[] {
   return s
@@ -86,9 +86,11 @@ export default function UserEditor({ user, onClose, onSave }: UserEditorProps) {
       if (kickoffInPersonRsvp === "yes") {
         updates.kickoffInPersonRsvp = true;
         updates.joiningInPerson = joiningInPerson.trim() || joiningInPersonLabel(true);
+        updates.kickoffRsvpUpdatedAt = new Date().toISOString();
       } else if (kickoffInPersonRsvp === "no") {
         updates.kickoffInPersonRsvp = false;
         updates.joiningInPerson = joiningInPerson.trim() || joiningInPersonLabel(false);
+        updates.kickoffRsvpUpdatedAt = new Date().toISOString();
       } else if (joiningInPerson.trim()) {
         updates.joiningInPerson = joiningInPerson.trim();
       }
@@ -242,6 +244,9 @@ export default function UserEditor({ user, onClose, onSave }: UserEditorProps) {
 
           <div>
             <div className="text-[10px] font-mono text-amber-400 uppercase tracking-widest mb-2">Kick-off (23 Apr)</div>
+            <p className="text-[11px] text-gray-500 leading-relaxed mb-3 border border-amber-500/20 bg-amber-500/5 rounded-lg px-3 py-2">
+              {KICKOFF_IN_PERSON_RSVP_POLICY}
+            </p>
             <div className="grid sm:grid-cols-2 gap-3 mb-3">
               <div>
                 <label className="block text-xs font-mono text-gray-500 mb-1">RSVP</label>

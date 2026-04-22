@@ -67,7 +67,7 @@ export async function ensureUserProfileForUid(uid: string): Promise<EnsureUserPr
     handle,
     photoURL: record.photoURL || "",
     role: "attendee",
-    userStatus: "pending",
+    userStatus: "participated",
     registeredSessions: [],
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),

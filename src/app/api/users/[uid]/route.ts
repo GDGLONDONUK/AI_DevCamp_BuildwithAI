@@ -14,6 +14,7 @@
 import { NextRequest } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
 import { ok, err, verifyAuth, requireAdminOrSelf, isErrorResponse } from "@/lib/api-helpers";
+import { logServerRouteException } from "@/lib/server/appErrorLog";
 import { FieldValue } from "firebase-admin/firestore";
 
 type Params = { params: Promise<{ uid: string }> };
@@ -40,7 +41,7 @@ export async function GET(request: NextRequest, { params }: Params) {
     if (!snap.exists) return err("User not found", 404);
     return ok({ id: snap.id, ...snap.data() });
   } catch (e) {
-    console.error(`GET /api/users/${uid}`, e);
+    logServerRouteException(`GET /api/users/${uid}`, e);
     return err("Failed to fetch user", 500);
   }
 }
@@ -84,7 +85,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     const updated = await adminDb().collection("users").doc(uid).get();
     return ok({ id: updated.id, ...updated.data() });
   } catch (e) {
-    console.error(`PATCH /api/users/${uid}`, e);
+    logServerRouteException(`PATCH /api/users/${uid}`, e);
     return err("Failed to update user", 500);
   }
 }

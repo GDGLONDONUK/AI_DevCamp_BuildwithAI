@@ -31,13 +31,14 @@ User visits site
 
 - **Production** — See [08-site-deployment-and-admin.md](./08-site-deployment-and-admin.md): canonical URL `https://aidevcamp.gdg.london`, set `NEXT_PUBLIC_SITE_URL` and `NEXT_PUBLIC_APP_URL` on Vercel, add the hostname under Firebase **authorized domains**. Custom domains are **not** covered by `VERCEL_URL` in CORS.
 - **Home page** — Discord invite (`DISCORD_INVITE_URL` in `src/app/page.tsx`) and `OpenLoginFromQuery` for `/?login=1` and `/?login=1&reset=1`.
-- **Auth** — Password reset in `AuthModal`; `sendPasswordResetEmail` in `src/lib/auth.ts`; `authProviders` on `users` synced on sign-in; `syncAuthProvidersToUserDoc` / `userAuthShowsGoogle` for admin badges.
-- **Users / imports** — Pending rows at `users/{email}`; `POST /api/me/ensure-profile` merges on first sign-in; `POST /api/admin/pending-user` for “Add pending user”. Merge helper: `src/lib/server/mergePendingUserIntoProfile.ts`. Schema: [03 · Database schema](./03-database-schema.md) (section *Pending user rows*).
-- **Admin** — Users tab: checkboxes, grid + table, bulk **Send email**; header + Users + Pre-Registered **Add pending user**; pre-reg table unchanged. API additions: [07-api-routes.md](./07-api-routes.md).
-- **`src/lib/admin/`** — Admin domain helpers: CSV for pre-registered imports, attendee export, `format.ts`, `uploadPreRegisteredCsv.ts`.
+- **Auth** — Password reset in `AuthModal`; `sendPasswordResetEmail` in `src/lib/auth.ts`; `authProviders` on `users` synced on sign-in; `syncAuthProvidersToUserDoc` / `userAuthShowsGoogle` for admin badges. Profile bootstrapping: `lib/meApi.ts`, `lib/profileCompletion.ts`, `components/AuthenticatedMain.tsx` as needed.
+- **Users / imports** — Pending rows at `users/{email}`; `POST /api/me/ensure-profile` merges on first sign-in; `GET/POST` `/api/me/preregistered` and `POST /api/me/link-preregister` for registration linking; `POST /api/admin/pending-user` for “Add pending user”. Merge helper: `src/lib/server/mergePendingUserIntoProfile.ts`. Schema: [03 · Database schema](./03-database-schema.md) (section *Pending user rows*).
+- **Admin** — Users tab: checkboxes, grid + table, bulk **Send email**; **Users map** at `/admin/users-map` (Leaflet + OpenStreetMap; locations geocoded server-side via Nominatim, `GET /api/admin/users-location-map`); header link from main `/admin`. **Attendee CSV** (Download CSV) includes **Kickoff in-person RSVP** and **Joining in person** — see [08 · Site & admin](./08-site-deployment-and-admin.md). API reference: [07-api-routes.md](./07-api-routes.md).
+- **`src/lib/admin/`** — CSV for pre-registered imports, `exportAttendeesCsv.ts` (attendee download), `format.ts`, `uploadPreRegisteredCsv.ts`, `csvPreRegistered.ts`, Bevy merge helpers, etc.
+- **`src/lib/server/`** — Server-only utilities: e.g. `nominatimGeocode.ts` (admin map), `userAdminView.ts`, `mergePendingUserIntoProfile.ts`, `preRegisteredLookup.ts` (as applicable).
 - **`src/features/admin/`** — e.g. `PreRegisteredDetailModal`.
 - **`src/proxy.ts`** — Next.js 16 (formerly `middleware.ts`); CORS + route guards.
-- **`UserProfile` type** — `authProviders`, `importSource`, `createdByAdmin`, and other import/pre-reg fields; see `src/types/index.ts`.
+- **`UserProfile` type** — `kickoffInPersonRsvp`, `joiningInPerson`, `authProviders`, `importSource`, `bevyRegisteredAt`, and other import/pre-reg fields; see `src/types/index.ts` and [03 · Database schema](./03-database-schema.md).
 - **Session gating** — Recordings and resources for `userStatus: "participated"` or `"certified"`.
 - **`src/data/tags.ts`**, **`src/lib/adminService.ts`**, **hooks** — as before.
 
