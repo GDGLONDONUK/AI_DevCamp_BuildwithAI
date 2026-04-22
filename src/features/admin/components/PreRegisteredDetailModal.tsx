@@ -89,6 +89,14 @@ export default function PreRegisteredDetailModal({ detailUser, onClose }: Props)
             <dl className="space-y-2">
               {[
                 ["Joining In-Person", detailUser.joiningInPerson || "—"],
+                [
+                  "In person (admin confirmed)",
+                  detailUser.kickoffInPersonAdminConfirmed === true
+                    ? "Yes"
+                    : detailUser.kickoffInPersonAdminConfirmed === false
+                      ? "No"
+                      : "—",
+                ],
                 ["Location (raw)", detailUser.location || "—"],
                 ["City", detailUser.city || "—"],
                 ["Country", detailUser.country || "—"],

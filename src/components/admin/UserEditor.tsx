@@ -1,22 +1,34 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X, Loader2 } from "lucide-react";
+import { X, Loader2, Globe, User } from "lucide-react";
 import toast from "react-hot-toast";
 import { UserProfile, UserRole, UserStatus } from "@/types";
 import StatusDropdown from "@/components/admin/StatusDropdown";
+import LocationPicker from "@/components/ui/LocationPicker";
+import SkillsSelector from "@/components/ui/SkillsSelector";
+import Input from "@/components/ui/Input";
 import { joiningInPersonLabel, KICKOFF_IN_PERSON_RSVP_POLICY } from "@/lib/kickoffRsvp";
+import {
+  SKILL_TAGS,
+  EXPERTISE_TAGS,
+  WANT_TO_LEARN_TAGS,
+  CAN_OFFER_TAGS,
+} from "@/data/tags";
 
-function splitList(s: string): string[] {
-  return s
-    .split(/[,;\n]/)
-    .map((x) => x.trim())
-    .filter(Boolean);
-}
+const LinkedinIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+    <path d="M16 8a6 6 0 016 6v7h-4v-7a2 2 0 00-2-2 2 2 0 00-2 2v7h-4v-7a6 6 0 016-6zM2 9h4v12H2z" />
+    <circle cx="4" cy="4" r="2" />
+  </svg>
+);
+const GithubIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+    <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844a9.59 9.59 0 012.504.337c1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
+  </svg>
+);
 
-function joinList(arr: string[] | undefined): string {
-  return (arr || []).join(", ");
-}
+type ExpLevel = "beginner" | "intermediate" | "advanced";
 
 interface UserEditorProps {
   user: UserProfile;
@@ -31,15 +43,14 @@ export default function UserEditor({ user, onClose, onSave }: UserEditorProps) {
   const [roleTitle, setRoleTitle] = useState(user.roleTitle || "");
   const [city, setCity] = useState(user.city || "");
   const [country, setCountry] = useState(user.country || "");
-  const [location, setLocation] = useState(user.location || "");
   const [bio, setBio] = useState(user.bio || "");
-  const [experienceLevel, setExperienceLevel] = useState<"beginner" | "intermediate" | "advanced" | "">(
-    user.experienceLevel || ""
+  const [experienceLevel, setExperienceLevel] = useState<ExpLevel>(
+    (user.experienceLevel as ExpLevel) || "beginner"
   );
-  const [skills, setSkills] = useState(joinList(user.skills));
-  const [expertise, setExpertise] = useState(joinList(user.expertise));
-  const [wantToLearn, setWantToLearn] = useState(joinList(user.wantToLearn));
-  const [canOffer, setCanOffer] = useState(joinList(user.canOffer));
+  const [skills, setSkills] = useState<string[]>(user.skills || []);
+  const [expertise, setExpertise] = useState<string[]>(user.expertise || []);
+  const [wantToLearn, setWantToLearn] = useState<string[]>(user.wantToLearn || []);
+  const [canOffer, setCanOffer] = useState<string[]>(user.canOffer || []);
   const [linkedinUrl, setLinkedinUrl] = useState(user.linkedinUrl || "");
   const [githubUrl, setGithubUrl] = useState(user.githubUrl || "");
   const [websiteUrl, setWebsiteUrl] = useState(user.websiteUrl || "");
@@ -47,8 +58,35 @@ export default function UserEditor({ user, onClose, onSave }: UserEditorProps) {
   const [kickoffInPersonRsvp, setKickoffInPersonRsvp] = useState<"" | "yes" | "no">(
     typeof user.kickoffInPersonRsvp === "boolean" ? (user.kickoffInPersonRsvp ? "yes" : "no") : ""
   );
+  const [kickoffInPersonAdminConfirmed, setKickoffInPersonAdminConfirmed] = useState(
+    user.kickoffInPersonAdminConfirmed === true
+  );
   const [userStatus, setUserStatus] = useState<UserStatus>(user.userStatus || "pending");
   const [role, setRole] = useState<UserRole>(user.role || "attendee");
+
+  useEffect(() => {
+    setDisplayName(user.displayName || "");
+    setHandle(user.handle || "");
+    setRoleTitle(user.roleTitle || "");
+    setCity(user.city || "");
+    setCountry(user.country || "");
+    setBio(user.bio || "");
+    setExperienceLevel(((user.experienceLevel as ExpLevel) || "beginner") as ExpLevel);
+    setSkills(user.skills || []);
+    setExpertise(user.expertise || []);
+    setWantToLearn(user.wantToLearn || []);
+    setCanOffer(user.canOffer || []);
+    setLinkedinUrl(user.linkedinUrl || "");
+    setGithubUrl(user.githubUrl || "");
+    setWebsiteUrl(user.websiteUrl || "");
+    setJoiningInPerson(user.joiningInPerson || "");
+    setKickoffInPersonRsvp(
+      typeof user.kickoffInPersonRsvp === "boolean" ? (user.kickoffInPersonRsvp ? "yes" : "no") : ""
+    );
+    setKickoffInPersonAdminConfirmed(user.kickoffInPersonAdminConfirmed === true);
+    setUserStatus(user.userStatus || "pending");
+    setRole(user.role || "attendee");
+  }, [user]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -60,37 +98,44 @@ export default function UserEditor({ user, onClose, onSave }: UserEditorProps) {
     if (!displayName.trim()) return;
     setSaving(true);
     try {
+      const cityT = city.trim();
+      const countryT = country.trim();
+      const derivedLocation = [cityT, countryT].filter(Boolean).join(", ") || null;
+
       const updates: Record<string, unknown> = {
         displayName: displayName.trim(),
         handle: (() => {
           const h = handle.trim().toLowerCase();
-          return h.length >= 1 ? h : (user.handle || "");
+          return h.length >= 1 ? h : user.handle || "";
         })(),
         roleTitle: roleTitle.trim() || null,
-        city: city.trim() || null,
-        country: country.trim() || null,
-        location: location.trim() || null,
+        city: cityT || null,
+        country: countryT || null,
+        location: derivedLocation,
         bio: bio.trim() || null,
-        experienceLevel: experienceLevel || null,
-        skills: splitList(skills),
-        expertise: splitList(expertise),
-        wantToLearn: splitList(wantToLearn),
-        canOffer: splitList(canOffer),
+        experienceLevel,
+        skills,
+        expertise,
+        wantToLearn,
+        canOffer,
         linkedinUrl: linkedinUrl.trim() || null,
         githubUrl: githubUrl.trim() || null,
         websiteUrl: websiteUrl.trim() || null,
         userStatus,
         role,
+        kickoffInPersonAdminConfirmed,
       };
 
       if (kickoffInPersonRsvp === "yes") {
         updates.kickoffInPersonRsvp = true;
         updates.joiningInPerson = joiningInPerson.trim() || joiningInPersonLabel(true);
         updates.kickoffRsvpUpdatedAt = new Date().toISOString();
+        updates.kickoffRsvpExplicitInApp = true;
       } else if (kickoffInPersonRsvp === "no") {
         updates.kickoffInPersonRsvp = false;
         updates.joiningInPerson = joiningInPerson.trim() || joiningInPersonLabel(false);
         updates.kickoffRsvpUpdatedAt = new Date().toISOString();
+        updates.kickoffRsvpExplicitInApp = true;
       } else if (joiningInPerson.trim()) {
         updates.joiningInPerson = joiningInPerson.trim();
       }
@@ -108,17 +153,27 @@ export default function UserEditor({ user, onClose, onSave }: UserEditorProps) {
     "w-full bg-gray-900/80 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder:text-gray-600 focus:outline-none focus:ring-1 focus:ring-green-500 font-mono";
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+      onClick={onClose}
+    >
       <div
-        className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-[#0d1117] border border-white/10 rounded-2xl shadow-2xl"
+        className="w-full max-w-3xl max-h-[90vh] overflow-y-auto bg-[#0d1117] border border-white/10 rounded-2xl shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="sticky top-0 z-10 flex items-center justify-between px-5 py-4 border-b border-white/8 bg-[#0d1117]/95">
           <div>
             <h2 className="text-lg font-bold text-white font-mono">Edit user</h2>
-            <p className="text-xs text-gray-500 font-mono truncate max-w-[280px] sm:max-w-md">{user.email}</p>
+            <p className="text-xs text-gray-500 font-mono truncate max-w-[280px] sm:max-w-md">
+              {user.email}
+            </p>
           </div>
-          <button type="button" onClick={onClose} className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/5">
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/5"
+            aria-label="Close"
+          >
             <X size={18} />
           </button>
         </div>
@@ -130,15 +185,27 @@ export default function UserEditor({ user, onClose, onSave }: UserEditorProps) {
               <input readOnly value={user.email} className={`${inputCls} opacity-60 cursor-not-allowed`} />
             </div>
             <div>
-              <label className="block text-xs font-mono text-gray-500 mb-1">Display name *</label>
-              <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} className={inputCls} />
+              <label className="block text-sm font-medium text-gray-300 mb-1.5">Display name *</label>
+              <div className="relative">
+                <User size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                <input
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  className={`${inputCls} pl-9`}
+                />
+              </div>
             </div>
             <div>
-              <label className="block text-xs font-mono text-gray-500 mb-1">Handle</label>
-              <input value={handle} onChange={(e) => setHandle(e.target.value)} placeholder="username" className={inputCls} />
+              <label className="block text-sm font-medium text-gray-300 mb-1.5">Handle</label>
+              <input
+                value={handle}
+                onChange={(e) => setHandle(e.target.value)}
+                placeholder="username"
+                className={inputCls}
+              />
             </div>
             <div className="sm:col-span-2">
-              <label className="block text-xs font-mono text-gray-500 mb-1">Role / title</label>
+              <label className="block text-sm font-medium text-gray-300 mb-1.5">Role / title</label>
               <input value={roleTitle} onChange={(e) => setRoleTitle(e.target.value)} className={inputCls} />
             </div>
           </div>
@@ -166,79 +233,118 @@ export default function UserEditor({ user, onClose, onSave }: UserEditorProps) {
           </div>
 
           <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1.5">Bio</label>
+            <textarea
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
+              rows={4}
+              placeholder="Background, goals, and what excites you about AI…"
+              className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-white placeholder:text-gray-500 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-y min-h-[100px]"
+            />
+          </div>
+
+          <div>
             <div className="text-[10px] font-mono text-blue-400 uppercase tracking-widest mb-2">Location</div>
-            <div className="grid sm:grid-cols-3 gap-3">
-              <div>
-                <label className="block text-xs font-mono text-gray-500 mb-1">City</label>
-                <input value={city} onChange={(e) => setCity(e.target.value)} className={inputCls} />
-              </div>
-              <div>
-                <label className="block text-xs font-mono text-gray-500 mb-1">Country</label>
-                <input value={country} onChange={(e) => setCountry(e.target.value)} className={inputCls} />
-              </div>
-              <div className="sm:col-span-3">
-                <label className="block text-xs font-mono text-gray-500 mb-1">Location (free text)</label>
-                <input value={location} onChange={(e) => setLocation(e.target.value)} className={inputCls} />
-              </div>
+            <LocationPicker
+              city={city}
+              country={country}
+              onCityChange={setCity}
+              onCountryChange={setCountry}
+            />
+            <p className="text-xs text-gray-500 mt-2">
+              &quot;Location&quot; in the database is set from city and country (same as profile).
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1.5">Experience level</label>
+            <div className="grid grid-cols-3 gap-2">
+              {(["beginner", "intermediate", "advanced"] as const).map((level) => (
+                <button
+                  key={level}
+                  type="button"
+                  onClick={() => setExperienceLevel(level)}
+                  className={`py-2.5 rounded-lg text-sm font-semibold border capitalize transition-all ${
+                    experienceLevel === level
+                      ? "bg-green-600 border-green-500 text-white"
+                      : "border-white/10 text-gray-400 hover:border-white/20 hover:text-white"
+                  }`}
+                >
+                  {level}
+                </button>
+              ))}
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-mono text-gray-500 mb-1">Bio</label>
-            <textarea value={bio} onChange={(e) => setBio(e.target.value)} rows={4} className={`${inputCls} resize-y min-h-[100px]`} />
+          <div className="space-y-5 bg-white/[0.02] border border-white/8 rounded-xl p-5">
+            <p className="text-sm font-semibold text-white mb-1">Skills &amp; expertise</p>
+            <p className="text-xs text-gray-500 mb-2">Same presets as the attendee profile page.</p>
+            <SkillsSelector
+              label="My programming skills"
+              selected={skills}
+              onChange={setSkills}
+              presets={SKILL_TAGS}
+              color="purple"
+            />
+            <div className="border-t border-white/8 pt-5">
+              <SkillsSelector
+                label="My domain expertise"
+                selected={expertise}
+                onChange={setExpertise}
+                presets={EXPERTISE_TAGS}
+                color="orange"
+              />
+            </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-mono text-gray-500 mb-1">Experience level</label>
-            <select
-              value={experienceLevel}
-              onChange={(e) => setExperienceLevel(e.target.value as typeof experienceLevel)}
-              className={inputCls}
-            >
-              <option value="">—</option>
-              <option value="beginner">Beginner</option>
-              <option value="intermediate">Intermediate</option>
-              <option value="advanced">Advanced</option>
-            </select>
-          </div>
-
-          <div>
-            <div className="text-[10px] font-mono text-purple-400 uppercase tracking-widest mb-2">Tags (comma-separated)</div>
-            <div className="grid gap-3">
-              <div>
-                <label className="block text-xs font-mono text-gray-500 mb-1">Skills</label>
-                <input value={skills} onChange={(e) => setSkills(e.target.value)} className={inputCls} placeholder="e.g. Python, TypeScript" />
-              </div>
-              <div>
-                <label className="block text-xs font-mono text-gray-500 mb-1">Expertise</label>
-                <input value={expertise} onChange={(e) => setExpertise(e.target.value)} className={inputCls} />
-              </div>
-              <div>
-                <label className="block text-xs font-mono text-gray-500 mb-1">Want to learn</label>
-                <input value={wantToLearn} onChange={(e) => setWantToLearn(e.target.value)} className={inputCls} />
-              </div>
-              <div>
-                <label className="block text-xs font-mono text-gray-500 mb-1">Can offer</label>
-                <input value={canOffer} onChange={(e) => setCanOffer(e.target.value)} className={inputCls} />
-              </div>
+          <div className="space-y-5 bg-white/[0.02] border border-white/8 rounded-xl p-5">
+            <p className="text-sm font-semibold text-white mb-1">AI DevCamp tags</p>
+            <p className="text-xs text-gray-500 mb-2">I want to learn / I can offer (same as profile).</p>
+            <SkillsSelector
+              label="I want to learn"
+              selected={wantToLearn}
+              onChange={setWantToLearn}
+              presets={WANT_TO_LEARN_TAGS}
+              color="green"
+            />
+            <div className="border-t border-white/8 pt-5">
+              <SkillsSelector
+                label="I can offer / help with"
+                selected={canOffer}
+                onChange={setCanOffer}
+                presets={CAN_OFFER_TAGS}
+                color="blue"
+              />
             </div>
           </div>
 
           <div>
             <div className="text-[10px] font-mono text-orange-400 uppercase tracking-widest mb-2">Links</div>
-            <div className="grid gap-3">
-              <div>
-                <label className="block text-xs font-mono text-gray-500 mb-1">LinkedIn</label>
-                <input value={linkedinUrl} onChange={(e) => setLinkedinUrl(e.target.value)} className={inputCls} placeholder="https://" />
-              </div>
-              <div>
-                <label className="block text-xs font-mono text-gray-500 mb-1">GitHub</label>
-                <input value={githubUrl} onChange={(e) => setGithubUrl(e.target.value)} className={inputCls} placeholder="https://" />
-              </div>
-              <div>
-                <label className="block text-xs font-mono text-gray-500 mb-1">Website</label>
-                <input value={websiteUrl} onChange={(e) => setWebsiteUrl(e.target.value)} className={inputCls} placeholder="https://" />
-              </div>
+            <div className="space-y-3">
+              <Input
+                id="ue-linkedin"
+                label="LinkedIn"
+                placeholder="https://linkedin.com/in/…"
+                icon={<LinkedinIcon />}
+                value={linkedinUrl}
+                onChange={(e) => setLinkedinUrl(e.target.value)}
+              />
+              <Input
+                id="ue-github"
+                label="GitHub"
+                placeholder="https://github.com/…"
+                icon={<GithubIcon />}
+                value={githubUrl}
+                onChange={(e) => setGithubUrl(e.target.value)}
+              />
+              <Input
+                id="ue-website"
+                label="Personal website"
+                placeholder="https://…"
+                icon={<Globe size={16} />}
+                value={websiteUrl}
+                onChange={(e) => setWebsiteUrl(e.target.value)}
+              />
             </div>
           </div>
 
@@ -270,6 +376,23 @@ export default function UserEditor({ user, onClose, onSave }: UserEditorProps) {
                 />
               </div>
             </div>
+            <label className="mt-3 flex items-start gap-3 cursor-pointer rounded-lg border border-emerald-500/25 bg-emerald-500/5 px-3 py-3 has-[:focus-visible]:ring-1 has-[:focus-visible]:ring-emerald-500">
+              <input
+                type="checkbox"
+                className="mt-0.5 h-4 w-4 rounded border-white/20 bg-gray-900 text-emerald-500 focus:ring-emerald-500"
+                checked={kickoffInPersonAdminConfirmed}
+                onChange={(e) => setKickoffInPersonAdminConfirmed(e.target.checked)}
+              />
+              <span>
+                <span className="block text-sm font-semibold text-emerald-200/95">
+                  In person — admin confirmed
+                </span>
+                <span className="block text-[11px] text-gray-500 leading-snug mt-0.5">
+                  Use this when they confirmed in person with you outside the app (e.g. email). Independent of
+                  the RSVP above.
+                </span>
+              </span>
+            </label>
           </div>
         </div>
 

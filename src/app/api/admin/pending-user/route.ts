@@ -74,6 +74,7 @@ export async function POST(request: NextRequest) {
       joiningInPerson: String(body.joiningInPerson ?? "").trim().slice(0, 500),
       knowsProgramming: Boolean(body.knowsProgramming),
       commitment: body.commitment === true,
+      kickoffRsvpExplicitInApp: false,
       formSubmittedAt: at,
       registeredAt: at,
       importCreatedAt: at,

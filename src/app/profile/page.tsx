@@ -86,19 +86,22 @@ export default function ProfilePage() {
           );
         }
       }
+      const c = (s: string | undefined) => (s == null ? "" : s);
+      const strList = (arr: string[] | undefined) =>
+        (arr ?? []).filter((x): x is string => typeof x === "string" && x !== undefined);
       const updatePayload: Record<string, unknown> = {
-        displayName: form.displayName,
-        bio: form.bio,
-        city: form.city,
-        country: form.country,
-        location: [form.city, form.country].filter(Boolean).join(", "),
-        skills: form.skills,
-        expertise: form.expertise,
-        wantToLearn: form.wantToLearn,
-        canOffer: form.canOffer,
-        linkedinUrl: form.linkedinUrl,
-        githubUrl: form.githubUrl,
-        websiteUrl: form.websiteUrl,
+        displayName: c(form.displayName),
+        bio: c(form.bio),
+        city: c(form.city),
+        country: c(form.country),
+        location: [c(form.city), c(form.country)].filter(Boolean).join(", "),
+        skills: strList(form.skills),
+        expertise: strList(form.expertise),
+        wantToLearn: strList(form.wantToLearn),
+        canOffer: strList(form.canOffer),
+        linkedinUrl: c(form.linkedinUrl),
+        githubUrl: c(form.githubUrl),
+        websiteUrl: c(form.websiteUrl),
         experienceLevel: form.experienceLevel,
         updatedAt: serverTimestamp(),
       };

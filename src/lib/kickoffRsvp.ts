@@ -18,10 +18,13 @@ export function joiningInPersonLabel(attendingInPerson: boolean): string {
     : "Online only";
 }
 
-/** True if the user has not yet chosen in-person vs online for the 23 Apr kick-off. */
+/**
+ * True until the user has made an in-app kick-off choice (banner, /register, /register/kickoff).
+ * Ignores legacy / import-only `kickoffInPersonRsvp` or `joiningInPerson` so bad imports still see the banner.
+ */
 export function userNeedsKickoffRsvp(profile: UserProfile | null | undefined): boolean {
   if (!profile) return false;
-  return typeof profile.kickoffInPersonRsvp !== "boolean";
+  return profile.kickoffRsvpExplicitInApp !== true;
 }
 
 /** Payload to merge into Firestore when saving kick-off RSVP. */
@@ -29,12 +32,14 @@ export function kickoffRsvpWritePayload(attendingInPerson: boolean): {
   kickoffInPersonRsvp: boolean;
   joiningInPerson: string;
   kickoffRsvpUpdatedAt: string;
+  kickoffRsvpExplicitInApp: true;
 } {
   const now = new Date().toISOString();
   return {
     kickoffInPersonRsvp: attendingInPerson,
     joiningInPerson: joiningInPersonLabel(attendingInPerson),
     kickoffRsvpUpdatedAt: now,
+    kickoffRsvpExplicitInApp: true,
   };
 }
 

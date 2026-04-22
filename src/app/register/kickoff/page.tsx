@@ -11,6 +11,7 @@ import {
   kickoffRsvpWritePayload,
   KICKOFF_IN_PERSON_RSVP_POLICY,
   SESSION_SKIP_REGISTER_REDIRECT,
+  userNeedsKickoffRsvp,
 } from "@/lib/kickoffRsvp";
 import toast from "react-hot-toast";
 
@@ -36,7 +37,7 @@ export default function KickoffRsvpPage() {
       router.replace("/register");
       return;
     }
-    if (userProfile && typeof userProfile.kickoffInPersonRsvp === "boolean") {
+    if (userProfile && !userNeedsKickoffRsvp(userProfile)) {
       router.replace("/dashboard");
     }
   }, [loading, user, userProfile, router]);

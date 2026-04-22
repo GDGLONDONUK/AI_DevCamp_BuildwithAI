@@ -11,7 +11,8 @@ import toast from "react-hot-toast";
 
 /**
  * Fixed top strip: signed-in users must pick 23 Apr kick-off in person vs online.
- * Persists `kickoffInPersonRsvp`, `joiningInPerson`, `kickoffRsvpUpdatedAt`.
+ * Persists kick-off fields including `kickoffRsvpExplicitInApp: true` so the gate clears only after
+ * an in-app choice (ignores import-only or legacy `kickoffInPersonRsvp` without explicit confirm).
  */
 export default function KickoffRsvpBanner() {
   const { user, refreshProfile } = useAuth();

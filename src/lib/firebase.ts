@@ -1,7 +1,20 @@
 import { initializeApp, getApps } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { getFirestore, initializeFirestore, type Firestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
+
+/**
+ * Firestore rejects `undefined` field values. Prefer this over getFirestore() so
+ * omitted/undefined fields in client writes don’t throw (see profile updateDoc, etc.).
+ */
+function initFirestore(): Firestore {
+  try {
+    return initializeFirestore(app, { ignoreUndefinedProperties: true });
+  } catch {
+    // Already initialised (e.g. HMR) — reuse singleton
+    return getFirestore(app);
+  }
+}
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -15,6 +28,6 @@ const firebaseConfig = {
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+export const db = initFirestore();
 export const storage = getStorage(app);
 export default app;

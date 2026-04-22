@@ -43,6 +43,8 @@ function normalizeImportPayload(u: Record<string, unknown>, email: string): Reco
     signedIn: false,
     uid: "",
     userStatus: "participated",
+    /** Until they use the in-app kick-off flow after linking Auth */
+    kickoffRsvpExplicitInApp: false,
     updatedAt: FieldValue.serverTimestamp(),
   };
 }
@@ -60,6 +62,7 @@ function kickoffLinkedUserPatch(
     kickoffInPersonRsvp: u.kickoffInPersonRsvp !== false,
     joiningInPerson: joining,
     kickoffRsvpUpdatedAt: new Date().toISOString(),
+    kickoffRsvpExplicitInApp: false,
     importSource: u.importSource ?? "gdg-ticket",
     updatedAt: FieldValue.serverTimestamp(),
   };

@@ -15,6 +15,7 @@ export function exportAttendeesCsv(
     "Status",
     "Kickoff in-person RSVP",
     "Joining in person",
+    "In person (admin confirmed)",
     "Experience",
     "City",
     "Country",
@@ -44,6 +45,7 @@ export function exportAttendeesCsv(
         ? "No"
         : "",
     u.joiningInPerson || "",
+    u.kickoffInPersonAdminConfirmed === true ? "Yes" : u.kickoffInPersonAdminConfirmed === false ? "No" : "",
     u.experienceLevel || "",
     u.city || "",
     u.country || "",

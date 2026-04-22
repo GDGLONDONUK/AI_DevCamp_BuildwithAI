@@ -112,13 +112,16 @@ function getPreRegDuplicateInfo(users: UserProfile[]): {
   return { duplicateKeys, nKeys: duplicateKeys.size, nRows };
 }
 
-type KickoffRsvpFilter = "all" | "inPerson" | "online" | "notSet";
+type KickoffRsvpFilter = "all" | "inPerson" | "online" | "notSet" | "inPersonAdminConfirmed";
 
 function userMatchesKickoffRsvpFilter(
   u: UserProfile,
   f: KickoffRsvpFilter
 ): boolean {
   if (f === "all") return true;
+  if (f === "inPersonAdminConfirmed") {
+    return u.kickoffInPersonAdminConfirmed === true;
+  }
   const r = u.kickoffInPersonRsvp;
   if (f === "notSet") return typeof r !== "boolean";
   if (f === "inPerson") {
@@ -1017,6 +1020,7 @@ export default function AdminPage() {
                     >
                       <option value="all">23 Apr RSVP: all</option>
                       <option value="inPerson">In person (London)</option>
+                      <option value="inPersonAdminConfirmed">In person — admin confirmed</option>
                       <option value="online">Online only</option>
                       <option value="notSet">RSVP not set</option>
                     </select>

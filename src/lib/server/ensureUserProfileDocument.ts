@@ -86,6 +86,8 @@ export async function ensureUserProfileForUid(uid: string): Promise<EnsureUserPr
       preLocation
     );
   }
+  // Merged pre-reg may set kickoff* from CSV; still require in-app confirm (same as legacy 243+ imports)
+  userData.kickoffRsvpExplicitInApp = false;
 
   const batch = db.batch();
   batch.set(userRef, userData, { merge: true });

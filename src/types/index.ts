@@ -57,12 +57,23 @@ export interface UserProfile {
   /** RSVP for the 23 Apr kick-off: in person (London) vs online only. */
   kickoffInPersonRsvp?: boolean;
   /**
+   * `true` only after the user (or an admin) saves kick-off in-person vs online
+   * from this app. Imports / CSV / merged rows must not set this — it keeps the
+   * kick-off banner visible until they explicitly confirm, even if `kickoffInPersonRsvp` exists from legacy data.
+   */
+  kickoffRsvpExplicitInApp?: boolean;
+  /**
    * ISO 8601 time when the user last set or changed their 23 Apr kick-off RSVP
    * (`kickoffInPersonRsvp` + `joiningInPerson`), including via admin.
    */
   kickoffRsvpUpdatedAt?: string;
   /** Human-readable; use with kickoffInPersonRsvp (e.g. from kickoffRsvp.joiningInPersonLabel). */
   joiningInPerson?: string;
+  /**
+   * Set only in admin: organiser has manually confirmed in-person attendance (e.g. by email),
+   * independent of the user’s in-app kick-off RSVP.
+   */
+  kickoffInPersonAdminConfirmed?: boolean;
   handle?: string;
   keepUpdated?: boolean;
   /** Submitted the Google Form (imported or matched at sign-up). */
