@@ -49,7 +49,9 @@ function DiscordIcon({ className }: { className?: string }) {
 }
 
 export default function HomePage() {
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
+  /** Private community server — only for signed-in participants (not on the public home page for guests). */
+  const showDiscordLink = Boolean(user && userProfile);
   const [loginModal, setLoginModal] = useState(false);
   const [authModalView, setAuthModalView] = useState<"signin" | "forgot">("signin");
 
@@ -208,15 +210,17 @@ export default function HomePage() {
               </>
             )}
           </div>
-          <a
-            href={DISCORD_INVITE_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-5 inline-flex items-center gap-2 text-[#a5b4fc] hover:text-[#c7d2fe] font-mono text-sm font-semibold border border-indigo-500/35 bg-indigo-500/10 hover:bg-indigo-500/15 px-5 py-2.5 rounded-lg transition-all"
-          >
-            <DiscordIcon className="w-4 h-4 shrink-0" />
-            Join GDG London on Discord
-          </a>
+          {showDiscordLink ? (
+            <a
+              href={DISCORD_INVITE_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-5 inline-flex items-center gap-2 text-[#a5b4fc] hover:text-[#c7d2fe] font-mono text-sm font-semibold border border-indigo-500/35 bg-indigo-500/10 hover:bg-indigo-500/15 px-5 py-2.5 rounded-lg transition-all"
+            >
+              <DiscordIcon className="w-4 h-4 shrink-0" />
+              Join GDG London on Discord
+            </a>
+          ) : null}
         </div>
       </section>
 
@@ -453,16 +457,20 @@ export default function HomePage() {
             <span className="text-green-500/60">Build with AI</span>
             <span className="text-gray-700">×</span>
             <span className="text-green-500/60">Skyscanner</span>
-            <span className="text-gray-700 hidden sm:inline">·</span>
-            <a
-              href={DISCORD_INVITE_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-indigo-400/90 hover:text-indigo-300 transition-colors"
-            >
-              <DiscordIcon className="w-3.5 h-3.5" />
-              Discord
-            </a>
+            {showDiscordLink ? (
+              <>
+                <span className="text-gray-700 hidden sm:inline">·</span>
+                <a
+                  href={DISCORD_INVITE_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-indigo-400/90 hover:text-indigo-300 transition-colors"
+                >
+                  <DiscordIcon className="w-3.5 h-3.5" />
+                  Discord
+                </a>
+              </>
+            ) : null}
           </div>
         </div>
       </footer>
