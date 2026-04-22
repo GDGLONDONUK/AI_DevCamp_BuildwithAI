@@ -61,6 +61,10 @@ import {
   XCircle,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import {
+  isKickoffInPersonInApp,
+  userMatchesInPersonLooseRsvp,
+} from "@/lib/kickoffRsvp";
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -112,7 +116,14 @@ function getPreRegDuplicateInfo(users: UserProfile[]): {
   return { duplicateKeys, nKeys: duplicateKeys.size, nRows };
 }
 
-type KickoffRsvpFilter = "all" | "inPerson" | "online" | "notSet" | "inPersonAdminConfirmed";
+type KickoffRsvpFilter =
+  | "all"
+  | "inPerson"
+  | "inPersonInApp"
+  | "inPersonSetByAdmin"
+  | "online"
+  | "notSet"
+  | "inPersonAdminConfirmed";
 
 function userMatchesKickoffRsvpFilter(
   u: UserProfile,
@@ -124,18 +135,37 @@ function userMatchesKickoffRsvpFilter(
   }
   const r = u.kickoffInPersonRsvp;
   if (f === "notSet") return typeof r !== "boolean";
+  if (f === "inPersonInApp") {
+    return isKickoffInPersonInApp(u) && u.kickoffInPersonRsvp === true;
+  }
+  if (f === "inPersonSetByAdmin") {
+    return u.kickoffRsvpSetBy === "admin" && u.kickoffInPersonRsvp === true;
+  }
   if (f === "inPerson") {
-    if (typeof r === "boolean") return r;
-    const j = (u.joiningInPerson || "").toLowerCase().trim();
-    if (j.startsWith("y")) return true;
-    if (j.includes("in person") || j.includes("in-person")) return true;
-    return false;
+    return userMatchesInPersonLooseRsvp(u);
   }
   if (f === "online") {
     if (typeof r === "boolean") return !r;
     return (u.joiningInPerson || "").toLowerCase().includes("online");
   }
   return true;
+}
+
+/** One-line label for the Users grid / table (23 Apr kick-off). */
+function kickoffRsvpLabelForAdmin(u: UserProfile): string {
+  if (isKickoffInPersonInApp(u)) {
+    return u.kickoffInPersonRsvp ? "In person (in-app ✓)" : "Online (in-app ✓)";
+  }
+  if (u.kickoffInPersonRsvp === true) {
+    return "In person (data, not in-app confirm)";
+  }
+  if (u.kickoffInPersonRsvp === false) {
+    return "Online (boolean)";
+  }
+  if (userMatchesInPersonLooseRsvp(u)) {
+    return "In person* (broad: form / import only)";
+  }
+  return "—";
 }
 
 interface AttendanceMap {
@@ -166,7 +196,7 @@ export default function AdminPage() {
   const [preRegLoading, setPreRegLoading] = useState(false);
   const [preRegSearch, setPreRegSearch] = useState("");
   const [preRegFilter, setPreRegFilter] = useState<
-    "all" | "linked" | "unlinked" | "inPerson" | "duplicates"
+    "all" | "linked" | "unlinked" | "inPerson" | "inPersonInApp" | "duplicates"
   >("all");
   const [csvUploading, setCsvUploading] = useState(false);
   const [seedingTags, setSeedingTags] = useState(false);
@@ -419,6 +449,20 @@ export default function AdminPage() {
       toast.error("Failed to update project");
     }
   };
+
+  // ── Kick-off headcounts (all registered users, ignoring search/filters) ───
+  const usersKickoffStats = useMemo(
+    () => ({
+      nInPersonInApp: users.filter(
+        (u) => isKickoffInPersonInApp(u) && u.kickoffInPersonRsvp === true
+      ).length,
+      nInPersonLoose: users.filter((u) => userMatchesInPersonLooseRsvp(u)).length,
+      nInPersonByAdmin: users.filter(
+        (u) => u.kickoffRsvpSetBy === "admin" && u.kickoffInPersonRsvp === true
+      ).length,
+    }),
+    [users]
+  );
 
   // ── Filtered data ─────────────────────────────────────────────────────────
   const filteredUsers = users.filter(
@@ -879,6 +923,20 @@ export default function AdminPage() {
                     <span className="font-mono font-bold text-white text-lg">{users.length}</span>
                     <span className="font-mono text-gray-400 text-sm">registered · cap 60</span>
                   </div>
+                  <div
+                    className="w-full sm:w-auto text-[11px] font-mono text-amber-200/90 border border-amber-500/25 bg-amber-500/8 rounded-lg px-3 py-2 leading-relaxed"
+                    title="Broad = form/import text can say “yes”. In-app = user confirmed in the app (capacity / door list)."
+                  >
+                    <span className="text-amber-400/90">23 Apr kick-off · </span>
+                    <strong className="text-white">{usersKickoffStats.nInPersonInApp}</strong> in person (in-app
+                    confirm)
+                    <span className="text-gray-500"> · </span>
+                    <strong className="text-sky-300/90">{usersKickoffStats.nInPersonLoose}</strong> in person
+                    (broad incl. form text)
+                    <span className="text-gray-500"> · </span>
+                    <strong className="text-emerald-300/90">{usersKickoffStats.nInPersonByAdmin}</strong> set in
+                    person by admin
+                  </div>
                   {/* Progress bar */}
                   <div className="flex-1 min-w-[120px] h-2 bg-white/8 rounded-full overflow-hidden">
                     <div
@@ -1019,8 +1077,10 @@ export default function AdminPage() {
                       title="23 April kick-off RSVP (filter)"
                     >
                       <option value="all">23 Apr RSVP: all</option>
-                      <option value="inPerson">In person (London)</option>
-                      <option value="inPersonAdminConfirmed">In person — admin confirmed</option>
+                      <option value="inPersonInApp">In person (in-app confirm)</option>
+                      <option value="inPerson">In person (broad, incl. form / import)</option>
+                      <option value="inPersonSetByAdmin">In person — last saved by admin</option>
+                      <option value="inPersonAdminConfirmed">In person — admin confirmed (checkbox)</option>
                       <option value="online">Online only</option>
                       <option value="notSet">RSVP not set</option>
                     </select>
@@ -1189,6 +1249,31 @@ export default function AdminPage() {
                                 <Clock size={10} /> {formatAdminDateTime(u.createdAt)}
                               </span>
                             </div>
+                            <div className="text-[10px] text-amber-200/75 font-mono mt-1 space-x-1 flex flex-wrap items-center gap-x-1 gap-y-0.5">
+                              <MapPin size={10} className="inline text-amber-500/80 shrink-0" aria-hidden />
+                              <span>{kickoffRsvpLabelForAdmin(u)}</span>
+                              {u.kickoffRsvpUpdatedAt && (
+                                <span className="text-gray-500" title="Last kick-off RSVP change">
+                                  · {formatAdminDateTime(u.kickoffRsvpUpdatedAt)}
+                                </span>
+                              )}
+                              {u.kickoffRsvpSetBy === "app" && (
+                                <span className="text-gray-500" title="User saved in the app">
+                                  · in-app
+                                </span>
+                              )}
+                              {u.kickoffRsvpSetBy === "admin" && (
+                                <span
+                                  className="text-sky-300/80"
+                                  title="Last kick-off change by admin in Edit user"
+                                >
+                                  · by admin
+                                  {u.kickoffRsvpSetByAdminEmail
+                                    ? ` (${u.kickoffRsvpSetByAdminEmail})`
+                                    : ""}
+                                </span>
+                              )}
+                            </div>
                           </div>
 
                           {/* Quick approve/decline for pending */}
@@ -1306,6 +1391,7 @@ export default function AdminPage() {
                           </th>
                           {[
                             "Name / Email", "Handle", "Location", "Role", "Status",
+                            "23 Apr", "RSVP log",
                             "Experience", "Sessions", "Skills",
                             "Registered At", "Updated At",
                             "Actions",
@@ -1319,7 +1405,7 @@ export default function AdminPage() {
                       <tbody>
                         {usersKickoffFiltered.length === 0 && (
                           <tr>
-                            <td colSpan={12} className="text-center py-10 text-gray-500 font-mono">
+                            <td colSpan={14} className="text-center py-10 text-gray-500 font-mono">
                               No users
                             </td>
                           </tr>
@@ -1406,6 +1492,32 @@ export default function AdminPage() {
                                   status={status}
                                   onChange={(s) => updateUserStatus(userDocKey(u), s)}
                                 />
+                              </td>
+                              {/* 23 Apr kick-off */}
+                              <td className="px-4 py-3 max-w-[150px]">
+                                <div className="text-[11px] text-amber-200/80 font-mono leading-snug">
+                                  {kickoffRsvpLabelForAdmin(u)}
+                                </div>
+                              </td>
+                              <td className="px-4 py-3 max-w-[200px]">
+                                <div className="text-[10px] text-gray-400 font-mono space-y-0.5">
+                                  {u.kickoffRsvpUpdatedAt ? (
+                                    <div title="kickoffRsvpUpdatedAt">{formatAdminDateTime(u.kickoffRsvpUpdatedAt)}</div>
+                                  ) : (
+                                    <div className="text-gray-600">—</div>
+                                  )}
+                                  {u.kickoffRsvpSetBy === "app" && (
+                                    <div className="text-emerald-400/80">in-app</div>
+                                  )}
+                                  {u.kickoffRsvpSetBy === "admin" && (
+                                    <div className="text-sky-300/80" title="Admin edit">
+                                      by admin
+                                      {u.kickoffRsvpSetByAdminEmail
+                                        ? ` · ${u.kickoffRsvpSetByAdminEmail}`
+                                        : ""}
+                                    </div>
+                                  )}
+                                </div>
                               </td>
                               {/* Experience */}
                               <td className="px-4 py-3 text-xs text-gray-400 font-mono capitalize whitespace-nowrap">
@@ -1866,6 +1978,8 @@ export default function AdminPage() {
                   : preRegFilter === "linked" ? hasAuthAccount(u)
                   : preRegFilter === "unlinked" ? !hasAuthAccount(u)
                   : preRegFilter === "inPerson" ? userMatchesKickoffRsvpFilter(u, "inPerson")
+                  : preRegFilter === "inPersonInApp"
+                    ? userMatchesKickoffRsvpFilter(u, "inPersonInApp")
                   : preRegFilter === "duplicates" ? Boolean(cEmail && duplicateKeys.has(cEmail))
                   : true;
                 return matchSearch && matchFilter;
@@ -1874,6 +1988,9 @@ export default function AdminPage() {
               const nUnlinked = preRegistered.filter((u) => !hasAuthAccount(u)).length;
               const nInPerson = preRegistered.filter((u) =>
                 userMatchesKickoffRsvpFilter(u, "inPerson")
+              ).length;
+              const nInPersonInAppPre = preRegistered.filter((u) =>
+                userMatchesKickoffRsvpFilter(u, "inPersonInApp")
               ).length;
               const allVisibleSelected = filteredPreReg.length > 0 && filteredPreReg.every((u) => selectedEmails.has(u.email));
 
@@ -1909,6 +2026,7 @@ export default function AdminPage() {
                         "linked",
                         "unlinked",
                         "inPerson",
+                        "inPersonInApp",
                         "duplicates",
                       ] as const
                     ).map((f) => (
@@ -1921,7 +2039,7 @@ export default function AdminPage() {
                           f === "duplicates" && nDupKeys === 0
                             ? "border border-white/5 text-gray-600 cursor-not-allowed"
                             : preRegFilter === f
-                            ? f === "inPerson"
+                            ? f === "inPerson" || f === "inPersonInApp"
                               ? "bg-sky-500 text-gray-950"
                               : f === "duplicates"
                                 ? "bg-amber-500 text-gray-950"
@@ -1936,7 +2054,9 @@ export default function AdminPage() {
                             : f === "unlinked"
                               ? `Not signed up (${nUnlinked})`
                               : f === "inPerson"
-                                ? `In person (${nInPerson})`
+                                ? `In person broad (${nInPerson})`
+                                : f === "inPersonInApp"
+                                  ? `In person in-app (${nInPersonInAppPre})`
                                 : nDupKeys === 0
                                   ? "Duplicates (0)"
                                   : `Duplicates (${nDupRows} in ${nDupKeys})`}
@@ -2000,9 +2120,10 @@ export default function AdminPage() {
                         ? "bg-blue-500/25 border-blue-500/50 text-sky-200 ring-1 ring-sky-500/40"
                         : "bg-blue-500/10 border-blue-500/20 text-blue-400 hover:bg-blue-500/15"
                     }`}
+                    title="Includes form/import “yes” text — not necessarily in-app. Use in-app filter on Users for venue count."
                   >
                     <UserCheck size={10} className="inline mr-1" />
-                    {nInPerson} joining in person
+                    {nInPerson} in person (broad) · {nInPersonInAppPre} in-app
                   </button>
                   {nDupKeys > 0 && (
                     <button
@@ -2147,6 +2268,15 @@ export default function AdminPage() {
       {editingUser && (
         <UserEditor
           user={editingUser}
+          adminContext={
+            user
+              ? {
+                  uid: user.uid,
+                  email: user.email ?? "",
+                  name: userProfile?.displayName,
+                }
+              : undefined
+          }
           onClose={() => setEditingUser(null)}
           onSave={handleSaveUserEdit}
         />

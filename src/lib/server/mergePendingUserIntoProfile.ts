@@ -77,9 +77,16 @@ export function applyPendingRowToEnsureProfileData(
       .replace(/[^a-z0-9_]/g, "");
   }
 
-  userData.city = preLocation.city || (typeof src.city === "string" ? src.city : "") || userData.city;
-  userData.country =
-    preLocation.country || (typeof src.country === "string" ? src.country : "") || userData.country;
+  const mergedCity =
+    preLocation.city ||
+    (typeof src.city === "string" ? src.city : "") ||
+    (typeof userData.city === "string" ? userData.city : "");
+  const mergedCountry =
+    preLocation.country ||
+    (typeof src.country === "string" ? src.country : "") ||
+    (typeof userData.country === "string" ? userData.country : "");
+  userData.city = mergedCity;
+  userData.country = mergedCountry;
   const loc = preLocation.location || (typeof pre.location === "string" ? pre.location : "");
   if (loc) {
     userData.location = loc;

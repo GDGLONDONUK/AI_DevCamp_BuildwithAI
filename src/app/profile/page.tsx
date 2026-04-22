@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { ensureProfileOnServer } from "@/lib/meApi";
+import { stripUndefinedForFirestoreClient } from "@/lib/stripUndefinedFirestore";
 import { User, Globe, Save } from "lucide-react";
 import LocationPicker from "@/components/ui/LocationPicker";
 import SkillsSelector from "@/components/ui/SkillsSelector";
@@ -105,12 +106,10 @@ export default function ProfilePage() {
         experienceLevel: form.experienceLevel,
         updatedAt: serverTimestamp(),
       };
-      for (const key of Object.keys(updatePayload)) {
-        if (updatePayload[key] === undefined) {
-          delete updatePayload[key];
-        }
-      }
-      await updateDoc(userRef, updatePayload);
+      await updateDoc(
+        userRef,
+        stripUndefinedForFirestoreClient(updatePayload)
+      );
       await refreshProfile();
       toast.success("Profile updated!");
     } catch (err) {

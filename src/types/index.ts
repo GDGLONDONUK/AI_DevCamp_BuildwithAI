@@ -67,6 +67,15 @@ export interface UserProfile {
    * (`kickoffInPersonRsvp` + `joiningInPerson`), including via admin.
    */
   kickoffRsvpUpdatedAt?: string;
+  /**
+   * Whether the last kick-off RSVP write came from the app (user) or an admin in Edit user.
+   * Older rows may omit this; treat missing as unknown.
+   */
+  kickoffRsvpSetBy?: "app" | "admin";
+  /** Set when `kickoffRsvpSetBy` is `admin` (who last changed kick-off fields). */
+  kickoffRsvpSetByAdminUid?: string | null;
+  kickoffRsvpSetByAdminEmail?: string | null;
+  kickoffRsvpSetByAdminName?: string | null;
   /** Human-readable; use with kickoffInPersonRsvp (e.g. from kickoffRsvp.joiningInPersonLabel). */
   joiningInPerson?: string;
   /**

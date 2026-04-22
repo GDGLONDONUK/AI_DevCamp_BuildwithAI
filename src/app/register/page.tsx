@@ -58,6 +58,7 @@ import {
   fetchMyPreregisteredRow,
   linkPreregisterRowOnServer,
 } from "@/lib/meApi";
+import { stripUndefinedForFirestoreClient } from "@/lib/stripUndefinedFirestore";
 import {
   kickoffRsvpWritePayload,
   KICKOFF_IN_PERSON_RSVP_POLICY,
@@ -328,7 +329,10 @@ export default function RegisterPage() {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       };
-      await setDoc(doc(db, "users", newUser.uid), userData);
+      const userWrite = stripUndefinedForFirestoreClient(
+        userData as unknown as Record<string, unknown>
+      );
+      await setDoc(doc(db, "users", newUser.uid), userWrite);
 
       // Send email verification link
       await sendEmailVerification(newUser);

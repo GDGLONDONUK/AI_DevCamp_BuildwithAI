@@ -4,6 +4,7 @@
  */
 import { collection, doc, getDocs, updateDoc, getDoc, setDoc, orderBy, query, writeBatch, serverTimestamp } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
+import { stripUndefinedForFirestoreClient } from "@/lib/stripUndefinedFirestore";
 import { Assignment, AppErrorLog, Project, UserMapPayload, UserProfile, UserStatus } from "@/types";
 import type { BevyCsvRow, BevyMergePlan } from "@/lib/admin/bevyMerge";
 
@@ -48,10 +49,10 @@ export async function setUserRole(userDocId: string, role: UserProfile["role"]):
 
 /** Admin bulk-edit profile fields (Firestore rules: admin may update user docs). */
 export async function updateUserFields(userDocId: string, data: Record<string, unknown>): Promise<void> {
-  const payload: Record<string, unknown> = { updatedAt: serverTimestamp() };
-  for (const [k, v] of Object.entries(data)) {
-    if (v !== undefined) payload[k] = v;
-  }
+  const payload: Record<string, unknown> = {
+    ...stripUndefinedForFirestoreClient(data),
+    updatedAt: serverTimestamp(),
+  };
   await updateDoc(doc(db, "users", userDocId), payload);
 }
 

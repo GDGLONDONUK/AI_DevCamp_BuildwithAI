@@ -97,6 +97,20 @@ export default function PreRegisteredDetailModal({ detailUser, onClose }: Props)
                       ? "No"
                       : "—",
                 ],
+                [
+                  "Kick-off RSVP last updated",
+                  detailUser.kickoffRsvpUpdatedAt
+                    ? new Date(detailUser.kickoffRsvpUpdatedAt).toLocaleString("en-GB")
+                    : "—",
+                ],
+                [
+                  "RSVP last set by",
+                  detailUser.kickoffRsvpSetBy === "admin"
+                    ? `Admin${detailUser.kickoffRsvpSetByAdminEmail ? ` (${detailUser.kickoffRsvpSetByAdminEmail})` : ""}`
+                    : detailUser.kickoffRsvpSetBy === "app"
+                      ? "User in app"
+                      : "—",
+                ],
                 ["Location (raw)", detailUser.location || "—"],
                 ["City", detailUser.city || "—"],
                 ["Country", detailUser.country || "—"],

@@ -10,6 +10,7 @@ import {
 } from "firebase/auth";
 import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "./firebase";
+import { stripUndefinedForFirestoreClient } from "@/lib/stripUndefinedFirestore";
 import { UserProfile } from "@/types";
 
 /** Firebase `providerId` list for admin badges (e.g. google.com, password). */
@@ -45,7 +46,7 @@ export async function createUserDocument(
 
   if (!snapshot.exists()) {
     // Build base profile fields (no timestamps yet — avoids FieldValue vs Date conflict)
-    const base: Omit<UserProfile, "createdAt" | "updatedAt"> = {
+    const base: Record<string, unknown> = {
       uid: user.uid,
       email: user.email || "",
       displayName: additionalData?.displayName || user.displayName || "Anonymous",
@@ -55,9 +56,10 @@ export async function createUserDocument(
       registeredSessions: [],
       ...additionalData,
     };
+    const clean = stripUndefinedForFirestoreClient(base);
     // Write to Firestore: timestamps are FieldValue, not stored in the typed object
     await setDoc(userRef, {
-      ...base,
+      ...clean,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });

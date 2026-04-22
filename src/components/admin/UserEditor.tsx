@@ -8,7 +8,11 @@ import StatusDropdown from "@/components/admin/StatusDropdown";
 import LocationPicker from "@/components/ui/LocationPicker";
 import SkillsSelector from "@/components/ui/SkillsSelector";
 import Input from "@/components/ui/Input";
-import { joiningInPersonLabel, KICKOFF_IN_PERSON_RSVP_POLICY } from "@/lib/kickoffRsvp";
+import {
+  joiningInPersonLabel,
+  KICKOFF_IN_PERSON_RSVP_POLICY,
+  kickoffRsvpAdminAuditFields,
+} from "@/lib/kickoffRsvp";
 import {
   SKILL_TAGS,
   EXPERTISE_TAGS,
@@ -34,9 +38,11 @@ interface UserEditorProps {
   user: UserProfile;
   onClose: () => void;
   onSave: (uid: string, updates: Record<string, unknown>) => Promise<void>;
+  /** Who is saving (admin) — used to audit kick-off RSVP changes. */
+  adminContext?: { uid: string; email: string; name?: string };
 }
 
-export default function UserEditor({ user, onClose, onSave }: UserEditorProps) {
+export default function UserEditor({ user, onClose, onSave, adminContext }: UserEditorProps) {
   const [saving, setSaving] = useState(false);
   const [displayName, setDisplayName] = useState(user.displayName || "");
   const [handle, setHandle] = useState(user.handle || "");
@@ -98,8 +104,8 @@ export default function UserEditor({ user, onClose, onSave }: UserEditorProps) {
     if (!displayName.trim()) return;
     setSaving(true);
     try {
-      const cityT = city.trim();
-      const countryT = country.trim();
+      const cityT = (city ?? "").trim();
+      const countryT = (country ?? "").trim();
       const derivedLocation = [cityT, countryT].filter(Boolean).join(", ") || null;
 
       const updates: Record<string, unknown> = {
@@ -126,18 +132,32 @@ export default function UserEditor({ user, onClose, onSave }: UserEditorProps) {
         kickoffInPersonAdminConfirmed,
       };
 
+      const rsvpAudit = adminContext
+        ? kickoffRsvpAdminAuditFields({
+            uid: adminContext.uid,
+            email: adminContext.email,
+            name: adminContext.name,
+          })
+        : null;
+
       if (kickoffInPersonRsvp === "yes") {
         updates.kickoffInPersonRsvp = true;
         updates.joiningInPerson = joiningInPerson.trim() || joiningInPersonLabel(true);
         updates.kickoffRsvpUpdatedAt = new Date().toISOString();
         updates.kickoffRsvpExplicitInApp = true;
+        if (rsvpAudit) Object.assign(updates, rsvpAudit);
       } else if (kickoffInPersonRsvp === "no") {
         updates.kickoffInPersonRsvp = false;
         updates.joiningInPerson = joiningInPerson.trim() || joiningInPersonLabel(false);
         updates.kickoffRsvpUpdatedAt = new Date().toISOString();
         updates.kickoffRsvpExplicitInApp = true;
+        if (rsvpAudit) Object.assign(updates, rsvpAudit);
       } else if (joiningInPerson.trim()) {
         updates.joiningInPerson = joiningInPerson.trim();
+        if (rsvpAudit) {
+          updates.kickoffRsvpUpdatedAt = new Date().toISOString();
+          Object.assign(updates, rsvpAudit);
+        }
       }
 
       await onSave((user.firestoreId || user.uid) as string, updates);

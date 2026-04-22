@@ -3,17 +3,25 @@ import { getAuth } from "firebase/auth";
 import { getFirestore, initializeFirestore, type Firestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
+const firestoreCacheKey = "__ai_devcamp_firestore__" as const;
+
 /**
- * Firestore rejects `undefined` field values. Prefer this over getFirestore() so
- * omitted/undefined fields in client writes don’t throw (see profile updateDoc, etc.).
+ * Reuses a single instance across HMR and duplicate modules so the instance created with
+ * `ignoreUndefinedProperties` is always used when available.
  */
-function initFirestore(): Firestore {
+function getOrInitFirestore(): Firestore {
+  const g = globalThis as typeof globalThis & { [K in typeof firestoreCacheKey]?: Firestore };
+  const existing = g[firestoreCacheKey];
+  if (existing) return existing;
+  let db: Firestore;
   try {
-    return initializeFirestore(app, { ignoreUndefinedProperties: true });
+    db = initializeFirestore(app, { ignoreUndefinedProperties: true });
   } catch {
-    // Already initialised (e.g. HMR) — reuse singleton
-    return getFirestore(app);
+    // Already initialised (e.g. HMR) — same Firestore as first init, settings preserved
+    db = getFirestore(app);
   }
+  g[firestoreCacheKey] = db;
+  return db;
 }
 
 const firebaseConfig = {
@@ -28,6 +36,6 @@ const firebaseConfig = {
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 
 export const auth = getAuth(app);
-export const db = initFirestore();
+export const db = getOrInitFirestore();
 export const storage = getStorage(app);
 export default app;

@@ -15,6 +15,9 @@ export function exportAttendeesCsv(
     "Status",
     "Kickoff in-person RSVP",
     "Joining in person",
+    "RSVP updated at",
+    "RSVP set by (app or admin)",
+    "RSVP set by admin email",
     "In person (admin confirmed)",
     "Experience",
     "City",
@@ -45,6 +48,11 @@ export function exportAttendeesCsv(
         ? "No"
         : "",
     u.joiningInPerson || "",
+    u.kickoffRsvpUpdatedAt
+      ? formatAdminDateTime(u.kickoffRsvpUpdatedAt)
+      : "",
+    u.kickoffRsvpSetBy === "admin" ? "admin" : u.kickoffRsvpSetBy === "app" ? "app" : "",
+    u.kickoffRsvpSetByAdminEmail || "",
     u.kickoffInPersonAdminConfirmed === true ? "Yes" : u.kickoffInPersonAdminConfirmed === false ? "No" : "",
     u.experienceLevel || "",
     u.city || "",
