@@ -81,6 +81,15 @@ export async function toggleAttendance(
   return next;
 }
 
+/** Admin: set a boolean on `attendance/{userId}` (e.g. in-person check-in, not a `session-*` id). */
+export async function setAttendanceField(
+  userId: string,
+  field: string,
+  value: boolean
+): Promise<void> {
+  await setDoc(doc(db, "attendance", userId), { [field]: value }, { merge: true });
+}
+
 // ── Assignments ───────────────────────────────────────────────────────────────
 
 export async function fetchAllAssignments(): Promise<Assignment[]> {

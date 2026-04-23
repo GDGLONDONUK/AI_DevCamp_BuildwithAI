@@ -13,11 +13,13 @@ import {
   toggleAttendance as toggleAttendanceSvc,
   updateUserFields,
   approveAllPendingUsersFromServer,
+  setAttendanceField,
 } from "@/lib/adminService";
 import { auth } from "@/lib/firebase";
 import { userAuthShowsGoogle, userAuthShowsPassword } from "@/lib/auth";
 import { formatAdminDateTime } from "@/lib/admin/format";
 import { exportAttendeesCsv } from "@/lib/admin/exportAttendeesCsv";
+import { IN_PERSON_MAY23_2026_FIELD } from "@/lib/inPersonCheckin";
 import { uploadPreRegisteredCsv } from "@/lib/admin/uploadPreRegisteredCsv";
 import CountryFlag from "@/components/ui/CountryFlag";
 import PreRegisteredDetailModal from "@/features/admin/components/PreRegisteredDetailModal";
@@ -366,6 +368,26 @@ export default function AdminPage() {
     }
   };
 
+  /** Admin: physical presence for 23 May (separate from session attendance). */
+  const toggleInPersonMay23 = async (userId: string) => {
+    const key = `${userId}_inPersonMay23`;
+    setTogglingCell(key);
+    const field = IN_PERSON_MAY23_2026_FIELD;
+    const current = attendance[userId]?.[field] === true;
+    const next = !current;
+    try {
+      await setAttendanceField(userId, field, next);
+      setAttendance((prev) => ({
+        ...prev,
+        [userId]: { ...(prev[userId] ?? {}), [field]: next },
+      }));
+    } catch {
+      toast.error("Failed to update in-person check-in");
+    } finally {
+      setTogglingCell(null);
+    }
+  };
+
   // ── Update user status / role ─────────────────────────────────────────────
   const updateUserStatus = async (userDocId: string, status: UserStatus) => {
     try {
@@ -568,6 +590,16 @@ export default function AdminPage() {
     (u) => u.uid && u.signedIn !== false
   );
 
+  /** In-person (not online) for 23 May — stored on `attendance/{uid}`, not as a session. */
+  const may23InPersonCheckInStats = useMemo(() => {
+    const field = IN_PERSON_MAY23_2026_FIELD;
+    let present = 0;
+    for (const u of attendanceUsers) {
+      if (attendance[u.uid]?.[field] === true) present++;
+    }
+    return { present, listed: attendanceUsers.length };
+  }, [attendanceUsers, attendance]);
+
   const pendingUsers = users.filter((u) => (u.userStatus || "pending") === "pending");
 
   const filteredAssignments = assignments.filter(
@@ -668,7 +700,7 @@ export default function AdminPage() {
     }
   };
 
-  // ── Attendance summary ────────────────────────────────────────────────────
+  // ── Attendance summary (programme session Y/N only — S1…S6) ─────────────────
   const attendanceCount = (uid: string) =>
     sessions.filter((s) => attendance[uid]?.[s.id]).length;
 
@@ -791,7 +823,17 @@ export default function AdminPage() {
           <>
             {/* ── ATTENDANCE TAB ── */}
             {activeTab === "attendance" && (
-              <div className="overflow-x-auto rounded-xl border border-white/8">
+              <div>
+                <div className="mb-4 p-4 rounded-xl border border-amber-500/30 bg-amber-500/8 font-mono text-sm text-amber-100/95">
+                  <span className="text-amber-400/90">23 May — came in person (not online): </span>
+                  <strong className="text-white text-lg">{may23InPersonCheckInStats.present}</strong>
+                  <span className="text-gray-500"> / {may23InPersonCheckInStats.listed}</span>{" "}
+                  <span className="text-gray-500 text-xs">
+                    Use the <strong className="text-amber-200/90">In person</strong> column (not session
+                    columns) to record who was physically there.
+                  </span>
+                </div>
+                <div className="overflow-x-auto rounded-xl border border-white/8">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-gray-900/80 border-b border-white/8">
@@ -802,13 +844,22 @@ export default function AdminPage() {
                         Flag
                       </th>
                       {sessions.map((s) => (
-                        <th key={s.id} className="text-center px-2 py-3 font-mono text-xs text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[90px]">
+                        <th
+                          key={s.id}
+                          className="text-center px-2 py-3 font-mono text-xs text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[90px]"
+                        >
                           <div>S{s.number}</div>
                           <div className="text-gray-600 font-normal normal-case text-[10px] mt-0.5 truncate max-w-[80px]">
                             {s.title.split(" ").slice(0, 2).join(" ")}
                           </div>
                         </th>
                       ))}
+                      <th className="text-center px-2 py-3 font-mono text-xs text-amber-200/90 uppercase tracking-wider whitespace-nowrap min-w-[100px] border-l-2 border-amber-500/40 bg-amber-500/5">
+                        <div>In person</div>
+                        <div className="font-normal normal-case text-[10px] mt-0.5 text-amber-400/80">
+                          23 May (physically there)
+                        </div>
+                      </th>
                       <th className="text-center px-3 py-3 font-mono text-xs text-gray-400 uppercase tracking-wider min-w-[90px]">
                         Total
                       </th>
@@ -820,7 +871,7 @@ export default function AdminPage() {
                   <tbody>
                     {attendanceUsers.length === 0 && (
                       <tr>
-                        <td colSpan={sessions.length + 4} className="text-center py-10 text-gray-500 font-mono">
+                        <td colSpan={sessions.length + 5} className="text-center py-10 text-gray-500 font-mono">
                           No users found
                         </td>
                       </tr>
@@ -857,7 +908,7 @@ export default function AdminPage() {
                             )}
                           </td>
 
-                          {/* Session attendance cells */}
+                          {/* Session attendance (programme — can include online) */}
                           {sessions.map((s) => {
                             const attended = attendance[u.uid]?.[s.id] ?? false;
                             const cellKey = `${u.uid}_${s.id}`;
@@ -867,7 +918,7 @@ export default function AdminPage() {
                                 <button
                                   onClick={() => toggleAttendance(u.uid, s.id)}
                                   disabled={isToggling}
-                                  title={attended ? "Mark absent" : "Mark attended"}
+                                  title={attended ? "Mark absent for this session" : "Mark attended (this session)"}
                                   className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold transition-all disabled:opacity-50 min-w-[52px] justify-center ${
                                     attended
                                       ? "bg-green-500/25 text-green-300 border border-green-500/50 hover:bg-red-500/25 hover:text-red-300 hover:border-red-500/50"
@@ -886,7 +937,41 @@ export default function AdminPage() {
                             );
                           })}
 
-                          {/* Total attended */}
+                          {/* In person 23 May (physically there — not a session row) */}
+                          <td className="px-2 py-3 text-center border-l border-amber-500/25 bg-amber-500/[0.03]">
+                            {(() => {
+                              const here = attendance[u.uid]?.[IN_PERSON_MAY23_2026_FIELD] === true;
+                              const cellKey = `${u.uid}_inPersonMay23`;
+                              const isToggling = togglingCell === cellKey;
+                              return (
+                                <button
+                                  type="button"
+                                  onClick={() => toggleInPersonMay23(u.uid)}
+                                  disabled={isToggling}
+                                  title={
+                                    here
+                                      ? "Clear — did not come in person / was online only"
+                                      : "Mark as physically present on 23 May (in person, not online only)"
+                                  }
+                                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold transition-all disabled:opacity-50 min-w-[52px] justify-center ${
+                                    here
+                                      ? "bg-amber-500/25 text-amber-200 border border-amber-500/50 hover:bg-red-500/20 hover:text-red-200 hover:border-red-500/40"
+                                      : "bg-red-500/10 text-red-300/80 border border-red-500/25 hover:bg-amber-500/20 hover:text-amber-200 hover:border-amber-500/40"
+                                  }`}
+                                >
+                                  {isToggling ? (
+                                    <span className="animate-spin text-xs">◌</span>
+                                  ) : here ? (
+                                    <><CheckCircle2 size={11} /> Y</>
+                                  ) : (
+                                    <><XCircle size={11} /> N</>
+                                  )}
+                                </button>
+                              );
+                            })()}
+                          </td>
+
+                          {/* Total attended (sessions only) */}
                           <td className="px-3 py-3 text-center">
                             <span className={`font-mono font-bold text-sm ${
                               attendanceCount(u.uid) >= 4 ? "text-green-400" :
@@ -909,6 +994,7 @@ export default function AdminPage() {
                     })}
                   </tbody>
                 </table>
+                </div>
               </div>
             )}
 

@@ -1,5 +1,6 @@
 import { UserProfile } from "@/types";
 import { Session } from "@/types";
+import { IN_PERSON_MAY23_2026_FIELD } from "@/lib/inPersonCheckin";
 import { formatAdminDateTime } from "./format";
 
 export function exportAttendeesCsv(
@@ -19,6 +20,7 @@ export function exportAttendeesCsv(
     "RSVP set by (app or admin)",
     "RSVP set by admin email",
     "In person (admin confirmed)",
+    "In person 23 May (checked in)",
     "Experience",
     "City",
     "Country",
@@ -54,6 +56,7 @@ export function exportAttendeesCsv(
     u.kickoffRsvpSetBy === "admin" ? "admin" : u.kickoffRsvpSetBy === "app" ? "app" : "",
     u.kickoffRsvpSetByAdminEmail || "",
     u.kickoffInPersonAdminConfirmed === true ? "Yes" : u.kickoffInPersonAdminConfirmed === false ? "No" : "",
+    attendance[u.uid]?.[IN_PERSON_MAY23_2026_FIELD] === true ? "Yes" : "No",
     u.experienceLevel || "",
     u.city || "",
     u.country || "",
