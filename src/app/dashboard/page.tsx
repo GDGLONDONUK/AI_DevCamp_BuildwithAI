@@ -167,8 +167,6 @@ export default function DashboardPage() {
         {/* Profile completion card */}
         <ProfileCompletion profile={userProfile} variant="compact" />
 
-        <ProgramOptOutControl variant="dashboard" />
-
         <div className="grid lg:grid-cols-2 gap-6">
 
           {/* My Attendance */}
@@ -364,6 +362,8 @@ export default function DashboardPage() {
             </Link>
           </div>
         )}
+
+        <ProgramOptOutControl variant="dashboard" />
       </div>
     </div>
   );

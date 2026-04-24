@@ -36,9 +36,6 @@ import {
   doc,
   setDoc,
   collection,
-  query,
-  where,
-  getDocs,
   serverTimestamp,
 } from "firebase/firestore";
 import { auth, db, storage } from "@/lib/firebase";
@@ -151,19 +148,35 @@ export default function RegisterPage() {
   // Form RSVP defaults are merged from `users/{email}` (via /api/me/preregistered)
   // when the account is created, then appear on the profile for kickoff pre-fill.
 
-  // Handle uniqueness check
+  // Handle uniqueness check (via API — Firestore rules deny anonymous reads of others' user docs)
   useEffect(() => {
     if (!form.handle || form.handle.length < 2) {
       setHandleStatus("idle");
       return;
     }
     setHandleStatus("checking");
-    const timer = setTimeout(async () => {
-      const q = query(collection(db, "users"), where("handle", "==", form.handle.toLowerCase()));
-      const snap = await getDocs(q);
-      setHandleStatus(snap.empty ? "available" : "taken");
+    const ac = new AbortController();
+    const timer = window.setTimeout(async () => {
+      try {
+        const h = encodeURIComponent(form.handle.toLowerCase());
+        const res = await fetch(`/api/public/handle-available?h=${h}`, {
+          signal: ac.signal,
+        });
+        if (!res.ok) {
+          setHandleStatus("idle");
+          return;
+        }
+        const body = (await res.json()) as { ok?: boolean; data?: { available?: boolean } };
+        const available = body?.data?.available === true;
+        setHandleStatus(available ? "available" : "taken");
+      } catch {
+        if (!ac.signal.aborted) setHandleStatus("idle");
+      }
     }, 500);
-    return () => clearTimeout(timer);
+    return () => {
+      ac.abort();
+      clearTimeout(timer);
+    };
   }, [form.handle]);
 
   const set = (key: keyof FormData, value: unknown) =>

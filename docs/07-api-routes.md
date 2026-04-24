@@ -55,6 +55,12 @@ Every response is JSON with a consistent envelope:
 
 ## Endpoints
 
+### Public (no auth)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/public/handle-available?h=yourhandle` | Returns `{ available: true \| false }` for registration. Uses Admin SDK so it works **before** sign-in (client Firestore rules block anonymous reads of `users/*`). Handle must match `[a-z0-9_]{2,32}`. |
+
 ### Sessions
 
 | Method | Path | Auth | Description |
