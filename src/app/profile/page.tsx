@@ -25,6 +25,7 @@ const GithubIcon = () => (
   </svg>
 );
 import Input from "@/components/ui/Input";
+import CopyTextButton from "@/components/ui/CopyTextButton";
 import Button from "@/components/ui/Button";
 import ProfileCompletion from "@/components/ui/ProfileCompletion";
 import toast from "react-hot-toast";
@@ -153,11 +154,19 @@ export default function ProfilePage() {
             <div className="w-16 h-16 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center text-white text-2xl font-bold flex-shrink-0">
               {(form.displayName || user.email || "U")[0].toUpperCase()}
             </div>
-            <div>
-              <p className="text-white font-semibold">
-                {form.displayName || "Your Name"}
-              </p>
-              <p className="text-gray-400 text-sm">{user.email}</p>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1">
+                <p className="text-white font-semibold truncate">
+                  {form.displayName || "Your Name"}
+                </p>
+                {(form.displayName || "").trim() ? (
+                  <CopyTextButton text={form.displayName} label="Copy display name" />
+                ) : null}
+              </div>
+              <div className="flex items-center gap-1">
+                <p className="text-gray-400 text-sm truncate">{user.email}</p>
+                {user.email ? <CopyTextButton text={user.email} label="Copy email" /> : null}
+              </div>
               {userProfile?.role && (
                 <span className="inline-block mt-1 text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full capitalize">
                   {userProfile.role}
@@ -173,12 +182,14 @@ export default function ProfilePage() {
             icon={<User size={16} />}
             value={form.displayName}
             onChange={(e) => setForm({ ...form, displayName: e.target.value })}
+            trailingSlot={<CopyTextButton text={form.displayName} label="Copy display name" />}
           />
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1.5">
-              Bio
-            </label>
+            <div className="flex items-center justify-between gap-2 mb-1.5">
+              <label className="block text-sm font-medium text-gray-300">Bio</label>
+              <CopyTextButton text={form.bio} label="Copy bio" />
+            </div>
             <textarea
               rows={4}
               placeholder="Tell us about yourself — your background, goals, and what excites you about AI..."
@@ -272,6 +283,7 @@ export default function ProfilePage() {
             icon={<LinkedinIcon />}
             value={form.linkedinUrl}
             onChange={(e) => setForm({ ...form, linkedinUrl: e.target.value })}
+            trailingSlot={<CopyTextButton text={form.linkedinUrl} label="Copy LinkedIn URL" />}
           />
 
           <Input
@@ -281,6 +293,7 @@ export default function ProfilePage() {
             icon={<GithubIcon />}
             value={form.githubUrl}
             onChange={(e) => setForm({ ...form, githubUrl: e.target.value })}
+            trailingSlot={<CopyTextButton text={form.githubUrl} label="Copy GitHub URL" />}
           />
 
           <Input
@@ -290,6 +303,7 @@ export default function ProfilePage() {
             icon={<Globe size={16} />}
             value={form.websiteUrl}
             onChange={(e) => setForm({ ...form, websiteUrl: e.target.value })}
+            trailingSlot={<CopyTextButton text={form.websiteUrl} label="Copy website URL" />}
           />
 
           <Button type="submit" loading={saving} className="w-full" size="lg">

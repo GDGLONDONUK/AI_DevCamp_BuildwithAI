@@ -29,6 +29,7 @@ import {
 import { uploadPreRegisteredCsv } from "@/lib/admin/uploadPreRegisteredCsv";
 import { receivesProgramCommunications } from "@/lib/programCommunications";
 import CountryFlag from "@/components/ui/CountryFlag";
+import CopyTextButton from "@/components/ui/CopyTextButton";
 import PreRegisteredDetailModal from "@/features/admin/components/PreRegisteredDetailModal";
 import SessionEditor from "@/components/admin/SessionEditor";
 import UserEditor from "@/components/admin/UserEditor";
@@ -74,120 +75,24 @@ import {
   isKickoffInPersonInApp,
   userMatchesInPersonLooseRsvp,
 } from "@/lib/kickoffRsvp";
-
-// ── Types ───────────────────────────────────────────────────────────────────
-
-type Tab = "attendance" | "users" | "assignments" | "projects" | "sessions" | "preregistered";
-
-function userDocKey(u: UserProfile): string {
-  return u.firestoreId || u.uid;
-}
-
-/** False for pending email-only imports; true once Firebase Auth profile exists. */
-function hasAuthAccount(u: UserProfile): boolean {
-  if (u.signedIn === false) return false;
-  return Boolean(u.uid);
-}
-
-/** Same mailbox for duplicate detection (gmail ↔ googlemail). */
-function canonicalPreRegEmail(raw: string | undefined): string {
-  if (!raw?.trim()) return "";
-  let e = raw.toLowerCase().trim();
-  if (e.endsWith("@googlemail.com")) e = e.replace("@googlemail.com", "@gmail.com");
-  return e;
-}
-
-/**
- * Pre-registered list can contain e.g. `users/{email}` and `users/{uid}` with the same
- * address — multiple rows with the same canonical email = duplicates to review.
- */
-function getPreRegDuplicateInfo(users: UserProfile[]): {
-  duplicateKeys: Set<string>;
-  nKeys: number;
-  nRows: number;
-} {
-  const by = new Map<string, UserProfile[]>();
-  for (const u of users) {
-    const k = canonicalPreRegEmail(u.email);
-    if (!k) continue;
-    const list = by.get(k) ?? [];
-    list.push(u);
-    by.set(k, list);
-  }
-  const duplicateKeys = new Set<string>();
-  let nRows = 0;
-  for (const [k, list] of by) {
-    if (list.length > 1) {
-      duplicateKeys.add(k);
-      nRows += list.length;
-    }
-  }
-  return { duplicateKeys, nKeys: duplicateKeys.size, nRows };
-}
-
-type KickoffRsvpFilter =
-  | "all"
-  | "inPerson"
-  | "inPersonInApp"
-  | "inPersonSetByAdmin"
-  | "online"
-  | "notSet"
-  | "inPersonAdminConfirmed";
-
-function userMatchesKickoffRsvpFilter(
-  u: UserProfile,
-  f: KickoffRsvpFilter
-): boolean {
-  if (f === "all") return true;
-  if (f === "inPersonAdminConfirmed") {
-    return u.kickoffInPersonAdminConfirmed === true;
-  }
-  const r = u.kickoffInPersonRsvp;
-  if (f === "notSet") return typeof r !== "boolean";
-  if (f === "inPersonInApp") {
-    return isKickoffInPersonInApp(u) && u.kickoffInPersonRsvp === true;
-  }
-  if (f === "inPersonSetByAdmin") {
-    return u.kickoffRsvpSetBy === "admin" && u.kickoffInPersonRsvp === true;
-  }
-  if (f === "inPerson") {
-    return userMatchesInPersonLooseRsvp(u);
-  }
-  if (f === "online") {
-    if (typeof r === "boolean") return !r;
-    return (u.joiningInPerson || "").toLowerCase().includes("online");
-  }
-  return true;
-}
-
-/** One-line label for the Users grid / table (23 Apr kick-off). */
-function kickoffRsvpLabelForAdmin(u: UserProfile): string {
-  if (isKickoffInPersonInApp(u)) {
-    return u.kickoffInPersonRsvp ? "In person (in-app ✓)" : "Online (in-app ✓)";
-  }
-  if (u.kickoffInPersonRsvp === true) {
-    return "In person (data, not in-app confirm)";
-  }
-  if (u.kickoffInPersonRsvp === false) {
-    return "Online (boolean)";
-  }
-  if (userMatchesInPersonLooseRsvp(u)) {
-    return "In person* (broad: form / import only)";
-  }
-  return "—";
-}
-
-interface AttendanceMap {
-  [userId: string]: Record<string, boolean | string>;
-}
-
-// ── Component ────────────────────────────────────────────────────────────────
+import {
+  type AdminConsoleTab,
+  type AttendanceMap,
+  type KickoffRsvpFilter,
+  getPreRegDuplicateInfo,
+  hasAuthAccount,
+  kickoffRsvpLabelForAdmin,
+  userDocKey,
+  userMatchesKickoffRsvpFilter,
+} from "@/lib/admin/adminPageDomain";
+import { canonicalPreRegEmail } from "@/lib/admin/emailIdentity";
+import { logClientError } from "@/lib/logging/clientErrorLog";
 
 export default function AdminPage() {
   const { user, userProfile, loading } = useAuth();
   const router = useRouter();
 
-  const [activeTab, setActiveTab] = useState<Tab>("attendance");
+  const [activeTab, setActiveTab] = useState<AdminConsoleTab>("attendance");
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -263,7 +168,7 @@ export default function AdminPage() {
       const attMap = await fetchAttendanceForUsers(attUids);
       setAttendance(attMap);
     } catch (err) {
-      console.error(err);
+      logClientError("admin.fetchAll", err);
       toast.error("Failed to load data");
     } finally {
       setDataLoading(false);
@@ -287,7 +192,7 @@ export default function AdminPage() {
       const data: UserProfile[] = json.data ?? [];
       setPreRegistered(data.sort((a, b) => a.displayName.localeCompare(b.displayName)));
     } catch (e) {
-      console.error("loadPreRegistered", e);
+      logClientError("admin.loadPreRegistered", e);
       toast.error("Failed to load pre-registered users");
     } finally {
       setPreRegLoading(false);
@@ -311,7 +216,7 @@ export default function AdminPage() {
         loadPreRegistered
       );
     } catch (err) {
-      console.error("CSV upload error:", err);
+      logClientError("admin.csvUpload", err);
       toast.error(`Upload failed: ${err instanceof Error ? err.message : "unknown error"}`);
     } finally {
       setCsvUploading(false);
@@ -350,7 +255,7 @@ export default function AdminPage() {
       setAddPendingOpen(false);
       await loadPreRegistered();
     } catch (err) {
-      console.error(err);
+      logClientError("admin.addPendingUser", err);
       toast.error(err instanceof Error ? err.message : "Failed to add pending user");
     } finally {
       setAddPendingSubmitting(false);
@@ -427,6 +332,7 @@ export default function AdminPage() {
       }
       await fetchAll();
     } catch (e) {
+      logClientError("admin.approveAllPending", e);
       toast.error(e instanceof Error ? e.message : "Bulk approve failed");
     } finally {
       setApproveAllBusy(false);
@@ -745,7 +651,7 @@ export default function AdminPage() {
       if (!json.ok) throw new Error(json.error ?? res.statusText);
       toast.success(`Tag catalog: ${json.data.upserted} categories saved to Firestore`);
     } catch (e) {
-      console.error(e);
+      logClientError("admin.seedTags", e);
       toast.error("Failed to seed tags");
     } finally {
       setSeedingTags(false);
@@ -766,12 +672,12 @@ export default function AdminPage() {
   }
 
   const TABS = [
-    { id: "attendance" as Tab,     label: "Attendance",    icon: ClipboardList, count: users.length },
-    { id: "users" as Tab,          label: "Users",         icon: Users,         count: users.length },
-    { id: "preregistered" as Tab,  label: "Pre-Registered",icon: FileText,      count: preRegistered.length },
-    { id: "sessions" as Tab,       label: "Sessions",      icon: Calendar,      count: sessions.length },
-    { id: "assignments" as Tab,    label: "Assignments",   icon: BookOpen,      count: assignments.length },
-    { id: "projects" as Tab,       label: "Projects",      icon: Code2,         count: projects.length },
+    { id: "attendance" as AdminConsoleTab, label: "Attendance", icon: ClipboardList, count: users.length },
+    { id: "users" as AdminConsoleTab, label: "Users", icon: Users, count: users.length },
+    { id: "preregistered" as AdminConsoleTab, label: "Pre-Registered", icon: FileText, count: preRegistered.length },
+    { id: "sessions" as AdminConsoleTab, label: "Sessions", icon: Calendar, count: sessions.length },
+    { id: "assignments" as AdminConsoleTab, label: "Assignments", icon: BookOpen, count: assignments.length },
+    { id: "projects" as AdminConsoleTab, label: "Projects", icon: Code2, count: projects.length },
   ];
 
   return (
@@ -1408,6 +1314,9 @@ export default function AdminPage() {
                           <div className="flex-1 min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
                               <span className="font-semibold text-white">{u.displayName}</span>
+                              {(u.displayName || "").trim() ? (
+                                <CopyTextButton text={u.displayName || ""} label="Copy name" className="p-0.5" />
+                              ) : null}
                               {u.handle && <span className="font-mono text-xs text-gray-500">@{u.handle}</span>}
                               {u.preRegistered && (
                                 <span className="text-[10px] font-mono uppercase tracking-wide text-blue-300 bg-blue-500/15 border border-blue-500/35 px-1.5 py-0.5 rounded">
@@ -1436,7 +1345,12 @@ export default function AdminPage() {
                               )}
                               {country && <CountryFlag country={country} size={20} />}
                             </div>
-                            <div className="text-xs text-gray-400 font-mono truncate">{u.email}</div>
+                            <div className="flex items-center gap-1 min-w-0">
+                              <div className="text-xs text-gray-400 font-mono truncate flex-1">{u.email}</div>
+                              {u.email?.trim() ? (
+                                <CopyTextButton text={u.email} label="Copy email" className="p-0.5 shrink-0" />
+                              ) : null}
+                            </div>
                             {location && <div className="text-xs text-gray-600 font-mono">{location}</div>}
                             <div className="flex flex-wrap gap-2 mt-1.5">
                               <span className="text-xs bg-white/5 text-gray-400 px-2 py-0.5 rounded-full font-mono">
@@ -1650,7 +1564,10 @@ export default function AdminPage() {
                                   </div>
                                   <div>
                                     <div className="font-semibold text-white text-sm flex flex-wrap items-center gap-1.5">
-                                      {u.displayName}
+                                      <span>{u.displayName}</span>
+                                      {(u.displayName || "").trim() ? (
+                                        <CopyTextButton text={u.displayName || ""} label="Copy name" className="p-0.5" />
+                                      ) : null}
                                       {u.preRegistered && (
                                         <span className="text-[9px] font-mono text-blue-300 border border-blue-500/35 px-1 rounded">form</span>
                                       )}
@@ -1667,7 +1584,12 @@ export default function AdminPage() {
                                         <span className="text-[9px] font-mono text-gray-500 border border-white/10 px-1 rounded">email</span>
                                       )}
                                     </div>
-                                    <div className="text-xs text-gray-500 font-mono">{u.email}</div>
+                                    <div className="flex items-center gap-1 min-w-0">
+                                      <span className="text-xs text-gray-500 font-mono truncate">{u.email}</span>
+                                      {u.email?.trim() ? (
+                                        <CopyTextButton text={u.email} label="Copy email" className="p-0.5 shrink-0" />
+                                      ) : null}
+                                    </div>
                                   </div>
                                 </div>
                               </td>

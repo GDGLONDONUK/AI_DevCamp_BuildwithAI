@@ -8,6 +8,7 @@ import StatusDropdown from "@/components/admin/StatusDropdown";
 import LocationPicker from "@/components/ui/LocationPicker";
 import SkillsSelector from "@/components/ui/SkillsSelector";
 import Input from "@/components/ui/Input";
+import CopyTextButton from "@/components/ui/CopyTextButton";
 import {
   joiningInPersonLabel,
   KICKOFF_IN_PERSON_RSVP_POLICY,
@@ -222,11 +223,12 @@ export default function UserEditor({ user, onClose, onSave, onDeleteUser, adminC
         onClick={(e) => e.stopPropagation()}
       >
         <div className="sticky top-0 z-10 flex items-center justify-between px-5 py-4 border-b border-white/8 bg-[#0d1117]/95">
-          <div>
+          <div className="min-w-0 pr-2">
             <h2 className="text-lg font-bold text-white font-mono">Edit user</h2>
-            <p className="text-xs text-gray-500 font-mono truncate max-w-[280px] sm:max-w-md">
-              {user.email}
-            </p>
+            <div className="flex items-center gap-1 max-w-[280px] sm:max-w-md">
+              <p className="text-xs text-gray-500 font-mono truncate">{user.email}</p>
+              {user.email ? <CopyTextButton text={user.email} label="Copy email" /> : null}
+            </div>
           </div>
           <button
             type="button"
@@ -242,7 +244,18 @@ export default function UserEditor({ user, onClose, onSave, onDeleteUser, adminC
           <div className="grid sm:grid-cols-2 gap-4">
             <div className="sm:col-span-2">
               <label className="block text-xs font-mono text-gray-500 mb-1">Email (read-only)</label>
-              <input readOnly value={user.email} className={`${inputCls} opacity-60 cursor-not-allowed`} />
+              <div className="relative">
+                <input
+                  readOnly
+                  value={user.email}
+                  className={`${inputCls} opacity-60 cursor-not-allowed pr-10`}
+                />
+                {user.email ? (
+                  <div className="absolute right-1.5 top-1/2 -translate-y-1/2">
+                    <CopyTextButton text={user.email} label="Copy email" />
+                  </div>
+                ) : null}
+              </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-1.5">Display name *</label>
@@ -251,8 +264,11 @@ export default function UserEditor({ user, onClose, onSave, onDeleteUser, adminC
                 <input
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
-                  className={`${inputCls} pl-9`}
+                  className={`${inputCls} pl-9 pr-10`}
                 />
+                <div className="absolute right-1.5 top-1/2 -translate-y-1/2">
+                  <CopyTextButton text={displayName} label="Copy display name" />
+                </div>
               </div>
             </div>
             <div>
@@ -338,7 +354,10 @@ export default function UserEditor({ user, onClose, onSave, onDeleteUser, adminC
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1.5">Bio</label>
+            <div className="flex items-center justify-between gap-2 mb-1.5">
+              <label className="block text-sm font-medium text-gray-300">Bio</label>
+              <CopyTextButton text={bio} label="Copy bio" />
+            </div>
             <textarea
               value={bio}
               onChange={(e) => setBio(e.target.value)}
@@ -433,6 +452,7 @@ export default function UserEditor({ user, onClose, onSave, onDeleteUser, adminC
                 icon={<LinkedinIcon />}
                 value={linkedinUrl}
                 onChange={(e) => setLinkedinUrl(e.target.value)}
+                trailingSlot={<CopyTextButton text={linkedinUrl} label="Copy LinkedIn URL" />}
               />
               <Input
                 id="ue-github"
@@ -441,6 +461,7 @@ export default function UserEditor({ user, onClose, onSave, onDeleteUser, adminC
                 icon={<GithubIcon />}
                 value={githubUrl}
                 onChange={(e) => setGithubUrl(e.target.value)}
+                trailingSlot={<CopyTextButton text={githubUrl} label="Copy GitHub URL" />}
               />
               <Input
                 id="ue-website"
@@ -449,6 +470,7 @@ export default function UserEditor({ user, onClose, onSave, onDeleteUser, adminC
                 icon={<Globe size={16} />}
                 value={websiteUrl}
                 onChange={(e) => setWebsiteUrl(e.target.value)}
+                trailingSlot={<CopyTextButton text={websiteUrl} label="Copy website URL" />}
               />
             </div>
           </div>

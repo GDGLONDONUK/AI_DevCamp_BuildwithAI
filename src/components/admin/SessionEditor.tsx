@@ -4,6 +4,7 @@ import { useState, useEffect, KeyboardEvent } from "react";
 import toast from "react-hot-toast";
 import { Session, Resource, SessionSelfCheckInDocument } from "@/types";
 import { X, Plus, Trash2, GripVertical, ExternalLink, KeyRound } from "lucide-react";
+import CopyTextButton from "@/components/ui/CopyTextButton";
 import { doc, getDoc, setDoc, deleteDoc } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
 import { SESSION_SELF_CHECKIN_COLLECTION } from "@/lib/sessionSelfCheckInConstants";
@@ -258,7 +259,12 @@ export default function SessionEditor({ session, onSave, onClose }: Props) {
 
           {/* Description */}
           <div>
-            <label className={labelClass}>Description</label>
+            <div className="mb-1.5 flex items-center justify-between gap-2">
+              <label className="block text-xs font-semibold text-gray-400 font-mono uppercase tracking-wider">
+                Description
+              </label>
+              <CopyTextButton text={(form.description ?? "").trim()} label="Copy description" />
+            </div>
             <textarea
               value={form.description ?? ""}
               onChange={(e) => set("description", e.target.value)}
@@ -514,13 +520,22 @@ export default function SessionEditor({ session, onSave, onClose }: Props) {
                 <div className="flex flex-wrap items-end gap-2">
                   <div className="flex-1 min-w-[140px]">
                     <label className={labelClass}>6-digit code</label>
-                    <input
-                      value={liveCode}
-                      onChange={(e) => setLiveCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                      placeholder="000000"
-                      maxLength={6}
-                      className={fieldClass + " tracking-[0.35em] font-bold text-lg"}
-                    />
+                    <div className="relative">
+                      <input
+                        value={liveCode}
+                        onChange={(e) => setLiveCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                        placeholder="000000"
+                        maxLength={6}
+                        className={fieldClass + " tracking-[0.35em] font-bold text-lg pr-11"}
+                      />
+                      <div className="absolute right-1.5 top-1/2 -translate-y-1/2">
+                        <CopyTextButton
+                          text={liveCode.replace(/\D/g, "").padStart(6, "0").slice(-6)}
+                          label="Copy attendance code"
+                          disabled={!liveCode.replace(/\D/g, "")}
+                        />
+                      </div>
+                    </div>
                   </div>
                   <button
                     type="button"

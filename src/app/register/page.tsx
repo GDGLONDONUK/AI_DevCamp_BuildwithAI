@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import LocationPicker from "@/components/ui/LocationPicker";
 import SkillsSelector from "@/components/ui/SkillsSelector";
+import CopyTextButton from "@/components/ui/CopyTextButton";
 
 const LinkedinIcon = ({ size = 16 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
@@ -796,8 +797,11 @@ export default function RegisterPage() {
                       value={form.linkedinUrl}
                       onChange={(e) => set("linkedinUrl", e.target.value)}
                       placeholder="https://linkedin.com/in/yourname"
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 pl-9 text-white placeholder:text-gray-600 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 pl-9 pr-11 text-white placeholder:text-gray-600 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                     />
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                      <CopyTextButton text={form.linkedinUrl} label="Copy LinkedIn URL" />
+                    </div>
                   </div>
                 </div>
 
@@ -812,8 +816,11 @@ export default function RegisterPage() {
                       value={form.githubUrl}
                       onChange={(e) => set("githubUrl", e.target.value)}
                       placeholder="https://github.com/yourname"
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 pl-9 text-white placeholder:text-gray-600 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 pl-9 pr-11 text-white placeholder:text-gray-600 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                     />
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                      <CopyTextButton text={form.githubUrl} label="Copy GitHub URL" />
+                    </div>
                   </div>
                 </div>
 
@@ -828,18 +835,24 @@ export default function RegisterPage() {
                       value={form.websiteUrl}
                       onChange={(e) => set("websiteUrl", e.target.value)}
                       placeholder="https://yourwebsite.com"
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 pl-9 text-white placeholder:text-gray-600 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 pl-9 pr-11 text-white placeholder:text-gray-600 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                     />
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                      <CopyTextButton text={form.websiteUrl} label="Copy website URL" />
+                    </div>
                   </div>
                 </div>
 
                 {/* Bio */}
                 <div>
-                  <div className="flex items-center justify-between mb-1.5">
+                  <div className="flex items-center justify-between gap-2 mb-1.5">
                     <label className="text-sm font-medium text-gray-300">
                       Tell us a bit about yourself <span className="text-red-400">*</span>
                     </label>
-                    <span className="text-xs text-gray-600 font-mono">{form.bio.length} / 300</span>
+                    <span className="flex items-center gap-2 shrink-0">
+                      <CopyTextButton text={form.bio} label="Copy bio" />
+                      <span className="text-xs text-gray-600 font-mono">{form.bio.length} / 300</span>
+                    </span>
                   </div>
                   <textarea
                     rows={4}
