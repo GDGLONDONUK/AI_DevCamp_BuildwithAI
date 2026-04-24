@@ -32,7 +32,8 @@ service cloud.firestore {
     function touchesPrivilegedFields() {
       return request.resource.data.diff(resource.data).affectedKeys()
              .hasAny(['role', 'userStatus', 'kickoffInPersonAdminConfirmed',
-                      'accountDisabled', 'accountDisabledReason']);
+                      'accountDisabled', 'accountDisabledReason',
+                      'programOptOut', 'programOptOutAt']);
     }
 
     // ── Users ─────────────────────────────────────────────────────────────────

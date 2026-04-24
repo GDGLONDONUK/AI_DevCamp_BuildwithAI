@@ -64,6 +64,8 @@ After handling, the component strips `login` and `reset` from the URL with `hist
 
 **Admin-added pending users:** `POST /api/admin/pending-user` creates/updates a pending `users/{email}` row (`importSource: "admin"`, `createdByAdmin: true`). Same merge path on first login.
 
+**Programme de-registration:** From the nav (desktop/mobile) and **dashboard**, attendees can **Leave programme**. That calls **`POST /api/me/leave-program`**, then signs them out. While **`programOptOut`** is true, **`verifyAuth`** rejects API calls with **`PROGRAM_OPT_OUT`** and **`AuthContext`** will not keep a session. **Only** an admin or moderator can clear the flag in **User Editor** (checkbox *Left programme (de-reg)*) or via privileged **`PATCH /api/users/[uid]`**. Cohort bulk email uses **`receivesProgramCommunications()`** so opted-out users are skipped.
+
 ---
 
 ## Admin panel (high level)
@@ -71,12 +73,19 @@ After handling, the component strips `login` and `reset` from the URL with `hist
 | Area | Features |
 |------|----------|
 | **Header** | **Add pending user** (opens modal) — same as pre-reg flow. Quick links: **Email**, **CSV Import**, **Users map** (`/admin/users-map`), **Error logs**, **Seed tags**, **Refresh**. **Bevy merge** is at `/admin/bevy` (also linked from `/admin/import`). |
-| **Users** | **Grid (cards)** and **table** view; **checkboxes** per user (with email); **select all**; bulk bar **Send email to N selected** (opens `/admin/email?source=selection` with `sessionStorage` recipients). **Download CSV** exports attendees with session attendance counts and profile fields, including **Kickoff in-person RSVP** (Yes/No) and **Joining in person** (text from `UserProfile.joiningInPerson`). |
+| **Users** | **Grid (cards)** and **table** view; **checkboxes** per user (with email); **select all**; bulk bar **Send email to N selected** (opens `/admin/email?source=selection` with `sessionStorage` recipients). **Download CSV** exports attendees with session attendance counts and profile fields, including **Kickoff in-person RSVP** (Yes/No) and **Joining in person** (text from `UserProfile.joiningInPerson`). Badges include **De-reg** for programme opt-out. **User Editor** can clear or set programme de-registration. |
+| **Attendance** | Grid of users × sessions; **filter** rows by attended / not attended for a chosen session. **Kick Off (session-1)** supports a **join mode** (in person vs online) stored on `attendance/{uid}` (`kickoffJoinedAs`), edited alongside the session cell. |
 | **Users map** | `/admin/users-map` — map of where users are joining from when `location` or `city`/`country` is present. Server geocodes unique labels with **OpenStreetMap Nominatim** (rate-limited, cached in process). Admin-only UI; API `GET /api/admin/users-location-map` allows **admin** and **moderator** (same `requireAdmin` as other admin tools). |
 | **Pre-Registered** | Table with checkboxes, CSV upload, **Add person**, filters, detail modal. |
 | **User list** | Badges for **Google** / **email** sign-in from `authProviders` (or legacy `registrationSource`). |
 
 **Roles:** `requireAdmin` in API routes allows **admin** and **moderator** unless a route is admin-only (check each handler).
+
+---
+
+## Attendee UX: session attendance
+
+On **`/sessions`** (when signed in with access) and on the **`/dashboard`**, any session the organisers marked as attended shows **green highlighting**, a **check mark**, and the word **Attended** next to the session title. Data is read from **`attendance/{uid}`** in Firestore (`session-*` keys).
 
 ---
 

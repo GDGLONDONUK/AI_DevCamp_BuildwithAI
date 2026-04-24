@@ -7,7 +7,7 @@ import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import {
   Calendar, Clock, ExternalLink, MapPin,
-  ChevronDown, Lightbulb, BookOpen, Mic, Timer, CheckCircle2,
+  ChevronDown, Lightbulb, BookOpen, Mic, Timer, CheckCircle2, Check,
 } from "lucide-react";
 import AuthModal from "@/components/AuthModal";
 import { Session } from "@/types";
@@ -110,7 +110,11 @@ export default function SessionsPage() {
         {user && hasSessionAccess && (
           <div className="flex items-center gap-3 bg-green-500/8 border border-green-500/20 rounded-xl px-4 py-3 mb-10 font-mono text-sm text-gray-400">
             <CheckCircle2 size={15} className="text-green-400 flex-shrink-0" />
-            <span>Sessions you attended are marked in green. Attendance is recorded by the organising team.</span>
+            <span>
+              Sessions you attended are highlighted in green and show a check mark with{" "}
+              <strong className="text-green-300">Attended</strong> next to the title. Attendance is recorded by the
+              organising team.
+            </span>
           </div>
         )}
 
@@ -197,8 +201,12 @@ export default function SessionsPage() {
                                     <div className="flex flex-wrap items-center gap-2 mb-2">
                                       <h3 className="text-xl font-bold text-white">{session.title}</h3>
                                       {attended && (
-                                        <span className="text-xs bg-green-500/20 text-green-400 border border-green-500/30 px-2.5 py-0.5 rounded-full font-mono font-bold flex items-center gap-1">
-                                          <CheckCircle2 size={11} /> Attended
+                                        <span
+                                          className="text-xs bg-green-500/20 text-green-400 border border-green-500/30 px-2.5 py-0.5 rounded-full font-mono font-bold inline-flex items-center gap-1"
+                                          title="Recorded as attended by the organising team"
+                                        >
+                                          <Check size={12} strokeWidth={2.75} className="flex-shrink-0" aria-hidden />
+                                          <span>Attended</span>
                                         </span>
                                       )}
                                       {session.isKickoff && (

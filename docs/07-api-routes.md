@@ -95,13 +95,16 @@ Every response is JSON with a consistent envelope:
 | `GET` | `/api/users/[uid]` | Admin / Moderator or self | Get a user's profile |
 | `PATCH` | `/api/users/[uid]` | Admin/Mod (privileged) or self (own fields) | Update a user |
 
-**PATCH /api/users/[uid] — body for admin or moderator** (privileged fields):
+**PATCH /api/users/[uid] — body for admin or moderator** (privileged fields — includes `role`, `userStatus`, `kickoffInPersonAdminConfirmed`, `accountDisabled`, `accountDisabledReason`, **`programOptOut`**, **`programOptOutAt`**):
 ```json
 {
   "userStatus": "participated",
-  "role": "moderator"
+  "role": "moderator",
+  "programOptOut": false,
+  "programOptOutAt": null
 }
 ```
+Attendees **cannot** PATCH `programOptOut` / `programOptOutAt`; they use **`POST /api/me/leave-program`** to leave (see **Me** table below).
 
 **PATCH /api/users/[uid] — body for self** (non-privileged fields only; `role` / `userStatus` return 403):
 ```json
@@ -121,7 +124,8 @@ Every response is JSON with a consistent envelope:
 
 | Method | Path | Description |
 |--------|------|--------------|
-| `POST` | `/api/me/ensure-profile` | Create `users/{uid}` if missing; merge and delete `users/{email}` when present. |
+| `POST` | `/api/me/ensure-profile` | Create `users/{uid}` if missing; merge and delete `users/{email}` when present. Returns **`403`** + **`PROGRAM_OPT_OUT`** if the user document or pending row is programme-opted-out. |
+| `POST` | `/api/me/leave-program` | **Bearer required.** Sets `programOptOut: true`, `programOptOutAt`, `keepUpdated: false` on `users/{uid}`. Caller must not already be blocked (same token checks as other routes). Client should sign out after success. |
 | `GET` | `/api/me/preregistered` | Returns pending `users/{email}` row for the signed-in user’s email (for registration UI). |
 | `POST` | `/api/me/link-preregister` | Idempotently clean up after linking (removes email doc if still pending). |
 
@@ -271,7 +275,7 @@ src/
     └── api/
         ├── sessions/          ← GET (list), POST, GET/PUT/DELETE by id
         ├── users/             ← GET (list), GET/PATCH by uid
-        ├── me/                ← ensure-profile, preregistered, link-preregister
+        ├── me/                ← ensure-profile, leave-program, preregistered, link-preregister
         ├── attendance/
         ├── assignments/
         ├── projects/
@@ -306,10 +310,13 @@ Client sends request with Authorization: Bearer <idToken>
   └─ api-helpers.verifyAuth()
         └─ adminAuth().verifyIdToken(token)   ← Firebase Admin SDK
               ├─ Valid token → decode uid, email
-              │     └─ Read users/{uid} from Firestore → get role
-              │           └─ Return { uid, email, role }
+              │     └─ Read users/{uid} from Firestore
+              │           ├─ accountDisabled → 403 ACCOUNT_DISABLED
+              │           ├─ programOptOut → 403 PROGRAM_OPT_OUT
+              │           └─ Else return { uid, email, role }
               └─ Invalid / expired → 401 Unauthorized
 ```
+(Also checks `users/{normalisedEmail}` when the token includes an email, for the same flags on pending-id docs.)
 
 The Firebase Admin SDK uses your service account private key to verify tokens **without a network round-trip** (the public keys are cached locally). This is fast and doesn't count toward Firebase usage quotas.
 

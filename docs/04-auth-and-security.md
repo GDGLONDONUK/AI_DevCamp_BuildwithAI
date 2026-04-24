@@ -164,15 +164,17 @@ service cloud.firestore {
 
 #### Key rules explained
 
-**Prevent role escalation:**
+**Prevent role escalation and privileged profile fields:**
 ```
-// Users CAN update their own doc, UNLESS they try to change role or userStatus
+// Users CAN update their own doc, UNLESS they try to change role, userStatus, account flags, programme opt-out, etc.
 allow update: if isSignedIn() && (
   (isOwner(userId) && !touchesPrivilegedFields()) ||
   isAdminOrMod()
 );
 ```
-Without this, a user could call `updateDoc(users/myId, { role: "admin" })` and promote themselves.
+`touchesPrivilegedFields()` includes `role`, `userStatus`, `kickoffInPersonAdminConfirmed`, `accountDisabled`, `accountDisabledReason`, **`programOptOut`**, and **`programOptOutAt`**. Without this, a user could promote themselves or undo programme de-registration from the browser SDK.
+
+**API token checks (`verifyAuth` in `src/lib/api-helpers.ts`):** after validating the ID token, the server reads `users/{uid}` (and, when the token has an email, `users/{email}` for pending-id collisions). If **`accountDisabled`** is true, the API returns **`403`** with code **`ACCOUNT_DISABLED`**. If **`programOptOut`** is true, the API returns **`403`** with code **`PROGRAM_OPT_OUT`**. The client **`AuthContext`** signs the user out when the profile shows either flag (and when ensure-profile returns those codes).
 
 **Immutable userId on submissions:**
 ```
@@ -240,6 +242,8 @@ const { user, userProfile, loading, refreshProfile } = useAuth();
 | `userProfile` | `UserProfile \| null` | The Firestore doc for this user |
 | `loading` | `boolean` | `true` while Firebase is checking the session |
 | `refreshProfile` | `() => Promise<void>` | Re-fetches `userProfile` from Firestore |
+
+**Programme de-registration:** after a successful **`POST /api/me/leave-program`**, the client signs out and clears the session cookie. Users cannot clear `programOptOut` themselves; only admins/moderators (Firestore rules + `PATCH` privileged fields) can restore access.
 
 **Always check `loading` first.** While `loading` is `true`, both `user` and `userProfile` may be `null` even for logged-in users.
 

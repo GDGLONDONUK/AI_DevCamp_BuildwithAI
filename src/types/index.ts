@@ -85,6 +85,13 @@ export interface UserProfile {
   kickoffInPersonAdminConfirmed?: boolean;
   handle?: string;
   keepUpdated?: boolean;
+  /**
+   * Programme de-registration: no app login or API access until an admin clears this flag.
+   * Also excludes the person from cohort bulk email.
+   */
+  programOptOut?: boolean;
+  /** ISO time when {@link programOptOut} was set to true. */
+  programOptOutAt?: string;
   /** Submitted the Google Form (imported or matched at sign-up). */
   preRegistered?: boolean;
   /** Has a Firebase account (app sign-up complete). */

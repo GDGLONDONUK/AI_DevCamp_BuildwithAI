@@ -13,6 +13,16 @@ import { getUserProfile, syncAuthProvidersToUserDoc } from "@/lib/auth";
 import { ensureProfileOnServer } from "@/lib/meApi";
 import { UserProfile } from "@/types";
 
+function profileAccessRevoked(profile: UserProfile | null | undefined): boolean {
+  return profile?.accountDisabled === true || profile?.programOptOut === true;
+}
+
+function readBootstrapAuthError(e: unknown): "ACCOUNT_DISABLED" | "PROGRAM_OPT_OUT" | null {
+  if (e instanceof Error && e.message === "ACCOUNT_DISABLED") return "ACCOUNT_DISABLED";
+  if (e instanceof Error && e.message === "PROGRAM_OPT_OUT") return "PROGRAM_OPT_OUT";
+  return null;
+}
+
 interface AuthContextType {
   user: User | null;
   userProfile: UserProfile | null;
@@ -42,14 +52,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           profile = await getUserProfile(user.uid);
         } catch (e) {
           console.error("ensureProfileOnServer", e);
-          if (e instanceof Error && e.message === "ACCOUNT_DISABLED") {
+          const code = readBootstrapAuthError(e);
+          if (code) {
             await signOut(auth);
             setUserProfile(null);
             return;
           }
         }
       }
-      if (profile?.accountDisabled === true) {
+      if (profileAccessRevoked(profile)) {
         await signOut(auth);
         setUserProfile(null);
         return;
@@ -62,7 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           console.error("syncAuthProvidersToUserDoc", e);
         }
       }
-      if (profile?.accountDisabled === true) {
+      if (profileAccessRevoked(profile)) {
         await signOut(auth);
         setUserProfile(null);
         return;
@@ -88,7 +99,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             profile = await getUserProfile(firebaseUser.uid);
           } catch (e) {
             console.error("ensureProfileOnServer", e);
-            if (e instanceof Error && e.message === "ACCOUNT_DISABLED") {
+            const code = readBootstrapAuthError(e);
+            if (code) {
               await signOut(auth);
               setUserProfile(null);
               setLoading(false);
@@ -96,7 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
           }
         }
-        if (profile?.accountDisabled === true) {
+        if (profileAccessRevoked(profile)) {
           await signOut(auth);
           setUserProfile(null);
           setLoading(false);
@@ -110,7 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             console.error("syncAuthProvidersToUserDoc", e);
           }
         }
-        if (profile?.accountDisabled === true) {
+        if (profileAccessRevoked(profile)) {
           await signOut(auth);
           setUserProfile(null);
           setLoading(false);

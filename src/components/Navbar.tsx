@@ -18,6 +18,7 @@ import {
   Shield,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import ProgramOptOutControl from "@/components/ProgramOptOutControl";
 
 export default function Navbar() {
   const { user, userProfile, loading } = useAuth();
@@ -150,6 +151,12 @@ export default function Navbar() {
                               </Link>
                             )}
                             <div className="border-t border-white/10 mt-1 pt-1">
+                              <ProgramOptOutControl
+                                variant="menu"
+                                onAfterChange={() => setDropdownOpen(false)}
+                              />
+                            </div>
+                            <div className="border-t border-white/10 mt-1 pt-1">
                               <button
                                 onClick={handleLogout}
                                 className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors"
@@ -204,6 +211,14 @@ export default function Navbar() {
                 {label}
               </Link>
             ))}
+            {user && (
+              <div className="pt-3 border-t border-white/10 mt-2">
+                <ProgramOptOutControl
+                  variant="menu"
+                  onAfterChange={() => setMobileMenuOpen(false)}
+                />
+              </div>
+            )}
             {!user && (
               <div className="pt-2 space-y-2">
                 <button

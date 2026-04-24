@@ -29,6 +29,7 @@ import {
   XCircle,
 } from "lucide-react";
 import ProfileCompletion from "@/components/ui/ProfileCompletion";
+import ProgramOptOutControl from "@/components/ProgramOptOutControl";
 
 export default function DashboardPage() {
   const { user, userProfile, loading } = useAuth();
@@ -166,6 +167,8 @@ export default function DashboardPage() {
         {/* Profile completion card */}
         <ProfileCompletion profile={userProfile} variant="compact" />
 
+        <ProgramOptOutControl variant="dashboard" />
+
         <div className="grid lg:grid-cols-2 gap-6">
 
           {/* My Attendance */}
@@ -208,16 +211,23 @@ export default function DashboardPage() {
                         {s.number}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className={`text-sm font-medium truncate ${attended ? "text-white" : "text-gray-500"}`}>
-                          {s.title}
-                        </p>
+                        <div className="flex flex-wrap items-center gap-2 min-w-0">
+                          <p className={`text-sm font-medium truncate ${attended ? "text-white" : "text-gray-500"}`}>
+                            {s.title}
+                          </p>
+                          {attended && (
+                            <span
+                              className="inline-flex items-center gap-1 rounded-full border border-green-500/35 bg-green-500/15 px-2 py-0.5 text-[10px] font-mono font-bold text-green-300 flex-shrink-0"
+                              title="Recorded as attended by the organising team"
+                            >
+                              <CheckCircle2 size={12} className="text-green-400 flex-shrink-0" aria-hidden />
+                              Attended
+                            </span>
+                          )}
+                        </div>
                         <p className="text-xs text-gray-600">{s.date}</p>
                       </div>
-                      {attended ? (
-                        <CheckCircle2 size={16} className="text-green-400 flex-shrink-0" />
-                      ) : (
-                        <XCircle size={16} className="text-gray-700 flex-shrink-0" />
-                      )}
+                      {!attended && <XCircle size={16} className="text-gray-700 flex-shrink-0" aria-hidden />}
                     </div>
                   );
                 })}

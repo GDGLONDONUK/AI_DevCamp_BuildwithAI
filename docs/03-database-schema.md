@@ -60,7 +60,11 @@ Document ID = Firebase Auth UID (same for every user across the whole system).
 
   // Misc
   registeredSessions: string[]      // Legacy field — no longer used for session access
-  keepUpdated?:     boolean         // Newsletter / updates opt-in
+  keepUpdated?:     boolean         // Newsletter / updates opt-in (also set false when user leaves programme)
+  /** When true: user left the programme — no API access or app session until admin/mod clears this. */
+  programOptOut?:   boolean
+  /** ISO time when `programOptOut` was set true. */
+  programOptOutAt?: string
   createdAt:        Timestamp       // Set once at registration via serverTimestamp()
   updatedAt:        Timestamp       // Updated on every profile save
 
@@ -148,18 +152,22 @@ Document ID = `session-1`, `session-2`, … (set by admin at creation).
 
 ## `attendance/{uid}`
 
-Document ID = Firebase Auth UID (one per user). Each field is a session ID mapped to a boolean.
+Document ID = Firebase Auth UID (one per user). Session keys (`session-1`, `session-2`, …) map to **booleans** for whether the person attended that session.
 
 ```ts
 {
-  "session-1": true,   // attended
-  "session-2": false,  // did not attend
+  "session-1": true,
+  "session-2": false,
   "session-3": true,
-  // ... one key per session
+  // Optional — Kick Off (session-1): how they joined (venue vs stream); see src/lib/inPersonCheckin.ts
+  kickoffJoinedAs?: "in-person" | "online",
+  // Legacy import field may still be read for migration; prefer kickoffJoinedAs for new data
+  inPersonMay23_2026?: boolean,
+  updatedAt?: Timestamp,
 }
 ```
 
-This is a flat, sparse document — if a key doesn't exist the attendance is treated as `false`. Admins toggle these via the Attendance tab.
+This is a flat, sparse document — if a session key doesn't exist, attendance is treated as **not attended**. Admins update cells from the **Attendance** tab (including Kick Off join mode where applicable). The admin UI and exports may treat some values as `boolean | string` for legacy rows; session attendance toggles are booleans.
 
 ---
 

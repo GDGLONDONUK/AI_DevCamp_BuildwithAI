@@ -290,14 +290,21 @@ function AdminEmailPageInner() {
   // If custom recipients are loaded, use them directly; otherwise filter from pre-registered list
   const recipients: { email: string; name: string }[] = customRecipients
     ? customRecipients
-    : preRegistered.filter((u) => {
-        switch (filter) {
-          case "not-linked": return !hasAuthAccount(u);
-          case "linked":     return hasAuthAccount(u);
-          case "in-person":  return u.joiningInPerson?.toLowerCase().startsWith("y");
-          case "all":        return true;
-        }
-      }).map((u) => ({ email: u.email, name: u.displayName }));
+    : preRegistered
+        .filter((u) => u.programOptOut !== true)
+        .filter((u) => {
+          switch (filter) {
+            case "not-linked":
+              return !hasAuthAccount(u);
+            case "linked":
+              return hasAuthAccount(u);
+            case "in-person":
+              return u.joiningInPerson?.toLowerCase().startsWith("y");
+            case "all":
+              return true;
+          }
+        })
+        .map((u) => ({ email: u.email, name: u.displayName }));
 
   const handleSend = async () => {
     if (!recipients.length) { toast.error("No recipients selected"); return; }

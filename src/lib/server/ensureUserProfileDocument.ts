@@ -25,6 +25,9 @@ export async function ensureUserProfileForUid(uid: string): Promise<EnsureUserPr
     if (existing.data()?.accountDisabled === true) {
       throw new Error("ACCOUNT_DISABLED");
     }
+    if (existing.data()?.programOptOut === true) {
+      throw new Error("PROGRAM_OPT_OUT");
+    }
     return {
       profileExists: true,
       created: false,
@@ -50,6 +53,9 @@ export async function ensureUserProfileForUid(uid: string): Promise<EnsureUserPr
 
   if (pre && pre.accountDisabled === true) {
     throw new Error("ACCOUNT_DISABLED");
+  }
+  if (pre && pre.programOptOut === true) {
+    throw new Error("PROGRAM_OPT_OUT");
   }
 
   const preLocation = pre

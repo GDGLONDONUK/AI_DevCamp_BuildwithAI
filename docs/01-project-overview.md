@@ -62,8 +62,8 @@ Admins use a dedicated panel to take attendance, approve users, review submissio
 
 ## Key design decisions
 
-### 1. Client-side Firebase (no backend server)
-All data access goes through the Firebase JavaScript SDK directly from the browser. There is no custom API server. Security is enforced by **Firestore Security Rules** — these run inside Firebase and cannot be bypassed.
+### 1. Firebase + Next.js API routes
+Most reads and writes use the **Firebase JavaScript SDK** from the browser, with **Firestore Security Rules** as the primary data boundary. **Next.js route handlers** under `/api` use the **Firebase Admin SDK** for token verification, profile bootstrap (`/api/me/*`), privileged user updates, attendance APIs, bulk email, and other server-only operations. Rules still protect direct client access to Firestore.
 
 ### 2. App Router (not Pages Router)
 Next.js 16 uses the App Router. Every folder inside `src/app/` is a route. A `page.tsx` file inside a folder makes that URL public.

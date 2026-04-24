@@ -69,6 +69,17 @@ export async function verifyAuth(request: NextRequest): Promise<AuthResult | Nex
         { status: 403 }
       );
     }
+    if (userSnap.exists && userSnap.data()?.programOptOut === true) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error:
+            "You have left the programme. Contact the organisers if you need access again.",
+          code: "PROGRAM_OPT_OUT",
+        },
+        { status: 403 }
+      );
+    }
     const emailNorm = decoded.email?.toLowerCase().trim();
     if (emailNorm) {
       const emailSnap = await db.collection("users").doc(emailNorm).get();
@@ -78,6 +89,17 @@ export async function verifyAuth(request: NextRequest): Promise<AuthResult | Nex
             ok: false,
             error: "This account has been disabled. Contact the organisers if you need help.",
             code: "ACCOUNT_DISABLED",
+          },
+          { status: 403 }
+        );
+      }
+      if (emailSnap.exists && emailSnap.data()?.programOptOut === true) {
+        return NextResponse.json(
+          {
+            ok: false,
+            error:
+              "You have left the programme. Contact the organisers if you need access again.",
+            code: "PROGRAM_OPT_OUT",
           },
           { status: 403 }
         );

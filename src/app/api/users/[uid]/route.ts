@@ -8,7 +8,10 @@
  *
  * PATCH body (own profile — non-privileged fields only):
  *   { displayName, bio, city, country, linkedinUrl, githubUrl, websiteUrl,
- *     experienceLevel, skills, expertise, wantToLearn, canOffer, handle }
+ *     experienceLevel, skills, expertise, wantToLearn, canOffer, handle,
+ *     keepUpdated, … }
+ *
+ * programme opt-out / re-inclusion: admin/moderator only ({ programOptOut, programOptOutAt }).
  */
 
 import { NextRequest } from "next/server";
@@ -26,6 +29,8 @@ const PRIVILEGED_FIELDS = [
   "kickoffInPersonAdminConfirmed",
   "accountDisabled",
   "accountDisabledReason",
+  "programOptOut",
+  "programOptOutAt",
 ];
 
 // Fields a user may update on their own document

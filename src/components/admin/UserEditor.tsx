@@ -75,6 +75,7 @@ export default function UserEditor({ user, onClose, onSave, onDeleteUser, adminC
   const [role, setRole] = useState<UserRole>(user.role || "attendee");
   const [accountDisabled, setAccountDisabled] = useState(user.accountDisabled === true);
   const [accountDisabledReason, setAccountDisabledReason] = useState(user.accountDisabledReason || "");
+  const [programOptOut, setProgramOptOut] = useState(user.programOptOut === true);
 
   useEffect(() => {
     setDisplayName(user.displayName || "");
@@ -100,6 +101,7 @@ export default function UserEditor({ user, onClose, onSave, onDeleteUser, adminC
     setRole(user.role || "attendee");
     setAccountDisabled(user.accountDisabled === true);
     setAccountDisabledReason(user.accountDisabledReason || "");
+    setProgramOptOut(user.programOptOut === true);
   }, [user]);
 
   useEffect(() => {
@@ -164,6 +166,10 @@ export default function UserEditor({ user, onClose, onSave, onDeleteUser, adminC
         kickoffInPersonAdminConfirmed,
         accountDisabled,
         accountDisabledReason: accountDisabled ? accountDisabledReason.trim() || null : null,
+        programOptOut,
+        programOptOutAt: programOptOut
+          ? user.programOptOutAt || new Date().toISOString()
+          : null,
       };
 
       const rsvpAudit = adminContext
@@ -314,6 +320,21 @@ export default function UserEditor({ user, onClose, onSave, onDeleteUser, adminC
                 />
               </div>
             )}
+            <label className="mt-4 flex items-start gap-3 cursor-pointer rounded-lg border border-slate-500/25 bg-slate-500/5 px-3 py-3 has-[:focus-visible]:ring-1 has-[:focus-visible]:ring-slate-500">
+              <input
+                type="checkbox"
+                className="mt-0.5 h-4 w-4 rounded border-white/20 bg-gray-900 text-slate-400 focus:ring-slate-500"
+                checked={programOptOut}
+                onChange={(e) => setProgramOptOut(e.target.checked)}
+              />
+              <span>
+                <span className="block text-sm font-semibold text-slate-200/95">Left programme (de-registered)</span>
+                <span className="block text-[11px] text-gray-500 leading-snug mt-0.5">
+                  No site login or API access, and excluded from cohort bulk email, until you clear this. Users can
+                  de-register from the app; only admins can restore access here.
+                </span>
+              </span>
+            </label>
           </div>
 
           <div>

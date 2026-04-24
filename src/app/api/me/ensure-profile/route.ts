@@ -36,6 +36,17 @@ export async function POST(request: NextRequest) {
         { status: 403 }
       );
     }
+    if (message === "PROGRAM_OPT_OUT" || message.includes("PROGRAM_OPT_OUT")) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error:
+            "You have left the programme. Contact the organisers if you need access again.",
+          code: "PROGRAM_OPT_OUT",
+        },
+        { status: 403 }
+      );
+    }
     if (message.includes("not found") || message.includes("Auth user not found")) {
       return err("Firebase Auth user not found", 404);
     }

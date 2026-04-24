@@ -27,6 +27,7 @@ import {
   type KickoffJoinedAs,
 } from "@/lib/inPersonCheckin";
 import { uploadPreRegisteredCsv } from "@/lib/admin/uploadPreRegisteredCsv";
+import { receivesProgramCommunications } from "@/lib/programCommunications";
 import CountryFlag from "@/components/ui/CountryFlag";
 import PreRegisteredDetailModal from "@/features/admin/components/PreRegisteredDetailModal";
 import SessionEditor from "@/components/admin/SessionEditor";
@@ -195,6 +196,8 @@ export default function AdminPage() {
   const [dataLoading, setDataLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [togglingCell, setTogglingCell] = useState<string | null>(null);
+  /** Attendance tab: filter rows by session attended Y/N — value `"session-1:yes"` etc. */
+  const [attendanceSessionFilter, setAttendanceSessionFilter] = useState<string>("");
   const [editingSession, setEditingSession] = useState<Partial<Session> | null | false>(false); // false=closed, null=new
   const [usersView, setUsersView] = useState<"grid" | "table">("grid");
   const [statusFilter, setStatusFilter] = useState<"all" | UserStatus>("all");
@@ -553,7 +556,7 @@ export default function AdminPage() {
   }, [usersKickoffFiltered.length, USERS_PER_PAGE]);
 
   const usersListWithEmail = usersKickoffFiltered.filter(
-    (u) => Boolean(u.email?.trim()) && !u.accountDisabled
+    (u) => Boolean(u.email?.trim()) && receivesProgramCommunications(u)
   );
   const allVisibleUsersSelectedForEmail =
     usersListWithEmail.length > 0 &&
@@ -571,7 +574,7 @@ export default function AdminPage() {
 
   const toggleSelectAllUsersForEmail = () => {
     setSelectedUsersEmails((prev) => {
-      const withE = usersKickoffFiltered.filter((u) => u.email?.trim());
+      const withE = usersListWithEmail;
       const allIn = withE.length > 0 && withE.every((u) => prev.has(u.email!));
       const next = new Set(prev);
       if (allIn) {
@@ -604,15 +607,37 @@ export default function AdminPage() {
     window.open("/admin/email?source=selection", "_blank");
   };
 
+  /** Everyone who can have an attendance row (ignores search / status / session filters). */
+  const attendanceEligibleUsers = useMemo(
+    () => users.filter((u) => Boolean(u.uid) && u.signedIn !== false),
+    [users]
+  );
+
   const attendanceUsers = statusFilteredUsers.filter(
     (u) => u.uid && u.signedIn !== false
   );
 
-  /** Kick Off join mode (session-1 attended can be venue or online). */
+  const attendanceTableUsers = useMemo(() => {
+    let list = attendanceUsers;
+    if (attendanceSessionFilter) {
+      const colon = attendanceSessionFilter.indexOf(":");
+      if (colon !== -1) {
+        const sid = attendanceSessionFilter.slice(0, colon);
+        const yn = attendanceSessionFilter.slice(colon + 1);
+        const wantAttended = yn === "yes";
+        list = list.filter(
+          (u) => (attendance[u.uid]?.[sid] === true) === wantAttended
+        );
+      }
+    }
+    return list;
+  }, [attendanceUsers, attendance, attendanceSessionFilter]);
+
+  /** Kick Off join mode — counts all eligible users so numbers match imports (not search/status). */
   const kickoffJoinNoteStats = useMemo(() => {
     let inPerson = 0;
     let online = 0;
-    for (const u of attendanceUsers) {
+    for (const u of attendanceEligibleUsers) {
       const m = resolveKickoffJoinedAs(attendance[u.uid] as Record<string, unknown> | undefined);
       if (m === "in-person") inPerson++;
       else if (m === "online") online++;
@@ -622,10 +647,10 @@ export default function AdminPage() {
       inPerson,
       online,
       noted,
-      unset: attendanceUsers.length - noted,
-      listed: attendanceUsers.length,
+      unset: attendanceEligibleUsers.length - noted,
+      listed: attendanceEligibleUsers.length,
     };
-  }, [attendanceUsers, attendance]);
+  }, [attendanceEligibleUsers, attendance]);
 
   const pendingUsers = users.filter((u) => (u.userStatus || "pending") === "pending");
 
@@ -863,8 +888,33 @@ export default function AdminPage() {
                   <span className="text-gray-500"> / {kickoffJoinNoteStats.listed}</span>{" "}
                   <span className="text-gray-500 text-xs">
                     Attended Y/N = joined the session; <strong className="text-amber-200/90">Joined as</strong> = venue
-                    vs stream.
+                    vs stream. Headline counts use everyone with an account (search/status filters do not apply).
                   </span>
+                </div>
+                <div className="mb-3 flex flex-wrap items-center gap-3">
+                  <label className="flex items-center gap-2 text-xs font-mono text-gray-400">
+                    <Filter size={14} className="text-gray-500 shrink-0" aria-hidden />
+                    Session attendance
+                    <select
+                      value={attendanceSessionFilter}
+                      onChange={(e) => setAttendanceSessionFilter(e.target.value)}
+                      className="bg-gray-900/80 border border-white/15 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:ring-1 focus:ring-green-500 min-w-[200px]"
+                      aria-label="Filter attendance table by session attended yes or no"
+                    >
+                      <option value="">All (no session filter)</option>
+                      {sessions.map((s) => (
+                        <optgroup key={s.id} label={`S${s.number} · ${s.title}`}>
+                          <option value={`${s.id}:yes`}>Attended (Y)</option>
+                          <option value={`${s.id}:no`}>Not attended (N)</option>
+                        </optgroup>
+                      ))}
+                    </select>
+                  </label>
+                  {attendanceSessionFilter && (
+                    <span className="text-[11px] font-mono text-gray-500">
+                      Showing {attendanceTableUsers.length} of {attendanceUsers.length} in current search/status view
+                    </span>
+                  )}
                 </div>
                 <div className="overflow-x-auto rounded-xl border border-white/8">
                 <table className="w-full text-sm">
@@ -907,14 +957,16 @@ export default function AdminPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {attendanceUsers.length === 0 && (
+                    {attendanceTableUsers.length === 0 && (
                       <tr>
                         <td colSpan={sessions.length + 4} className="text-center py-10 text-gray-500 font-mono">
-                          No users found
+                          {attendanceUsers.length === 0
+                            ? "No users in current search/status view"
+                            : "No rows match this session filter — try another session or clear the filter"}
                         </td>
                       </tr>
                     )}
-                    {attendanceUsers.map((u, idx) => {
+                    {attendanceTableUsers.map((u, idx) => {
                       const status = u.userStatus || "pending";
                       const sc = STATUS_CONFIG[status];
                       const country = u.country || "";
@@ -1321,7 +1373,7 @@ export default function AdminPage() {
                       const country = u.country || "";
                       const city = u.city || "";
                       const location = [city, country].filter(Boolean).join(", ");
-                      const canMail = Boolean(u.email?.trim()) && !u.accountDisabled;
+                      const canMail = Boolean(u.email?.trim()) && receivesProgramCommunications(u);
                       const rowSelected = canMail && selectedUsersEmails.has(u.email!);
 
                       return (
@@ -1365,6 +1417,11 @@ export default function AdminPage() {
                               {u.accountDisabled && (
                                 <span className="text-[10px] font-mono uppercase tracking-wide text-rose-300 bg-rose-500/15 border border-rose-500/35 px-1.5 py-0.5 rounded">
                                   Disabled
+                                </span>
+                              )}
+                              {u.programOptOut && (
+                                <span className="text-[10px] font-mono uppercase tracking-wide text-slate-300 bg-slate-500/15 border border-slate-500/35 px-1.5 py-0.5 rounded">
+                                  De-reg
                                 </span>
                               )}
                               {userAuthShowsGoogle(u) && (
@@ -1561,7 +1618,7 @@ export default function AdminPage() {
                           const country = u.country || "";
                           const city = u.city || "";
                           const location = [city, country].filter(Boolean).join(", ");
-                          const canMail = Boolean(u.email?.trim()) && !u.accountDisabled;
+                          const canMail = Boolean(u.email?.trim()) && receivesProgramCommunications(u);
                           const rowSelected = canMail && selectedUsersEmails.has(u.email!);
 
                           return (
@@ -1599,6 +1656,9 @@ export default function AdminPage() {
                                       )}
                                       {u.accountDisabled && (
                                         <span className="text-[9px] font-mono text-rose-300 border border-rose-500/35 px-1 rounded">off</span>
+                                      )}
+                                      {u.programOptOut && (
+                                        <span className="text-[9px] font-mono text-slate-400 border border-slate-500/35 px-1 rounded">de-reg</span>
                                       )}
                                       {userAuthShowsGoogle(u) && (
                                         <span className="text-[9px] font-mono text-amber-300/90 border border-amber-500/25 px-1 rounded">google</span>

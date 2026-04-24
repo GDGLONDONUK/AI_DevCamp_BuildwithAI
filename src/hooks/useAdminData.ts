@@ -14,7 +14,7 @@ export interface AdminData {
   assignments: Assignment[];
   projects: Project[];
   sessions: Session[];
-  attendance: Record<string, Record<string, boolean>>;
+  attendance: Record<string, Record<string, boolean | string>>;
   loading: boolean;
   error: string | null;
   refresh: () => Promise<void>;
@@ -25,7 +25,7 @@ export function useAdminData(): AdminData {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
-  const [attendance, setAttendance] = useState<Record<string, Record<string, boolean>>>({});
+  const [attendance, setAttendance] = useState<Record<string, Record<string, boolean | string>>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
