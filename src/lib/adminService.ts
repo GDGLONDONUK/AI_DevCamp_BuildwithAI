@@ -118,7 +118,21 @@ export async function toggleAttendance(
   current: boolean
 ): Promise<boolean> {
   const next = !current;
-  await setDoc(doc(db, "attendance", userId), { [sessionId]: next }, { merge: true });
+  const user = auth.currentUser;
+  if (!user) throw new Error("Not signed in");
+  const token = await user.getIdToken();
+  const res = await fetch(`/api/attendance/${userId}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ sessionId, attended: next }),
+  });
+  const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+  if (!res.ok || !json.ok) {
+    throw new Error(json.error || `Attendance update failed (${res.status})`);
+  }
   return next;
 }
 

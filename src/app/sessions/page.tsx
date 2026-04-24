@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSessions } from "@/hooks/useSessions";
 import { doc, getDoc } from "firebase/firestore";
@@ -10,6 +10,7 @@ import {
   ChevronDown, Lightbulb, BookOpen, Mic, Timer, CheckCircle2, Check,
 } from "lucide-react";
 import AuthModal from "@/components/AuthModal";
+import SessionSelfCheckInPanel from "@/components/SessionSelfCheckInPanel";
 import { Session } from "@/types";
 
 function groupByWeek(sessions: Session[]): Record<number, Session[]> {
@@ -32,12 +33,16 @@ export default function SessionsPage() {
   const hasSessionAccess =
     Boolean(user && userProfile) && st !== "pending" && st !== "failed";
 
-  useEffect(() => {
+  const reloadAttendance = useCallback(() => {
     if (!user) return;
     getDoc(doc(db, "attendance", user.uid)).then((snap) => {
       if (snap.exists()) setAttendance(snap.data() as Record<string, boolean>);
     });
   }, [user]);
+
+  useEffect(() => {
+    reloadAttendance();
+  }, [reloadAttendance]);
 
   const grouped = groupByWeek(sessions);
   const weekNums = Object.keys(grouped).map(Number).sort((a, b) => a - b);
@@ -112,8 +117,9 @@ export default function SessionsPage() {
             <CheckCircle2 size={15} className="text-green-400 flex-shrink-0" />
             <span>
               Sessions you attended are highlighted in green and show a check mark with{" "}
-              <strong className="text-green-300">Attended</strong> next to the title. Attendance is recorded by the
-              organising team.
+              <strong className="text-green-300">Attended</strong> next to the title. When hosts open a live window, you
+              can also mark yourself present with a 6-digit code on the session card. Otherwise attendance is set by
+              the organising team.
             </span>
           </div>
         )}
@@ -272,6 +278,16 @@ export default function SessionsPage() {
                               {/* ── Expanded detail ── */}
                               {isOpen && (
                                 <div className="px-5 pb-6 space-y-5 border-t border-white/8 pt-5">
+
+                                  {user && (
+                                    <SessionSelfCheckInPanel
+                                      sessionId={session.id}
+                                      expanded={isOpen}
+                                      hasSessionAccess={hasSessionAccess}
+                                      alreadyAttended={attended}
+                                      onAttended={reloadAttendance}
+                                    />
+                                  )}
 
                                   {/* Description */}
                                   {session.description && (

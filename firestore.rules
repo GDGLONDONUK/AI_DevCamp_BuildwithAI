@@ -71,6 +71,11 @@ service cloud.firestore {
       allow write: if isAdminOrMod();
     }
 
+    // Live self check-in config (6-digit code + window). Not public — attendees validate via API only.
+    match /session_self_checkin/{sessionId} {
+      allow read, write: if isAdminOrMod();
+    }
+
     // ── Attendance ────────────────────────────────────────────────────────────
     match /attendance/{userId} {
       // Owner can read their own record; admins/mods can read all.

@@ -1,9 +1,32 @@
 export type UserRole = "admin" | "moderator" | "attendee";
 export type UserStatus = "pending" | "participated" | "certified" | "not-certified" | "failed";
 
+export type AttendanceMarkSource = "admin" | "self_check_in";
+
+/** Per-session audit on `attendance/{uid}` under key `sessionAttendanceAudit`. */
+export interface SessionAttendanceAuditEntry {
+  createdBy: string;
+  updatedBy: string;
+  createdAt: string;
+  updatedAt: string;
+  source: AttendanceMarkSource;
+}
+
+/**
+ * Live self check-in window for a session. Stored in `session_self_checkin/{sessionId}` —
+ * not on `sessions/*` (sessions are public-read; the code must stay server- or admin-only).
+ */
+export interface SessionSelfCheckInDocument {
+  code: string;
+  opensAt: string;
+  closesAt: string;
+  updatedAt?: string;
+  updatedByUid?: string;
+}
+
 export interface AttendanceRecord {
   userId: string;
-  [sessionId: string]: boolean | string; // session-1, session-2...
+  [sessionId: string]: boolean | string | Record<string, SessionAttendanceAuditEntry> | undefined;
 }
 
 export interface UserProfile {

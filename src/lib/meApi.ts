@@ -45,6 +45,43 @@ export async function fetchMyPreregisteredRow(): Promise<UserProfile | null> {
 }
 
 /** Self-service programme leave (sets opt-out; user is signed out client-side after). */
+export interface CheckInStatusResult {
+  sessionId: string;
+  eligible: boolean;
+  active: boolean;
+  opensAt: string | null;
+  closesAt: string | null;
+}
+
+export async function fetchSessionCheckInStatus(sessionId: string): Promise<CheckInStatusResult | null> {
+  const user = auth.currentUser;
+  if (!user) return null;
+  const token = await user.getIdToken();
+  const res = await fetch(
+    `/api/me/attendance/check-in-status?sessionId=${encodeURIComponent(sessionId)}`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  const json = await res.json();
+  if (!json.ok) return null;
+  return json.data as CheckInStatusResult;
+}
+
+export async function postSelfAttendanceCheckIn(sessionId: string, code: string): Promise<void> {
+  const user = auth.currentUser;
+  if (!user) throw new Error("Not signed in");
+  const token = await user.getIdToken();
+  const res = await fetch("/api/me/attendance/self-check-in", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ sessionId, code }),
+  });
+  const json = await res.json();
+  if (!json.ok) throw new Error(json.error || "Check-in failed");
+}
+
 export async function leaveProgramOnServer(): Promise<void> {
   const user = auth.currentUser;
   if (!user) throw new Error("Not signed in");

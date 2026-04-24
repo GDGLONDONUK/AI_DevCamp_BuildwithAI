@@ -1,8 +1,12 @@
 "use client";
 
 import { useState, useEffect, KeyboardEvent } from "react";
-import { Session, Resource } from "@/types";
-import { X, Plus, Trash2, GripVertical, ExternalLink } from "lucide-react";
+import toast from "react-hot-toast";
+import { Session, Resource, SessionSelfCheckInDocument } from "@/types";
+import { X, Plus, Trash2, GripVertical, ExternalLink, KeyRound } from "lucide-react";
+import { doc, getDoc, setDoc, deleteDoc } from "firebase/firestore";
+import { db, auth } from "@/lib/firebase";
+import { SESSION_SELF_CHECKIN_COLLECTION } from "@/lib/sessionSelfCheckInConstants";
 
 interface Props {
   session: Partial<Session> | null;
@@ -34,9 +38,27 @@ function generateId(n: number) {
   return `session-${n}`;
 }
 
+function isoToDatetimeLocal(iso: string): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function randomSixDigitCode(): string {
+  const a = new Uint32Array(1);
+  crypto.getRandomValues(a);
+  return String(a[0]! % 1_000_000).padStart(6, "0");
+}
+
 export default function SessionEditor({ session, onSave, onClose }: Props) {
   const [form, setForm] = useState<Partial<Session>>(session ?? BLANK);
   const [saving, setSaving] = useState(false);
+  const [checkInEnabled, setCheckInEnabled] = useState(false);
+  const [liveCode, setLiveCode] = useState("");
+  const [liveOpens, setLiveOpens] = useState("");
+  const [liveCloses, setLiveCloses] = useState("");
 
   // Tag input states
   const [tagInput, setTagInput] = useState("");
@@ -50,6 +72,36 @@ export default function SessionEditor({ session, onSave, onClose }: Props) {
     setTagInput(""); setLearnInput(""); setBuildInput("");
     setResTitle(""); setResUrl("");
   }, [session]);
+
+  useEffect(() => {
+    const id = form.id;
+    if (!id) {
+      setCheckInEnabled(false);
+      setLiveCode("");
+      setLiveOpens("");
+      setLiveCloses("");
+      return;
+    }
+    let cancelled = false;
+    getDoc(doc(db, SESSION_SELF_CHECKIN_COLLECTION, id)).then((snap) => {
+      if (cancelled) return;
+      if (!snap.exists()) {
+        setCheckInEnabled(false);
+        setLiveCode("");
+        setLiveOpens("");
+        setLiveCloses("");
+        return;
+      }
+      const d = snap.data() as SessionSelfCheckInDocument;
+      setCheckInEnabled(true);
+      setLiveCode(d.code ?? "");
+      setLiveOpens(isoToDatetimeLocal(d.opensAt ?? ""));
+      setLiveCloses(isoToDatetimeLocal(d.closesAt ?? ""));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [form.id]);
 
   const set = (field: keyof Session, value: unknown) =>
     setForm((f) => ({ ...f, [field]: value }));
@@ -89,6 +141,39 @@ export default function SessionEditor({ session, onSave, onClose }: Props) {
     }
   }
 
+  async function persistSelfCheckIn(sessionId: string) {
+    const ref = doc(db, SESSION_SELF_CHECKIN_COLLECTION, sessionId);
+    if (!checkInEnabled) {
+      try {
+        await deleteDoc(ref);
+      } catch {
+        /* no document */
+      }
+      return;
+    }
+    if (!liveCode.trim() || !liveOpens || !liveCloses) {
+      toast.error("Live check-in: add a code and open/close times, or turn check-in off.");
+      throw new Error("Incomplete check-in settings");
+    }
+    const opensIso = new Date(liveOpens).toISOString();
+    const closesIso = new Date(liveCloses).toISOString();
+    if (new Date(closesIso).getTime() <= new Date(opensIso).getTime()) {
+      toast.error("Check-in close time must be after open time.");
+      throw new Error("Invalid check-in window");
+    }
+    await setDoc(
+      ref,
+      {
+        code: liveCode.replace(/\D/g, "").padStart(6, "0").slice(-6),
+        opensAt: opensIso,
+        closesAt: closesIso,
+        updatedAt: new Date().toISOString(),
+        updatedByUid: auth.currentUser?.uid ?? "",
+      },
+      { merge: true }
+    );
+  }
+
   // ── Save ──────────────────────────────────────────────────────────────────
   async function handleSave() {
     if (!form.title?.trim() || !form.date?.trim()) return;
@@ -96,6 +181,11 @@ export default function SessionEditor({ session, onSave, onClose }: Props) {
     const id = form.id || generateId(form.number ?? 1);
     try {
       await onSave({ ...BLANK, ...form, id } as Session);
+      try {
+        await persistSelfCheckIn(id);
+      } catch {
+        /* toast already shown */
+      }
     } finally {
       setSaving(false);
     }
@@ -395,6 +485,73 @@ export default function SessionEditor({ session, onSave, onClose }: Props) {
                 </li>
               ))}
             </ul>
+          </div>
+
+          {/* Live self check-in (code never on public session docs) */}
+          <div className="rounded-xl border border-cyan-500/25 bg-cyan-500/[0.06] p-4 space-y-3">
+            <div className="flex items-center gap-2 text-cyan-300 font-mono text-sm font-bold">
+              <KeyRound size={16} />
+              Live attendance code
+            </div>
+            <p className="text-xs text-gray-500 leading-snug">
+              Attendees signed into the app can mark themselves present during the window below by entering this
+              6-digit code on the session schedule. The code is stored separately from the public session document.
+            </p>
+            <label className="flex items-center gap-2 cursor-pointer select-none text-sm text-gray-300">
+              <input
+                type="checkbox"
+                checked={checkInEnabled}
+                onChange={(e) => {
+                  setCheckInEnabled(e.target.checked);
+                  if (!e.target.checked) setLiveCode("");
+                }}
+                className="w-4 h-4 accent-cyan-500"
+              />
+              Enable self check-in for this session
+            </label>
+            {checkInEnabled && (
+              <div className="space-y-3 pt-1">
+                <div className="flex flex-wrap items-end gap-2">
+                  <div className="flex-1 min-w-[140px]">
+                    <label className={labelClass}>6-digit code</label>
+                    <input
+                      value={liveCode}
+                      onChange={(e) => setLiveCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                      placeholder="000000"
+                      maxLength={6}
+                      className={fieldClass + " tracking-[0.35em] font-bold text-lg"}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setLiveCode(randomSixDigitCode())}
+                    className="px-3 py-2.5 text-xs font-mono font-semibold rounded-xl bg-cyan-500/20 text-cyan-200 border border-cyan-500/35 hover:bg-cyan-500/30"
+                  >
+                    Generate
+                  </button>
+                </div>
+                <div className="grid sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className={labelClass}>Window opens (local)</label>
+                    <input
+                      type="datetime-local"
+                      value={liveOpens}
+                      onChange={(e) => setLiveOpens(e.target.value)}
+                      className={fieldClass}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Window closes (local)</label>
+                    <input
+                      type="datetime-local"
+                      value={liveCloses}
+                      onChange={(e) => setLiveCloses(e.target.value)}
+                      className={fieldClass}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Flags */}

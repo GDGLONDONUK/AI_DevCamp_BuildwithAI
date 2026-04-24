@@ -7,9 +7,11 @@
  */
 
 import { NextRequest } from "next/server";
+import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase-admin";
 import { ok, err, requireAdmin, requireAdminOrSelf, isErrorResponse } from "@/lib/api-helpers";
 import { logServerRouteException } from "@/lib/server/appErrorLog";
+import { attendancePatchWithAudit } from "@/lib/attendanceAudit";
 
 type Params = { params: Promise<{ uid: string }> };
 
@@ -40,8 +42,15 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     if (!sessionId) return err("sessionId is required");
     if (typeof attended !== "boolean") return err("attended must be a boolean");
 
-    await adminDb().collection("attendance").doc(uid).set(
-      { [sessionId]: attended },
+    const ref = adminDb().collection("attendance").doc(uid);
+    const existing = await ref.get();
+    const existingData = existing.exists ? (existing.data() as Record<string, unknown>) : undefined;
+
+    await ref.set(
+      {
+        ...attendancePatchWithAudit(sessionId, attended, auth.uid, "admin", existingData),
+        updatedAt: FieldValue.serverTimestamp(),
+      },
       { merge: true }
     );
 
