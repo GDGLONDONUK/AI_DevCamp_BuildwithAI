@@ -5,7 +5,7 @@ AI_DevCamp_BuildwithAI/
 │
 ├── docs/                         ← You are here
 │
-├── public/                       ← Static assets served as-is
+├── public/                       ← Static assets: logo.png, banner.jpeg, favicon-*.png, apple-touch-icon.png
 │
 ├── src/
 │   ├── app/                      ← Next.js App Router (one folder = one URL)
@@ -28,8 +28,9 @@ AI_DevCamp_BuildwithAI/
 │   │   └── api/                  ← REST API (server-side, Firebase Admin SDK)
 │   │       ├── sessions/         ← GET list, POST create, GET/PUT/DELETE by id
 │   │       ├── users/            ← GET list (admin), GET/PATCH by uid
-│   │       ├── me/               ← ensure-profile, preregistered, link-preregister
-│   │       ├── attendance/       ← GET all, GET/PATCH by uid
+│   │       ├── me/               ← ensure-profile, leave-program, preregistered, link-preregister
+│   │       │   └── attendance/   ← self-check-in POST, check-in-status GET
+│   │       ├── attendance/       ← GET all, GET/PATCH by uid (PATCH writes sessionAttendanceAudit)
 │   │       ├── assignments/      ← GET list, POST submit, GET/PATCH by id
 │   │       ├── projects/         ← GET list, POST submit, GET/PATCH by id
 │   │       ├── email/send/      ← server email send
@@ -42,6 +43,8 @@ AI_DevCamp_BuildwithAI/
 │   │   ├── AuthModal.tsx         ← Sign-in modal (email + Google)
 │   │   ├── AuthenticatedMain.tsx ← App shell: profile completion, kickoff prompts, children
 │   │   ├── KickoffRsvpBanner.tsx ← Kick-off RSVP (23 Apr)
+│   │   ├── ProgramOptOutControl.tsx ← Leave programme (nav + dashboard)
+│   │   ├── SessionSelfCheckInPanel.tsx ← Live code check-in on /sessions (expanded card)
 │   │   ├── admin/
 │   │   │   ├── SessionEditor.tsx ← Create/edit session modal form
 │   │   │   ├── UserEditor.tsx    ← Admin edit user fields modal
@@ -86,8 +89,12 @@ AI_DevCamp_BuildwithAI/
 │   │   │   ├── nominatimGeocode.ts   ← Nominatim (OSM) for admin users map
 │   │   │   ├── userAdminView.ts     ← user doc → admin profile shape
 │   │   │   ├── mergePendingUserIntoProfile.ts
-│   │   │   └── …                  ← e.g. preRegisteredLookup, appErrorLog
+│   │   │   ├── selfCheckInCode.ts, selfCheckInWindow.ts, selfCheckInRateLimit.ts ← /api/me/attendance/*
+│   │   │   └── …                  ← e.g. preRegisteredLookup, appErrorLog, ensureUserProfileDocument
 │   │   ├── sessionService.ts     ← Session CRUD + seeding
+│   │   ├── sessionSelfCheckInConstants.ts ← Firestore collection name + audit field key
+│   │   ├── attendanceAudit.ts    ← Merge sessionAttendanceAudit on attendance writes
+│   │   ├── programCommunications.ts ← Eligibility for cohort email (programOptOut, accountDisabled)
 │   │   ├── flags.ts              ← Country → flag image URL
 │   │   └── utils.ts              ← cn() Tailwind class merger
 │   │
@@ -99,6 +106,9 @@ AI_DevCamp_BuildwithAI/
 │   │   └── index.ts              ← All TypeScript interfaces and types
 │   │
 │   └── proxy.ts                 ← Edge proxy (UX route protection, Next.js 16)
+│
+├── scripts/
+│   └── generate-favicons.ts      ← npm run generate-favicons — square PNGs from public/logo.png (requires sharp)
 │
 ├── firestore.rules               ← Firestore security rules (deployed to Firebase)
 ├── storage.rules                 ← Storage security rules (deployed to Firebase)
@@ -124,6 +134,9 @@ AI_DevCamp_BuildwithAI/
 | Admin users map (Nominatim geocoding) | `src/lib/server/nominatimGeocode.ts`, `src/app/api/admin/users-location-map/route.ts` |
 | Add admin-only UI tied to `/admin` | `src/features/admin/components/` |
 | Change session CRUD logic | `src/lib/sessionService.ts` |
+| Live check-in (code window) data shape / API | `session_self_checkin` in [03](./03-database-schema.md); `src/app/api/me/attendance/*`, `SessionEditor.tsx` |
+| Attendance audit map | `src/lib/attendanceAudit.ts`, `PATCH /api/attendance/[uid]` |
+| Regenerate favicons from logo | `npm run generate-favicons` |
 | Add a new TypeScript type | `src/types/index.ts` |
 | Change who can access what in the DB | `firestore.rules` |
 | Add/remove skill tag presets | `src/data/tags.ts` |

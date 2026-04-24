@@ -17,6 +17,15 @@ export const metadata: Metadata = {
   title: "AI DevCamp – Build with AI | GDG London",
   description:
     "A hands-on AI learning program by GDG London & Build with AI. Build multi-agent AI apps with TypeScript, Google ADK, Vertex AI, and the Model Context Protocol.",
+  icons: {
+    icon: [
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/favicon-48x48.png", sizes: "48x48", type: "image/png" },
+    ],
+    apple: "/apple-touch-icon.png",
+    shortcut: "/favicon-32x32.png",
+  },
   openGraph: {
     title: "AI DevCamp – Build with AI",
     description: "3-week hands-on AI learning program by GDG London",

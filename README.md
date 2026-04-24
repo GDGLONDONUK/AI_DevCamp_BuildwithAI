@@ -16,7 +16,8 @@ A web platform for the AI DevCamp programme. Attendees register, browse sessions
 - **User dashboard** — Personal progress overview
 - **Admin panel** — Attendance grid (per-session filters, Kick Off join mode), user management (including programme de-registration), status updates, session CRUD, users map (by location), CSV export with kick-off in-person fields
 - **Programme lifecycle** — Attendees can leave the programme (no app access until staff restore them); cohort email respects communications eligibility
-- **Session attendance (UI)** — Schedule and dashboard show an **Attended** label with a check where organisers marked attendance
+- **Session attendance** — Schedule and dashboard show an **Attended** label when marked; optional **live 6-digit self check-in** during a host-configured window (`session_self_checkin` + `/api/me/attendance/*`)
+- **Favicons** — `npm run generate-favicons` builds square icons from `public/logo.png`; see docs
 - **Error logging (Firestore)** — Client, React, and API failures are written to **`error_logs`** via the Admin SDK (never from the browser client). The collection **only appears in the Firebase console after the first document exists**; use **Test log** on **`/admin/errors`** to create one, or [open Firestore Data](https://console.firebase.google.com/project/buildwithai-gdglondon/firestore/databases/-default-/data) and look for the `error_logs` collection. Admins can search and filter in **`/admin/errors`**.
 
 ## Tech stack

@@ -8,13 +8,14 @@ We use **Cloud Firestore** — a NoSQL document database. Data is organised into
 
 ```
 Firestore
-├── users/          ← One document per registered user (or pending `users/{email}`)
-├── sessions/       ← One document per DevCamp session
-├── attendance/     ← One document per user, tracks which sessions they attended
-├── assignments/    ← One document per submitted weekly assignment
-├── projects/       ← One document per submitted final project
-├── tags/           ← Tag categories for forms (seeded via `POST /api/admin/tags`)
-└── error_logs/     ← Client and server errors (written only through Admin SDK / API; browse in `/admin/errors`)
+├── users/                 ← One document per registered user (or pending `users/{email}`)
+├── sessions/              ← One document per DevCamp session (public read — no secrets here)
+├── session_self_checkin/  ← Per-session live check-in: 6-digit code + time window (admin/moderator only)
+├── attendance/            ← One document per user: session booleans + optional audit map
+├── assignments/           ← One document per submitted weekly assignment
+├── projects/              ← One document per submitted final project
+├── tags/                  ← Tag categories for forms (seeded via `POST /api/admin/tags`)
+└── error_logs/            ← Client and server errors (Admin SDK / API only; `/admin/errors`)
 ```
 
 ---
@@ -150,6 +151,24 @@ Document ID = `session-1`, `session-2`, … (set by admin at creation).
 
 ---
 
+## `session_self_checkin/{sessionId}`
+
+Document ID = same as session id (e.g. `session-2`). **Not** stored on `sessions/*` because sessions are **public-read** and the code must not leak to anonymous clients.
+
+```ts
+{
+  code: string              // Six digits (leading zeros allowed), e.g. "042891"
+  opensAt: string           // ISO 8601 — window start
+  closesAt: string          // ISO 8601 — window end (must be after opensAt)
+  updatedAt?: string        // ISO (optional)
+  updatedByUid?: string    // Admin/moderator who last saved
+}
+```
+
+Configured from **Admin → Sessions → Session Editor → Live attendance code**. Attendees validate via **`POST /api/me/attendance/self-check-in`** (server reads this doc with Admin SDK). Firestore rules: **read/write only for `admin` / `moderator`**.
+
+---
+
 ## `attendance/{uid}`
 
 Document ID = Firebase Auth UID (one per user). Session keys (`session-1`, `session-2`, …) map to **booleans** for whether the person attended that session.
@@ -159,15 +178,27 @@ Document ID = Firebase Auth UID (one per user). Session keys (`session-1`, `sess
   "session-1": true,
   "session-2": false,
   "session-3": true,
-  // Optional — Kick Off (session-1): how they joined (venue vs stream); see src/lib/inPersonCheckin.ts
+
+  // Traceability for session marks (admin grid or self check-in)
+  sessionAttendanceAudit?: {
+    "session-1": {
+      createdBy: string       // uid
+      updatedBy: string
+      createdAt: string       // ISO
+      updatedAt: string
+      source: "admin" | "self_check_in"
+    },
+    // … per session id
+  },
+
+  // Kick Off (session-1): how they joined (venue vs stream); see src/lib/inPersonCheckin.ts
   kickoffJoinedAs?: "in-person" | "online",
-  // Legacy import field may still be read for migration; prefer kickoffJoinedAs for new data
-  inPersonMay23_2026?: boolean,
+  inPersonMay23_2026?: boolean,  // legacy; prefer kickoffJoinedAs
   updatedAt?: Timestamp,
 }
 ```
 
-This is a flat, sparse document — if a session key doesn't exist, attendance is treated as **not attended**. Admins update cells from the **Attendance** tab (including Kick Off join mode where applicable). The admin UI and exports may treat some values as `boolean | string` for legacy rows; session attendance toggles are booleans.
+This is a flat, sparse document — if a session key doesn't exist, attendance is treated as **not attended**. Admins update booleans from the **Attendance** tab via **`PATCH /api/attendance/[uid]`** (which merges **`sessionAttendanceAudit`**). Self check-in uses the same audit shape with `source: "self_check_in"`. Legacy imports may omit the audit map. The admin UI may still see `boolean | string` on rare legacy rows for non-session keys; session toggles are booleans.
 
 ---
 

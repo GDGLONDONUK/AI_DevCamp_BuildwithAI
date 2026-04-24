@@ -126,6 +126,8 @@ Attendees **cannot** PATCH `programOptOut` / `programOptOutAt`; they use **`POST
 |--------|------|--------------|
 | `POST` | `/api/me/ensure-profile` | Create `users/{uid}` if missing; merge and delete `users/{email}` when present. Returns **`403`** + **`PROGRAM_OPT_OUT`** if the user document or pending row is programme-opted-out. |
 | `POST` | `/api/me/leave-program` | **Bearer required.** Sets `programOptOut: true`, `programOptOutAt`, `keepUpdated: false` on `users/{uid}`. Caller must not already be blocked (same token checks as other routes). Client should sign out after success. |
+| `GET` | `/api/me/attendance/check-in-status` | **Bearer required.** Query `?sessionId=`. Returns `{ eligible, active, opensAt, closesAt }` — **no code** exposed. |
+| `POST` | `/api/me/attendance/self-check-in` | **Bearer required.** Body `{ sessionId, code }`. Validates window + code against `session_self_checkin`; sets `attendance/{uid}` and **`sessionAttendanceAudit`**. Idempotent if already marked. **`429`** if rate-limited. |
 | `GET` | `/api/me/preregistered` | Returns pending `users/{email}` row for the signed-in user’s email (for registration UI). |
 | `POST` | `/api/me/link-preregister` | Idempotently clean up after linking (removes email doc if still pending). |
 
@@ -172,7 +174,7 @@ Merge logic and field list: `src/lib/server/mergePendingUserIntoProfile.ts`.
 |--------|------|------|-------------|
 | `GET` | `/api/attendance` | Admin / Moderator | Get all users' attendance as a map |
 | `GET` | `/api/attendance/[uid]` | Admin / Moderator or self | Get one user's attendance record |
-| `PATCH` | `/api/attendance/[uid]` | Admin / Moderator | Toggle a session's attendance |
+| `PATCH` | `/api/attendance/[uid]` | Admin / Moderator | Toggle a session's attendance and merge **`sessionAttendanceAudit`** (`source: "admin"`) |
 
 **PATCH body:**
 ```json
@@ -181,6 +183,8 @@ Merge logic and field list: `src/lib/server/mergePendingUserIntoProfile.ts`.
   "attended": true
 }
 ```
+
+The admin UI calls this route via `toggleAttendance` in `adminService.ts` (not raw client `setDoc` on session keys) so audit fields stay consistent.
 
 **GET /api/attendance response:**
 ```json
@@ -275,7 +279,7 @@ src/
     └── api/
         ├── sessions/          ← GET (list), POST, GET/PUT/DELETE by id
         ├── users/             ← GET (list), GET/PATCH by uid
-        ├── me/                ← ensure-profile, leave-program, preregistered, link-preregister
+        ├── me/                ← ensure-profile, leave-program, attendance/*, preregistered, link-preregister
         ├── attendance/
         ├── assignments/
         ├── projects/
@@ -299,6 +303,7 @@ For the full list of route files, see `src/app/api/**/route.ts` in the repo.
 | `401` | Missing or invalid Authorization token |
 | `403` | Forbidden — insufficient role |
 | `404` | Resource not found |
+| `429` | Too many requests (e.g. self check-in code attempts) |
 | `500` | Server error — check server logs |
 
 ---

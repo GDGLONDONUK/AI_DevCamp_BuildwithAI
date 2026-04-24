@@ -74,7 +74,8 @@ After handling, the component strips `login` and `reset` from the URL with `hist
 |------|----------|
 | **Header** | **Add pending user** (opens modal) — same as pre-reg flow. Quick links: **Email**, **CSV Import**, **Users map** (`/admin/users-map`), **Error logs**, **Seed tags**, **Refresh**. **Bevy merge** is at `/admin/bevy` (also linked from `/admin/import`). |
 | **Users** | **Grid (cards)** and **table** view; **checkboxes** per user (with email); **select all**; bulk bar **Send email to N selected** (opens `/admin/email?source=selection` with `sessionStorage` recipients). **Download CSV** exports attendees with session attendance counts and profile fields, including **Kickoff in-person RSVP** (Yes/No) and **Joining in person** (text from `UserProfile.joiningInPerson`). Badges include **De-reg** for programme opt-out. **User Editor** can clear or set programme de-registration. |
-| **Attendance** | Grid of users × sessions; **filter** rows by attended / not attended for a chosen session. **Kick Off (session-1)** supports a **join mode** (in person vs online) stored on `attendance/{uid}` (`kickoffJoinedAs`), edited alongside the session cell. |
+| **Sessions (editor)** | **Live attendance code** — per session, admins can enable a **6-digit code** and **open/close** datetime window (`session_self_checkin/{sessionId}`). Saved with the session from **Session Editor**. Attendees use **`/sessions`** (expanded card) during the window; validation is server-side. |
+| **Attendance** | Grid of users × sessions; **filter** rows by attended / not attended for a chosen session. **Kick Off (session-1)** supports a **join mode** (in person vs online) on `attendance/{uid}` (`kickoffJoinedAs`). Grid toggles call **`PATCH /api/attendance/[uid]`** so **`sessionAttendanceAudit`** records **createdBy / updatedBy / createdAt / updatedAt / source**. |
 | **Users map** | `/admin/users-map` — map of where users are joining from when `location` or `city`/`country` is present. Server geocodes unique labels with **OpenStreetMap Nominatim** (rate-limited, cached in process). Admin-only UI; API `GET /api/admin/users-location-map` allows **admin** and **moderator** (same `requireAdmin` as other admin tools). |
 | **Pre-Registered** | Table with checkboxes, CSV upload, **Add person**, filters, detail modal. |
 | **User list** | Badges for **Google** / **email** sign-in from `authProviders` (or legacy `registrationSource`). |
@@ -86,6 +87,20 @@ After handling, the component strips `login` and `reset` from the URL with `hist
 ## Attendee UX: session attendance
 
 On **`/sessions`** (when signed in with access) and on the **`/dashboard`**, any session the organisers marked as attended shows **green highlighting**, a **check mark**, and the word **Attended** next to the session title. Data is read from **`attendance/{uid}`** in Firestore (`session-*` keys).
+
+When hosts enable **live check-in**, eligible users see a **code entry** on the **expanded** session card during the configured window. Wrong codes are rate-limited server-side.
+
+---
+
+## Favicons and touch icon
+
+Tab icons are **square PNGs** generated from **`public/logo.png`** (center crop) so wide banner logos stay sharp at small sizes.
+
+```bash
+npm run generate-favicons
+```
+
+Writes **`public/favicon-16x16.png`**, **`favicon-32x32.png`**, **`favicon-48x48.png`**, and **`apple-touch-icon.png`**. **`src/app/layout.tsx`** `metadata.icons` references these files. Re-run after replacing the logo, then commit the updated PNGs.
 
 ---
 

@@ -194,6 +194,14 @@ match /sessions/{sessionId} {
 }
 ```
 
+**Live check-in config is not public:**
+```
+match /session_self_checkin/{sessionId} {
+  allow read, write: if isAdminOrMod();
+}
+```
+Attendees never read the code from Firestore; they submit it to **`/api/me/attendance/self-check-in`**, which uses the Admin SDK.
+
 ---
 
 ## Firebase Storage rules (`storage.rules`)
