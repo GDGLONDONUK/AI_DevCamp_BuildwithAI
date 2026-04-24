@@ -91,6 +91,13 @@ export interface UserProfile {
   registered?: boolean;
   /** Whether this row is linked to Firebase Auth. False = pending import, doc id = email. */
   signedIn?: boolean;
+  /**
+   * When true, the person cannot use the app: ensure-profile, API calls, and client session
+   * are rejected; set by admins (e.g. bounced or invalid email).
+   */
+  accountDisabled?: boolean;
+  /** Optional note for admins (e.g. bounce reason). */
+  accountDisabledReason?: string;
   /** How the account was first provisioned in Firestore (admin / tooling). */
   registrationSource?: "google" | "password";
   /**

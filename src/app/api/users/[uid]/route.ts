@@ -20,7 +20,13 @@ import { FieldValue } from "firebase-admin/firestore";
 type Params = { params: Promise<{ uid: string }> };
 
 // Fields that only admins/moderators may change
-const PRIVILEGED_FIELDS = ["role", "userStatus", "kickoffInPersonAdminConfirmed"];
+const PRIVILEGED_FIELDS = [
+  "role",
+  "userStatus",
+  "kickoffInPersonAdminConfirmed",
+  "accountDisabled",
+  "accountDisabledReason",
+];
 
 // Fields a user may update on their own document
 const SELF_EDITABLE_FIELDS = [

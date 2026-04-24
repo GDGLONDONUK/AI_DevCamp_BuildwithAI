@@ -8,7 +8,7 @@ import { Assignment, Project, Session, UserProfile, UserStatus } from "@/types";
 import { getSessions, upsertSession, deleteSession, seedDefaultSessions } from "@/lib/sessionService";
 import {
   fetchAllUsers, fetchAllAssignments, fetchAllProjects, fetchAttendanceForUsers,
-  setUserStatus, setUserRole, setAssignmentStatus, setProjectStatus,
+  setUserStatus, setUserRole, setAssignmentStatus, setProjectStatus, deleteUserFromServer,
   updateProjectFields,
   toggleAttendance as toggleAttendanceSvc,
   updateUserFields,
@@ -435,6 +435,13 @@ export default function AdminPage() {
     toast.success("User updated");
   };
 
+  const handleDeleteUser = async (userDocId: string, options: { deleteAuthUser: boolean }) => {
+    await deleteUserFromServer(userDocId, { deleteAuthUser: options.deleteAuthUser });
+    setEditingUser(null);
+    await fetchAll();
+    toast.success("User deleted");
+  };
+
   const updateAssignmentStatus = async (id: string, status: Assignment["status"]) => {
     try {
       await setAssignmentStatus(id, status);
@@ -536,7 +543,9 @@ export default function AdminPage() {
     setUsersPage((p) => (p > max ? max : p));
   }, [usersKickoffFiltered.length, USERS_PER_PAGE]);
 
-  const usersListWithEmail = usersKickoffFiltered.filter((u) => Boolean(u.email?.trim()));
+  const usersListWithEmail = usersKickoffFiltered.filter(
+    (u) => Boolean(u.email?.trim()) && !u.accountDisabled
+  );
   const allVisibleUsersSelectedForEmail =
     usersListWithEmail.length > 0 &&
     usersListWithEmail.every((u) => selectedUsersEmails.has(u.email!));
@@ -1267,7 +1276,7 @@ export default function AdminPage() {
                       const country = u.country || "";
                       const city = u.city || "";
                       const location = [city, country].filter(Boolean).join(", ");
-                      const canMail = Boolean(u.email?.trim());
+                      const canMail = Boolean(u.email?.trim()) && !u.accountDisabled;
                       const rowSelected = canMail && selectedUsersEmails.has(u.email!);
 
                       return (
@@ -1306,6 +1315,11 @@ export default function AdminPage() {
                               {u.preRegistered && (
                                 <span className="text-[10px] font-mono uppercase tracking-wide text-blue-300 bg-blue-500/15 border border-blue-500/35 px-1.5 py-0.5 rounded">
                                   Form import
+                                </span>
+                              )}
+                              {u.accountDisabled && (
+                                <span className="text-[10px] font-mono uppercase tracking-wide text-rose-300 bg-rose-500/15 border border-rose-500/35 px-1.5 py-0.5 rounded">
+                                  Disabled
                                 </span>
                               )}
                               {userAuthShowsGoogle(u) && (
@@ -1502,7 +1516,7 @@ export default function AdminPage() {
                           const country = u.country || "";
                           const city = u.city || "";
                           const location = [city, country].filter(Boolean).join(", ");
-                          const canMail = Boolean(u.email?.trim());
+                          const canMail = Boolean(u.email?.trim()) && !u.accountDisabled;
                           const rowSelected = canMail && selectedUsersEmails.has(u.email!);
 
                           return (
@@ -1537,6 +1551,9 @@ export default function AdminPage() {
                                       {u.displayName}
                                       {u.preRegistered && (
                                         <span className="text-[9px] font-mono text-blue-300 border border-blue-500/35 px-1 rounded">form</span>
+                                      )}
+                                      {u.accountDisabled && (
+                                        <span className="text-[9px] font-mono text-rose-300 border border-rose-500/35 px-1 rounded">off</span>
                                       )}
                                       {userAuthShowsGoogle(u) && (
                                         <span className="text-[9px] font-mono text-amber-300/90 border border-amber-500/25 px-1 rounded">google</span>
@@ -2365,6 +2382,7 @@ export default function AdminPage() {
           }
           onClose={() => setEditingUser(null)}
           onSave={handleSaveUserEdit}
+          onDeleteUser={handleDeleteUser}
         />
       )}
 

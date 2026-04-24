@@ -56,6 +56,30 @@ export async function updateUserFields(userDocId: string, data: Record<string, u
   await updateDoc(doc(db, "users", userDocId), payload);
 }
 
+/**
+ * Admin-only: delete a `users/{docId}` document (doc id = Firebase uid or email for pending).
+ * Optionally deletes the Firebase Auth user and `attendance/{uid}` (server-side).
+ */
+export async function deleteUserFromServer(
+  userDocId: string,
+  options: { deleteAuthUser?: boolean } = {}
+): Promise<void> {
+  const token = await auth.currentUser?.getIdToken();
+  if (!token) throw new Error("Not signed in");
+  const q = options.deleteAuthUser ? "?auth=1" : "";
+  const res = await fetch(`/api/admin/users/${encodeURIComponent(userDocId)}${q}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(String((json as { error?: string }).error ?? res.status));
+  }
+  if (!(json as { ok?: boolean }).ok) {
+    throw new Error(String((json as { error?: string }).error ?? "not ok"));
+  }
+}
+
 // ── Attendance ────────────────────────────────────────────────────────────────
 
 export async function fetchAttendanceForUsers(

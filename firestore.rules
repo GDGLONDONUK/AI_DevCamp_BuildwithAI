@@ -31,7 +31,8 @@ service cloud.firestore {
     // Fields that only admins/moderators may change on a user document.
     function touchesPrivilegedFields() {
       return request.resource.data.diff(resource.data).affectedKeys()
-             .hasAny(['role', 'userStatus', 'kickoffInPersonAdminConfirmed']);
+             .hasAny(['role', 'userStatus', 'kickoffInPersonAdminConfirmed',
+                      'accountDisabled', 'accountDisabledReason']);
     }
 
     // ── Users ─────────────────────────────────────────────────────────────────

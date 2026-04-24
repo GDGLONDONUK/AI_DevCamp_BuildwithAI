@@ -57,7 +57,32 @@ export async function verifyAuth(request: NextRequest): Promise<AuthResult | Nex
   try {
     const decoded = await adminAuth().verifyIdToken(token);
     // Fetch the user's Firestore role
-    const userSnap = await adminDb().collection("users").doc(decoded.uid).get();
+    const db = adminDb();
+    const userSnap = await db.collection("users").doc(decoded.uid).get();
+    if (userSnap.exists && userSnap.data()?.accountDisabled === true) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "This account has been disabled. Contact the organisers if you need help.",
+          code: "ACCOUNT_DISABLED",
+        },
+        { status: 403 }
+      );
+    }
+    const emailNorm = decoded.email?.toLowerCase().trim();
+    if (emailNorm) {
+      const emailSnap = await db.collection("users").doc(emailNorm).get();
+      if (emailSnap.exists && emailSnap.data()?.accountDisabled === true) {
+        return NextResponse.json(
+          {
+            ok: false,
+            error: "This account has been disabled. Contact the organisers if you need help.",
+            code: "ACCOUNT_DISABLED",
+          },
+          { status: 403 }
+        );
+      }
+    }
     const role = (userSnap.data()?.role as string) ?? "attendee";
 
     return { uid: decoded.uid, email: decoded.email, role };

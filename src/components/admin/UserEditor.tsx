@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X, Loader2, Globe, User } from "lucide-react";
+import { X, Loader2, Globe, User, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
 import { UserProfile, UserRole, UserStatus } from "@/types";
 import StatusDropdown from "@/components/admin/StatusDropdown";
@@ -38,12 +38,16 @@ interface UserEditorProps {
   user: UserProfile;
   onClose: () => void;
   onSave: (uid: string, updates: Record<string, unknown>) => Promise<void>;
+  /** Remove this row from Firestore; optionally Firebase Auth (admin API). */
+  onDeleteUser?: (userDocId: string, options: { deleteAuthUser: boolean }) => Promise<void>;
   /** Who is saving (admin) — used to audit kick-off RSVP changes. */
   adminContext?: { uid: string; email: string; name?: string };
 }
 
-export default function UserEditor({ user, onClose, onSave, adminContext }: UserEditorProps) {
+export default function UserEditor({ user, onClose, onSave, onDeleteUser, adminContext }: UserEditorProps) {
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteAuthToo, setDeleteAuthToo] = useState(true);
   const [displayName, setDisplayName] = useState(user.displayName || "");
   const [handle, setHandle] = useState(user.handle || "");
   const [roleTitle, setRoleTitle] = useState(user.roleTitle || "");
@@ -69,6 +73,8 @@ export default function UserEditor({ user, onClose, onSave, adminContext }: User
   );
   const [userStatus, setUserStatus] = useState<UserStatus>(user.userStatus || "pending");
   const [role, setRole] = useState<UserRole>(user.role || "attendee");
+  const [accountDisabled, setAccountDisabled] = useState(user.accountDisabled === true);
+  const [accountDisabledReason, setAccountDisabledReason] = useState(user.accountDisabledReason || "");
 
   useEffect(() => {
     setDisplayName(user.displayName || "");
@@ -92,6 +98,8 @@ export default function UserEditor({ user, onClose, onSave, adminContext }: User
     setKickoffInPersonAdminConfirmed(user.kickoffInPersonAdminConfirmed === true);
     setUserStatus(user.userStatus || "pending");
     setRole(user.role || "attendee");
+    setAccountDisabled(user.accountDisabled === true);
+    setAccountDisabledReason(user.accountDisabledReason || "");
   }, [user]);
 
   useEffect(() => {
@@ -99,6 +107,30 @@ export default function UserEditor({ user, onClose, onSave, adminContext }: User
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
+
+  const submitDelete = async () => {
+    if (!onDeleteUser) return;
+    const docId = (user.firestoreId || user.uid) as string;
+    const authMsg = deleteAuthToo
+      ? " This will also remove their Firebase login."
+      : " Their Firebase login will remain.";
+    if (
+      !window.confirm(
+        `Delete this user from the database?${authMsg} This cannot be undone.`
+      )
+    ) {
+      return;
+    }
+    setDeleting(true);
+    try {
+      await onDeleteUser(docId, { deleteAuthUser: deleteAuthToo });
+      onClose();
+    } catch {
+      toast.error("Could not delete user");
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const submit = async () => {
     if (!displayName.trim()) return;
@@ -130,6 +162,8 @@ export default function UserEditor({ user, onClose, onSave, adminContext }: User
         userStatus,
         role,
         kickoffInPersonAdminConfirmed,
+        accountDisabled,
+        accountDisabledReason: accountDisabled ? accountDisabledReason.trim() || null : null,
       };
 
       const rsvpAudit = adminContext
@@ -250,6 +284,36 @@ export default function UserEditor({ user, onClose, onSave, adminContext }: User
                 </select>
               </div>
             </div>
+          </div>
+
+          <div>
+            <div className="text-[10px] font-mono text-rose-400 uppercase tracking-widest mb-2">Account lock</div>
+            <label className="flex items-start gap-3 cursor-pointer rounded-lg border border-rose-500/25 bg-rose-500/5 px-3 py-3 has-[:focus-visible]:ring-1 has-[:focus-visible]:ring-rose-500">
+              <input
+                type="checkbox"
+                className="mt-0.5 h-4 w-4 rounded border-white/20 bg-gray-900 text-rose-500 focus:ring-rose-500"
+                checked={accountDisabled}
+                onChange={(e) => setAccountDisabled(e.target.checked)}
+              />
+              <span>
+                <span className="block text-sm font-semibold text-rose-200/95">Disable account</span>
+                <span className="block text-[11px] text-gray-500 leading-snug mt-0.5">
+                  User cannot sign in, call APIs, or receive bulk email from admin. Use for bounced or invalid
+                  addresses.
+                </span>
+              </span>
+            </label>
+            {accountDisabled && (
+              <div className="mt-3">
+                <label className="block text-xs font-mono text-gray-500 mb-1">Reason (optional)</label>
+                <input
+                  value={accountDisabledReason}
+                  onChange={(e) => setAccountDisabledReason(e.target.value)}
+                  placeholder="e.g. mailbox not found"
+                  className={inputCls}
+                />
+              </div>
+            )}
           </div>
 
           <div>
@@ -416,23 +480,49 @@ export default function UserEditor({ user, onClose, onSave, adminContext }: User
           </div>
         </div>
 
-        <div className="sticky bottom-0 flex justify-end gap-2 px-5 py-4 border-t border-white/8 bg-[#0d1117]/95">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2 rounded-lg text-sm font-mono text-gray-400 border border-white/10 hover:border-white/20"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            disabled={saving || !displayName.trim()}
-            onClick={submit}
-            className="px-5 py-2 rounded-lg text-sm font-mono font-bold bg-green-500 hover:bg-green-400 text-gray-950 disabled:opacity-50 flex items-center gap-2"
-          >
-            {saving ? <Loader2 size={16} className="animate-spin" /> : null}
-            Save changes
-          </button>
+        <div className="sticky bottom-0 flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-t border-white/8 bg-[#0d1117]/95">
+          <div className="flex flex-col gap-2 min-w-[200px]">
+            {onDeleteUser ? (
+              <>
+                <label className="flex items-center gap-2 text-[11px] text-gray-500 font-mono cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    className="rounded border-white/20 bg-gray-900"
+                    checked={deleteAuthToo}
+                    onChange={(e) => setDeleteAuthToo(e.target.checked)}
+                  />
+                  Also delete Firebase login
+                </label>
+                <button
+                  type="button"
+                  disabled={deleting}
+                  onClick={submitDelete}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-mono text-rose-200 border border-rose-500/40 hover:bg-rose-500/10 disabled:opacity-50 w-fit"
+                >
+                  {deleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                  Delete user
+                </button>
+              </>
+            ) : null}
+          </div>
+          <div className="flex gap-2 ml-auto">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 rounded-lg text-sm font-mono text-gray-400 border border-white/10 hover:border-white/20"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={saving || !displayName.trim()}
+              onClick={submit}
+              className="px-5 py-2 rounded-lg text-sm font-mono font-bold bg-green-500 hover:bg-green-400 text-gray-950 disabled:opacity-50 flex items-center gap-2"
+            >
+              {saving ? <Loader2 size={16} className="animate-spin" /> : null}
+              Save changes
+            </button>
+          </div>
         </div>
       </div>
     </div>

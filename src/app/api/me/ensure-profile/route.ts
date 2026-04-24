@@ -8,7 +8,7 @@
  * Requires: Authorization: Bearer <Firebase ID token>
  */
 
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { verifyAuth, ok, err, isErrorResponse } from "@/lib/api-helpers";
 import { logServerRouteException } from "@/lib/server/appErrorLog";
 import { ensureUserProfileForUid } from "@/lib/server/ensureUserProfileDocument";
@@ -26,6 +26,16 @@ export async function POST(request: NextRequest) {
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
+    if (message === "ACCOUNT_DISABLED" || message.includes("ACCOUNT_DISABLED")) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "This account has been disabled. Contact the organisers if you need help.",
+          code: "ACCOUNT_DISABLED",
+        },
+        { status: 403 }
+      );
+    }
     if (message.includes("not found") || message.includes("Auth user not found")) {
       return err("Firebase Auth user not found", 404);
     }

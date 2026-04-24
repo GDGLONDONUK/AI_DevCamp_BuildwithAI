@@ -22,6 +22,9 @@ export async function ensureUserProfileForUid(uid: string): Promise<EnsureUserPr
   const userRef = db.collection("users").doc(uid);
   const existing = await userRef.get();
   if (existing.exists) {
+    if (existing.data()?.accountDisabled === true) {
+      throw new Error("ACCOUNT_DISABLED");
+    }
     return {
       profileExists: true,
       created: false,
@@ -44,6 +47,10 @@ export async function ensureUserProfileForUid(uid: string): Promise<EnsureUserPr
   const pending = await findPendingUserByEmail(db, email);
   const pre = pending?.data ?? null;
   const preDocId = pending?.docId;
+
+  if (pre && pre.accountDisabled === true) {
+    throw new Error("ACCOUNT_DISABLED");
+  }
 
   const preLocation = pre
     ? parseLocationFields(

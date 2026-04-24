@@ -7,7 +7,7 @@ import {
   useState,
   ReactNode,
 } from "react";
-import { User, onAuthStateChanged } from "firebase/auth";
+import { User, onAuthStateChanged, signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { getUserProfile, syncAuthProvidersToUserDoc } from "@/lib/auth";
 import { ensureProfileOnServer } from "@/lib/meApi";
@@ -42,7 +42,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           profile = await getUserProfile(user.uid);
         } catch (e) {
           console.error("ensureProfileOnServer", e);
+          if (e instanceof Error && e.message === "ACCOUNT_DISABLED") {
+            await signOut(auth);
+            setUserProfile(null);
+            return;
+          }
         }
+      }
+      if (profile?.accountDisabled === true) {
+        await signOut(auth);
+        setUserProfile(null);
+        return;
       }
       if (profile) {
         try {
@@ -51,6 +61,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } catch (e) {
           console.error("syncAuthProvidersToUserDoc", e);
         }
+      }
+      if (profile?.accountDisabled === true) {
+        await signOut(auth);
+        setUserProfile(null);
+        return;
       }
       setUserProfile(profile);
     } catch (e) {
@@ -73,7 +88,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             profile = await getUserProfile(firebaseUser.uid);
           } catch (e) {
             console.error("ensureProfileOnServer", e);
+            if (e instanceof Error && e.message === "ACCOUNT_DISABLED") {
+              await signOut(auth);
+              setUserProfile(null);
+              setLoading(false);
+              return;
+            }
           }
+        }
+        if (profile?.accountDisabled === true) {
+          await signOut(auth);
+          setUserProfile(null);
+          setLoading(false);
+          return;
         }
         if (profile) {
           try {
@@ -82,6 +109,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           } catch (e) {
             console.error("syncAuthProvidersToUserDoc", e);
           }
+        }
+        if (profile?.accountDisabled === true) {
+          await signOut(auth);
+          setUserProfile(null);
+          setLoading(false);
+          return;
         }
         setUserProfile(profile);
       } else {

@@ -20,7 +20,12 @@ export async function ensureProfileOnServer(): Promise<EnsureProfileResult> {
     headers: { Authorization: `Bearer ${token}` },
   });
   const json = await res.json();
-  if (!json.ok) throw new Error(json.error || "ensure-profile failed");
+  if (!json.ok) {
+    if (json.code === "ACCOUNT_DISABLED") {
+      throw new Error("ACCOUNT_DISABLED");
+    }
+    throw new Error(json.error || "ensure-profile failed");
+  }
   return json.data as EnsureProfileResult;
 }
 
