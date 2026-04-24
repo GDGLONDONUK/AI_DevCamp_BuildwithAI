@@ -301,7 +301,7 @@ export async function applyBevyMerge(bevyRows: BevyCsvRow[]): Promise<BevyMergeR
   return json.data as BevyMergeResponse;
 }
 
-/** Geocoded user locations for the admin map (Nominatim; may be slow on first load). */
+/** Geocoded user locations for the admin map (coords cached on each user doc after first hit). */
 export async function fetchUsersLocationMap(): Promise<UserMapPayload> {
   const token = await auth.currentUser?.getIdToken();
   if (!token) throw new Error("Not signed in");

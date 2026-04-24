@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "ensure-profiles": "tsx --env-file=.env.local scripts/ensure-profiles.ts",
+    "backfill-registration-map-coords": "tsx --env-file=.env.local scripts/backfill-registration-map-coords.ts",
     "generate-favicons": "tsx scripts/generate-favicons.ts"
   },
   "dependencies": {

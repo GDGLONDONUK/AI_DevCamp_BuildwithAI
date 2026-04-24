@@ -153,6 +153,15 @@ export interface UserProfile {
    * Omitted in normal app reads; set when listing users in admin.
    */
   firestoreId?: string;
+  /**
+   * Cached geocode for the admin users map (Nominatim). Valid while
+   * {@link registrationMapLabel} matches the current derived label from
+   * {@link location} / {@link city} / {@link country}.
+   */
+  registrationMapLabel?: string;
+  registrationMapLat?: number;
+  registrationMapLon?: number;
+  registrationMapGeocodedAt?: string;
 }
 
 /** One person presenting (session may list several). */

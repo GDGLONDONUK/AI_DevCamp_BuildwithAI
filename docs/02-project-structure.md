@@ -92,6 +92,7 @@ AI_DevCamp_BuildwithAI/
 │   │   │   └── uploadPreRegisteredCsv.ts ← POST pre-registered CSV to API + toast
 │   │   ├── server/              ← Server-only (API routes, serialisation)
 │   │   │   ├── nominatimGeocode.ts   ← Nominatim (OSM) for admin users map
+│   │   │   ├── registrationMapSync.ts ← Users map: labels, Firestore coord cache, batch persist
 │   │   │   ├── userAdminView.ts     ← user doc → admin profile shape
 │   │   │   ├── mergePendingUserIntoProfile.ts
 │   │   │   ├── selfCheckInCode.ts, selfCheckInWindow.ts, selfCheckInRateLimit.ts ← /api/me/attendance/*
@@ -116,6 +117,7 @@ AI_DevCamp_BuildwithAI/
 │
 ├── scripts/
 │   ├── ensure-profiles.ts        ← npm run ensure-profiles — backfill profiles by email (Admin SDK; pass emails as args)
+│   ├── backfill-registration-map-coords.ts ← npm run backfill-registration-map-coords — geocode & store map coords on user docs
 │   └── generate-favicons.ts      ← npm run generate-favicons — square PNGs from public/logo.png (requires sharp)
 │
 ├── firestore.rules               ← Firestore security rules (deployed to Firebase)
@@ -139,7 +141,7 @@ AI_DevCamp_BuildwithAI/
 | Change how login/logout works | `src/lib/auth.ts` |
 | Change what data admins can modify | `src/lib/adminService.ts` |
 | Admin CSV export (incl. kick-off in-person columns), pre-reg upload, date formatting | `src/lib/admin/*.ts` |
-| Admin users map (Nominatim geocoding) | `src/lib/server/nominatimGeocode.ts`, `src/app/api/admin/users-location-map/route.ts` |
+| Admin users map (Nominatim + per-user coord cache) | `src/lib/server/registrationMapSync.ts`, `nominatimGeocode.ts`, `scripts/backfill-registration-map-coords.ts` |
 | Add admin-only UI tied to `/admin` | `src/features/admin/components/` |
 | Change session CRUD logic | `src/lib/sessionService.ts` |
 | Session speaker list for schedule / admin | `src/lib/sessionSpeakers.ts` (`getSessionSpeakersList`) |

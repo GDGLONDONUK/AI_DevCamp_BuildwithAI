@@ -159,7 +159,7 @@ Merge logic and field list: `src/lib/server/mergePendingUserIntoProfile.ts`.
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| `GET` | `/api/admin/users-location-map` | Admin / Moderator | Returns geocoded points for the users map (Nominatim; slow on first run for many unique places). |
+| `GET` | `/api/admin/users-location-map` | Admin / Moderator | Returns geocoded points for the users map. Coordinates are read from each `users/*` doc when the stored label still matches profile location fields; otherwise Nominatim is used (~1 req/s) and results are written back. Pre-fill with `npm run backfill-registration-map-coords`. |
 | `GET` | `/api/admin/error-logs` | **Admin only** | Query `error_logs` (date range, search). |
 | `POST` | `/api/admin/error-logs/test` | **Admin only** | Inserts a test document into `error_logs` (e.g. from `/admin/errors`). |
 | `POST` | `/api/admin/tags` | Admin / Moderator | Seed or upsert tag categories. |

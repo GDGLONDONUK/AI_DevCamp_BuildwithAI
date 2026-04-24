@@ -82,8 +82,9 @@ export default function AdminUsersMapPage() {
           </div>
           <div className="flex items-center gap-2">
             <span className="text-xs text-gray-500 font-mono hidden sm:inline max-w-sm">
-              First load geocodes unique places via Nominatim and may take
-              1+ seconds per location.
+              Coordinates are saved on each user after the first successful geocode.
+              New places still use Nominatim (~1s each). Pre-fill with{" "}
+              <code className="text-gray-400">npm run backfill-registration-map-coords</code>.
             </span>
             <button
               type="button"
