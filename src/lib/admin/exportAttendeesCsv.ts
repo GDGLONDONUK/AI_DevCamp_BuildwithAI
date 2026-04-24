@@ -1,11 +1,18 @@
 import { UserProfile } from "@/types";
 import { Session } from "@/types";
-import { IN_PERSON_MAY23_2026_FIELD } from "@/lib/inPersonCheckin";
+import { resolveKickoffJoinedAs } from "@/lib/inPersonCheckin";
 import { formatAdminDateTime } from "./format";
+
+function kickoffJoinedLabel(uid: string, attendance: Record<string, Record<string, boolean | string>>): string {
+  const m = resolveKickoffJoinedAs(attendance[uid] as Record<string, unknown> | undefined);
+  if (m === "in-person") return "In person";
+  if (m === "online") return "Online";
+  return "";
+}
 
 export function exportAttendeesCsv(
   list: UserProfile[],
-  attendance: Record<string, Record<string, boolean>>,
+  attendance: Record<string, Record<string, boolean | string>>,
   sessions: Session[]
 ): void {
   const headers = [
@@ -20,7 +27,7 @@ export function exportAttendeesCsv(
     "RSVP set by (app or admin)",
     "RSVP set by admin email",
     "In person (admin confirmed)",
-    "In person 23 May (checked in)",
+    "S1 Kick Off — joined as (in person / online)",
     "Experience",
     "City",
     "Country",
@@ -36,7 +43,7 @@ export function exportAttendeesCsv(
     "Updated At",
   ];
   const attendanceCount = (uid: string) =>
-    sessions.filter((s) => attendance[uid]?.[s.id]).length;
+    sessions.filter((s) => attendance[uid]?.[s.id] === true).length;
 
   const rows = list.map((u) => [
     u.displayName || "",
@@ -56,7 +63,7 @@ export function exportAttendeesCsv(
     u.kickoffRsvpSetBy === "admin" ? "admin" : u.kickoffRsvpSetBy === "app" ? "app" : "",
     u.kickoffRsvpSetByAdminEmail || "",
     u.kickoffInPersonAdminConfirmed === true ? "Yes" : u.kickoffInPersonAdminConfirmed === false ? "No" : "",
-    attendance[u.uid]?.[IN_PERSON_MAY23_2026_FIELD] === true ? "Yes" : "No",
+    kickoffJoinedLabel(u.uid, attendance),
     u.experienceLevel || "",
     u.city || "",
     u.country || "",

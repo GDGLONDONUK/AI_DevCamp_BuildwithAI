@@ -13,13 +13,19 @@ import {
   toggleAttendance as toggleAttendanceSvc,
   updateUserFields,
   approveAllPendingUsersFromServer,
-  setAttendanceField,
+  setKickoffAttendanceNote,
 } from "@/lib/adminService";
 import { auth } from "@/lib/firebase";
 import { userAuthShowsGoogle, userAuthShowsPassword } from "@/lib/auth";
 import { formatAdminDateTime } from "@/lib/admin/format";
 import { exportAttendeesCsv } from "@/lib/admin/exportAttendeesCsv";
-import { IN_PERSON_MAY23_2026_FIELD } from "@/lib/inPersonCheckin";
+import {
+  IN_PERSON_MAY23_2026_FIELD,
+  KICKOFF_JOINED_AS_FIELD,
+  KICKOFF_SESSION_ID,
+  resolveKickoffJoinedAs,
+  type KickoffJoinedAs,
+} from "@/lib/inPersonCheckin";
 import { uploadPreRegisteredCsv } from "@/lib/admin/uploadPreRegisteredCsv";
 import CountryFlag from "@/components/ui/CountryFlag";
 import PreRegisteredDetailModal from "@/features/admin/components/PreRegisteredDetailModal";
@@ -171,9 +177,7 @@ function kickoffRsvpLabelForAdmin(u: UserProfile): string {
 }
 
 interface AttendanceMap {
-  [userId: string]: {
-    [sessionId: string]: boolean;
-  };
+  [userId: string]: Record<string, boolean | string>;
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -354,7 +358,7 @@ export default function AdminPage() {
   const toggleAttendance = async (userId: string, sessionId: string) => {
     const key = `${userId}_${sessionId}`;
     setTogglingCell(key);
-    const current = attendance[userId]?.[sessionId] ?? false;
+    const current = attendance[userId]?.[sessionId] === true;
     try {
       const next = await toggleAttendanceSvc(userId, sessionId, current);
       setAttendance((prev) => ({
@@ -368,21 +372,26 @@ export default function AdminPage() {
     }
   };
 
-  /** Admin: physical presence for 23 May (separate from session attendance). */
-  const toggleInPersonMay23 = async (userId: string) => {
-    const key = `${userId}_inPersonMay23`;
+  /** Kick Off (session-1): in person at venue vs online — note on `attendance/{uid}`. */
+  const setKickoffJoinNote = async (userId: string, mode: "" | KickoffJoinedAs) => {
+    const key = `${userId}_kickoffJoinNote`;
     setTogglingCell(key);
-    const field = IN_PERSON_MAY23_2026_FIELD;
-    const current = attendance[userId]?.[field] === true;
-    const next = !current;
+    const next = mode === "" ? null : mode;
     try {
-      await setAttendanceField(userId, field, next);
-      setAttendance((prev) => ({
-        ...prev,
-        [userId]: { ...(prev[userId] ?? {}), [field]: next },
-      }));
+      await setKickoffAttendanceNote(userId, next);
+      setAttendance((prev) => {
+        const row: Record<string, boolean | string> = { ...(prev[userId] ?? {}) };
+        if (next === null) {
+          delete row[KICKOFF_JOINED_AS_FIELD];
+          delete row[IN_PERSON_MAY23_2026_FIELD];
+        } else {
+          row[KICKOFF_JOINED_AS_FIELD] = next;
+          delete row[IN_PERSON_MAY23_2026_FIELD];
+        }
+        return { ...prev, [userId]: row };
+      });
     } catch {
-      toast.error("Failed to update in-person check-in");
+      toast.error("Failed to update Kick Off join note");
     } finally {
       setTogglingCell(null);
     }
@@ -599,14 +608,23 @@ export default function AdminPage() {
     (u) => u.uid && u.signedIn !== false
   );
 
-  /** In-person (not online) for 23 May — stored on `attendance/{uid}`, not as a session. */
-  const may23InPersonCheckInStats = useMemo(() => {
-    const field = IN_PERSON_MAY23_2026_FIELD;
-    let present = 0;
+  /** Kick Off join mode (session-1 attended can be venue or online). */
+  const kickoffJoinNoteStats = useMemo(() => {
+    let inPerson = 0;
+    let online = 0;
     for (const u of attendanceUsers) {
-      if (attendance[u.uid]?.[field] === true) present++;
+      const m = resolveKickoffJoinedAs(attendance[u.uid] as Record<string, unknown> | undefined);
+      if (m === "in-person") inPerson++;
+      else if (m === "online") online++;
     }
-    return { present, listed: attendanceUsers.length };
+    const noted = inPerson + online;
+    return {
+      inPerson,
+      online,
+      noted,
+      unset: attendanceUsers.length - noted,
+      listed: attendanceUsers.length,
+    };
   }, [attendanceUsers, attendance]);
 
   const pendingUsers = users.filter((u) => (u.userStatus || "pending") === "pending");
@@ -711,7 +729,7 @@ export default function AdminPage() {
 
   // ── Attendance summary (programme session Y/N only — S1…S6) ─────────────────
   const attendanceCount = (uid: string) =>
-    sessions.filter((s) => attendance[uid]?.[s.id]).length;
+    sessions.filter((s) => attendance[uid]?.[s.id] === true).length;
 
   // ── Guards ────────────────────────────────────────────────────────────────
   if (loading || !user || userProfile?.role !== "admin") {
@@ -834,12 +852,18 @@ export default function AdminPage() {
             {activeTab === "attendance" && (
               <div>
                 <div className="mb-4 p-4 rounded-xl border border-amber-500/30 bg-amber-500/8 font-mono text-sm text-amber-100/95">
-                  <span className="text-amber-400/90">23 May — came in person (not online): </span>
-                  <strong className="text-white text-lg">{may23InPersonCheckInStats.present}</strong>
-                  <span className="text-gray-500"> / {may23InPersonCheckInStats.listed}</span>{" "}
+                  <span className="text-amber-400/90">S1 Kick Off — join note: </span>
+                  <strong className="text-white">{kickoffJoinNoteStats.inPerson}</strong>
+                  <span className="text-gray-500"> in person</span>
+                  <span className="text-gray-600"> · </span>
+                  <strong className="text-sky-300/90">{kickoffJoinNoteStats.online}</strong>
+                  <span className="text-gray-500"> online</span>
+                  <span className="text-gray-600"> · </span>
+                  <span className="text-gray-500">{kickoffJoinNoteStats.unset} unset</span>
+                  <span className="text-gray-500"> / {kickoffJoinNoteStats.listed}</span>{" "}
                   <span className="text-gray-500 text-xs">
-                    Use the <strong className="text-amber-200/90">In person</strong> column (not session
-                    columns) to record who was physically there.
+                    Attended Y/N = joined the session; <strong className="text-amber-200/90">Joined as</strong> = venue
+                    vs stream.
                   </span>
                 </div>
                 <div className="overflow-x-auto rounded-xl border border-white/8">
@@ -855,20 +879,25 @@ export default function AdminPage() {
                       {sessions.map((s) => (
                         <th
                           key={s.id}
-                          className="text-center px-2 py-3 font-mono text-xs text-gray-400 uppercase tracking-wider whitespace-nowrap min-w-[90px]"
+                          className={`text-center px-2 py-3 font-mono text-xs uppercase tracking-wider whitespace-nowrap min-w-[90px] ${
+                            s.id === KICKOFF_SESSION_ID
+                              ? "text-amber-200/90 border-l-2 border-r-2 border-amber-500/35 bg-amber-500/5"
+                              : "text-gray-400"
+                          }`}
                         >
                           <div>S{s.number}</div>
                           <div className="text-gray-600 font-normal normal-case text-[10px] mt-0.5 truncate max-w-[80px]">
                             {s.title.split(" ").slice(0, 2).join(" ")}
                           </div>
+                          {s.id === KICKOFF_SESSION_ID && (
+                            <div className="font-normal normal-case text-[9px] mt-1 text-amber-400/85 leading-tight">
+                              Joined as
+                              <br />
+                              <span className="text-amber-500/70">(note)</span>
+                            </div>
+                          )}
                         </th>
                       ))}
-                      <th className="text-center px-2 py-3 font-mono text-xs text-amber-200/90 uppercase tracking-wider whitespace-nowrap min-w-[100px] border-l-2 border-amber-500/40 bg-amber-500/5">
-                        <div>In person</div>
-                        <div className="font-normal normal-case text-[10px] mt-0.5 text-amber-400/80">
-                          23 May (physically there)
-                        </div>
-                      </th>
                       <th className="text-center px-3 py-3 font-mono text-xs text-gray-400 uppercase tracking-wider min-w-[90px]">
                         Total
                       </th>
@@ -880,7 +909,7 @@ export default function AdminPage() {
                   <tbody>
                     {attendanceUsers.length === 0 && (
                       <tr>
-                        <td colSpan={sessions.length + 5} className="text-center py-10 text-gray-500 font-mono">
+                        <td colSpan={sessions.length + 4} className="text-center py-10 text-gray-500 font-mono">
                           No users found
                         </td>
                       </tr>
@@ -919,66 +948,82 @@ export default function AdminPage() {
 
                           {/* Session attendance (programme — can include online) */}
                           {sessions.map((s) => {
-                            const attended = attendance[u.uid]?.[s.id] ?? false;
+                            const attended = attendance[u.uid]?.[s.id] === true;
                             const cellKey = `${u.uid}_${s.id}`;
                             const isToggling = togglingCell === cellKey;
+                            const joinMode = resolveKickoffJoinedAs(
+                              attendance[u.uid] as Record<string, unknown> | undefined
+                            );
+                            const joinNoteKey = `${u.uid}_kickoffJoinNote`;
+                            const isTogglingJoinNote =
+                              s.id === KICKOFF_SESSION_ID && togglingCell === joinNoteKey;
+
+                            const attendButton = (
+                              <button
+                                type="button"
+                                onClick={() => toggleAttendance(u.uid, s.id)}
+                                disabled={isToggling}
+                                title={
+                                  attended
+                                    ? "Mark absent for this session"
+                                    : "Mark attended (this session — online or in person)"
+                                }
+                                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold transition-all disabled:opacity-50 min-w-[52px] justify-center ${
+                                  attended
+                                    ? "bg-green-500/25 text-green-300 border border-green-500/50 hover:bg-red-500/25 hover:text-red-300 hover:border-red-500/50"
+                                    : "bg-red-500/15 text-red-400 border border-red-500/30 hover:bg-green-500/15 hover:text-green-300 hover:border-green-500/30"
+                                }`}
+                              >
+                                {isToggling ? (
+                                  <span className="animate-spin text-xs">◌</span>
+                                ) : attended ? (
+                                  <>
+                                    <CheckCircle2 size={11} /> Y
+                                  </>
+                                ) : (
+                                  <>
+                                    <XCircle size={11} /> N
+                                  </>
+                                )}
+                              </button>
+                            );
+
+                            if (s.id !== KICKOFF_SESSION_ID) {
+                              return (
+                                <td key={s.id} className="px-2 py-3 text-center">
+                                  {attendButton}
+                                </td>
+                              );
+                            }
+
                             return (
-                              <td key={s.id} className="px-2 py-3 text-center">
-                                <button
-                                  onClick={() => toggleAttendance(u.uid, s.id)}
-                                  disabled={isToggling}
-                                  title={attended ? "Mark absent for this session" : "Mark attended (this session)"}
-                                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold transition-all disabled:opacity-50 min-w-[52px] justify-center ${
-                                    attended
-                                      ? "bg-green-500/25 text-green-300 border border-green-500/50 hover:bg-red-500/25 hover:text-red-300 hover:border-red-500/50"
-                                      : "bg-red-500/15 text-red-400 border border-red-500/30 hover:bg-green-500/15 hover:text-green-300 hover:border-green-500/30"
-                                  }`}
-                                >
-                                  {isToggling ? (
-                                    <span className="animate-spin text-xs">◌</span>
-                                  ) : attended ? (
-                                    <><CheckCircle2 size={11} /> Y</>
-                                  ) : (
-                                    <><XCircle size={11} /> N</>
-                                  )}
-                                </button>
+                              <td
+                                key={s.id}
+                                className="px-2 py-3 text-center border-l-2 border-r-2 border-amber-500/25 bg-amber-500/[0.04]"
+                              >
+                                <div className="flex flex-col items-center gap-2">
+                                  {attendButton}
+                                  <div className="w-full max-w-[120px] border-t border-amber-500/25 pt-2 flex flex-col items-center gap-1">
+                                    <select
+                                      value={joinMode ?? ""}
+                                      disabled={isTogglingJoinNote}
+                                      onChange={(e) => {
+                                        const v = e.target.value as "" | KickoffJoinedAs;
+                                        void setKickoffJoinNote(u.uid, v);
+                                      }}
+                                      aria-label="Kick Off (session 1) — joined in person or online"
+                                      title="How they joined Kick Off (session-1): venue vs online stream"
+                                      className="w-full bg-gray-900/90 border border-amber-500/35 rounded-lg px-1.5 py-1 text-[11px] text-amber-100 font-mono focus:outline-none focus:ring-1 focus:ring-amber-500 disabled:opacity-50"
+                                    >
+                                      <option value="">— not set</option>
+                                      <option value="in-person">In person</option>
+                                      <option value="online">Online</option>
+                                    </select>
+                                  </div>
+                                </div>
                               </td>
                             );
                           })}
-
-                          {/* In person 23 May (physically there — not a session row) */}
-                          <td className="px-2 py-3 text-center border-l border-amber-500/25 bg-amber-500/[0.03]">
-                            {(() => {
-                              const here = attendance[u.uid]?.[IN_PERSON_MAY23_2026_FIELD] === true;
-                              const cellKey = `${u.uid}_inPersonMay23`;
-                              const isToggling = togglingCell === cellKey;
-                              return (
-                                <button
-                                  type="button"
-                                  onClick={() => toggleInPersonMay23(u.uid)}
-                                  disabled={isToggling}
-                                  title={
-                                    here
-                                      ? "Clear — did not come in person / was online only"
-                                      : "Mark as physically present on 23 May (in person, not online only)"
-                                  }
-                                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold transition-all disabled:opacity-50 min-w-[52px] justify-center ${
-                                    here
-                                      ? "bg-amber-500/25 text-amber-200 border border-amber-500/50 hover:bg-red-500/20 hover:text-red-200 hover:border-red-500/40"
-                                      : "bg-red-500/10 text-red-300/80 border border-red-500/25 hover:bg-amber-500/20 hover:text-amber-200 hover:border-amber-500/40"
-                                  }`}
-                                >
-                                  {isToggling ? (
-                                    <span className="animate-spin text-xs">◌</span>
-                                  ) : here ? (
-                                    <><CheckCircle2 size={11} /> Y</>
-                                  ) : (
-                                    <><XCircle size={11} /> N</>
-                                  )}
-                                </button>
-                              );
-                            })()}
-                          </td>
 
                           {/* Total attended (sessions only) */}
                           <td className="px-3 py-3 text-center">

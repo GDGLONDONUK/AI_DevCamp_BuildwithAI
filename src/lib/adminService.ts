@@ -2,9 +2,26 @@
  * adminService — all admin-only Firestore mutations in one place.
  * UI components call these functions; no raw Firestore calls in admin page.tsx.
  */
-import { collection, doc, getDocs, updateDoc, getDoc, setDoc, orderBy, query, writeBatch, serverTimestamp } from "firebase/firestore";
+import {
+  collection,
+  doc,
+  getDocs,
+  updateDoc,
+  getDoc,
+  setDoc,
+  orderBy,
+  query,
+  writeBatch,
+  serverTimestamp,
+  deleteField,
+} from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
 import { stripUndefinedForFirestoreClient } from "@/lib/stripUndefinedFirestore";
+import {
+  IN_PERSON_MAY23_2026_FIELD,
+  KICKOFF_JOINED_AS_FIELD,
+  type KickoffJoinedAs,
+} from "@/lib/inPersonCheckin";
 import { Assignment, AppErrorLog, Project, UserMapPayload, UserProfile, UserStatus } from "@/types";
 import type { BevyCsvRow, BevyMergePlan } from "@/lib/admin/bevyMerge";
 
@@ -84,12 +101,12 @@ export async function deleteUserFromServer(
 
 export async function fetchAttendanceForUsers(
   uids: string[]
-): Promise<Record<string, Record<string, boolean>>> {
-  const result: Record<string, Record<string, boolean>> = {};
+): Promise<Record<string, Record<string, boolean | string>>> {
+  const result: Record<string, Record<string, boolean | string>> = {};
   await Promise.all(
     uids.map(async (uid) => {
       const snap = await getDoc(doc(db, "attendance", uid));
-      result[uid] = snap.exists() ? (snap.data() as Record<string, boolean>) : {};
+      result[uid] = snap.exists() ? (snap.data() as Record<string, boolean | string>) : {};
     })
   );
   return result;
@@ -112,6 +129,38 @@ export async function setAttendanceField(
   value: boolean
 ): Promise<void> {
   await setDoc(doc(db, "attendance", userId), { [field]: value }, { merge: true });
+}
+
+/**
+ * Kick Off (session-1) join mode: in person at venue vs online.
+ * Clears legacy `inPersonMay23_2026` when setting or clearing this note.
+ */
+export async function setKickoffAttendanceNote(
+  userId: string,
+  mode: KickoffJoinedAs | null
+): Promise<void> {
+  const ref = doc(db, "attendance", userId);
+  if (mode === null) {
+    await setDoc(
+      ref,
+      {
+        [KICKOFF_JOINED_AS_FIELD]: deleteField(),
+        [IN_PERSON_MAY23_2026_FIELD]: deleteField(),
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+  } else {
+    await setDoc(
+      ref,
+      {
+        [KICKOFF_JOINED_AS_FIELD]: mode,
+        [IN_PERSON_MAY23_2026_FIELD]: deleteField(),
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+  }
 }
 
 // ── Assignments ───────────────────────────────────────────────────────────────
