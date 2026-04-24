@@ -14,6 +14,8 @@ import { adminDb } from "@/lib/firebase-admin";
 import { ok, created, err, verifyAuth, isErrorResponse } from "@/lib/api-helpers";
 import { logServerRouteException } from "@/lib/server/appErrorLog";
 import { FieldValue } from "firebase-admin/firestore";
+import { parseJsonBody } from "@/lib/api/parseJsonBody";
+import { projectCreateSchema } from "@/lib/api/schemas/requestBodies";
 
 export async function GET(request: NextRequest) {
   const auth = await verifyAuth(request);
@@ -41,12 +43,9 @@ export async function POST(request: NextRequest) {
   if (isErrorResponse(auth)) return auth;
 
   try {
-    const body = await request.json();
-    const { title, description, techStack, weekCompleted } = body;
-
-    if (!title || !description) {
-      return err("title and description are required");
-    }
+    const parsed = await parseJsonBody(request, projectCreateSchema);
+    if (!parsed.ok) return parsed.response;
+    const { title, description, techStack, weekCompleted, githubUrl, demoUrl } = parsed.data;
 
     const userSnap = await adminDb().collection("users").doc(auth.uid).get();
     const userData = userSnap.data();
@@ -57,10 +56,10 @@ export async function POST(request: NextRequest) {
       userName:      userData?.displayName ?? "",
       title,
       description,
-      techStack:     Array.isArray(techStack) ? techStack : [],
-      githubUrl:     body.githubUrl ?? "",
-      demoUrl:       body.demoUrl   ?? "",
-      weekCompleted: Number(weekCompleted) || 4,
+      techStack,
+      githubUrl,
+      demoUrl,
+      weekCompleted,
       status:        "submitted",
       submittedAt:   FieldValue.serverTimestamp(),
     };

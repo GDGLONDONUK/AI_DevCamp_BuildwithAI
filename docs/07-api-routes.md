@@ -51,6 +51,10 @@ Every response is JSON with a consistent envelope:
 { "ok": false, "error": "Human-readable message" }
 ```
 
+### Request body validation
+
+Several mutating handlers validate JSON bodies with **Zod** before touching Firestore: invalid JSON returns `400` with `"Invalid JSON body"`; schema failures return `400` with a short, field-oriented message. Shared helper: `src/lib/api/parseJsonBody.ts`; schemas: `src/lib/api/schemas/requestBodies.ts`. Extend these patterns when adding new POST/PATCH routes.
+
 ---
 
 ## Endpoints

@@ -21,6 +21,8 @@ import {
 } from "@/lib/server/selfCheckInRateLimit";
 import { isSelfCheckInWindowOpen } from "@/lib/server/selfCheckInWindow";
 import type { SessionSelfCheckInDocument } from "@/types";
+import { parseJsonBody } from "@/lib/api/parseJsonBody";
+import { selfCheckInBodySchema } from "@/lib/api/schemas/requestBodies";
 
 function canSelfCheckInStatus(userStatus: unknown): boolean {
   return (
@@ -35,12 +37,9 @@ export async function POST(request: NextRequest) {
   if (isErrorResponse(auth)) return auth;
 
   try {
-    const body = await request.json();
-    const sessionId = typeof body.sessionId === "string" ? body.sessionId.trim() : "";
-    const codeRaw = typeof body.code === "string" ? body.code : "";
-
-    if (!sessionId) return err("sessionId is required");
-    if (!codeRaw.trim()) return err("code is required");
+    const parsed = await parseJsonBody(request, selfCheckInBodySchema);
+    if (!parsed.ok) return parsed.response;
+    const { sessionId, code: codeRaw } = parsed.data;
 
     const userSnap = await adminDb().collection("users").doc(auth.uid).get();
     const userStatus = userSnap.exists ? userSnap.data()?.userStatus : undefined;

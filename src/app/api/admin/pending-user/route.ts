@@ -13,6 +13,8 @@ import { ok, err, requireAdmin } from "@/lib/api-helpers";
 import { logServerRouteException } from "@/lib/server/appErrorLog";
 import { parseLocationFields } from "@/lib/locationCleanup";
 import { formTimestampToIso } from "@/lib/formTimestamp";
+import { parseJsonBody } from "@/lib/api/parseJsonBody";
+import { pendingUserBodySchema } from "@/lib/api/schemas/requestBodies";
 
 function normalizeEmail(raw: string): string | null {
   const e = raw.toLowerCase().trim();
@@ -25,8 +27,10 @@ export async function POST(request: NextRequest) {
   if (auth instanceof Response) return auth;
 
   try {
-    const body = (await request.json()) as Record<string, unknown>;
-    const email = normalizeEmail(String(body.email ?? ""));
+    const parsed = await parseJsonBody(request, pendingUserBodySchema);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.data;
+    const email = normalizeEmail(body.email);
     if (!email) {
       return err("Valid email is required");
     }

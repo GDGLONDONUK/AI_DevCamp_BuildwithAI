@@ -11,6 +11,8 @@ import { adminDb } from "@/lib/firebase-admin";
 import { ok, err, verifyAuth, requireAdmin, isErrorResponse } from "@/lib/api-helpers";
 import { logServerRouteException } from "@/lib/server/appErrorLog";
 import { FieldValue } from "firebase-admin/firestore";
+import { parseJsonBody } from "@/lib/api/parseJsonBody";
+import { projectAdminPatchSchema } from "@/lib/api/schemas/requestBodies";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -44,11 +46,9 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   if (isErrorResponse(auth)) return auth;
 
   try {
-    const { status, feedback } = await request.json();
-
-    if (status && !VALID_STATUSES.includes(status)) {
-      return err(`status must be one of: ${VALID_STATUSES.join(", ")}`);
-    }
+    const parsed = await parseJsonBody(request, projectAdminPatchSchema);
+    if (!parsed.ok) return parsed.response;
+    const { status, feedback } = parsed.data;
 
     const update: Record<string, unknown> = { updatedAt: FieldValue.serverTimestamp() };
     if (status)   update.status   = status;

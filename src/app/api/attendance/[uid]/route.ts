@@ -12,6 +12,8 @@ import { adminDb } from "@/lib/firebase-admin";
 import { ok, err, requireAdmin, requireAdminOrSelf, isErrorResponse } from "@/lib/api-helpers";
 import { logServerRouteException } from "@/lib/server/appErrorLog";
 import { attendancePatchWithAudit } from "@/lib/attendanceAudit";
+import { parseJsonBody } from "@/lib/api/parseJsonBody";
+import { attendanceAdminPatchSchema } from "@/lib/api/schemas/requestBodies";
 
 type Params = { params: Promise<{ uid: string }> };
 
@@ -37,10 +39,9 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   if (isErrorResponse(auth)) return auth;
 
   try {
-    const { sessionId, attended } = await request.json();
-
-    if (!sessionId) return err("sessionId is required");
-    if (typeof attended !== "boolean") return err("attended must be a boolean");
+    const parsed = await parseJsonBody(request, attendanceAdminPatchSchema);
+    if (!parsed.ok) return parsed.response;
+    const { sessionId, attended } = parsed.data;
 
     const ref = adminDb().collection("attendance").doc(uid);
     const existing = await ref.get();

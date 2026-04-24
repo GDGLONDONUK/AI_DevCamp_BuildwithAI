@@ -11,10 +11,10 @@ import { adminDb } from "@/lib/firebase-admin";
 import { ok, err, verifyAuth, requireAdmin, isErrorResponse } from "@/lib/api-helpers";
 import { logServerRouteException } from "@/lib/server/appErrorLog";
 import { FieldValue } from "firebase-admin/firestore";
+import { parseJsonBody } from "@/lib/api/parseJsonBody";
+import { assignmentAdminPatchSchema } from "@/lib/api/schemas/requestBodies";
 
 type Params = { params: Promise<{ id: string }> };
-
-const VALID_STATUSES = ["submitted", "reviewed", "approved"];
 
 export async function GET(request: NextRequest, { params }: Params) {
   const { id } = await params;
@@ -44,11 +44,9 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   if (isErrorResponse(auth)) return auth;
 
   try {
-    const { status, feedback, grade } = await request.json();
-
-    if (status && !VALID_STATUSES.includes(status)) {
-      return err(`status must be one of: ${VALID_STATUSES.join(", ")}`);
-    }
+    const parsed = await parseJsonBody(request, assignmentAdminPatchSchema);
+    if (!parsed.ok) return parsed.response;
+    const { status, feedback, grade } = parsed.data;
 
     const update: Record<string, unknown> = { updatedAt: FieldValue.serverTimestamp() };
     if (status)   update.status   = status;

@@ -19,6 +19,8 @@ import { adminDb } from "@/lib/firebase-admin";
 import { ok, err, verifyAuth, requireAdminOrSelf, isErrorResponse } from "@/lib/api-helpers";
 import { logServerRouteException } from "@/lib/server/appErrorLog";
 import { FieldValue } from "firebase-admin/firestore";
+import { parseJsonBody } from "@/lib/api/parseJsonBody";
+import { userPatchBodySchema } from "@/lib/api/schemas/requestBodies";
 
 type Params = { params: Promise<{ uid: string }> };
 
@@ -72,7 +74,9 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   }
 
   try {
-    const body = await request.json();
+    const parsed = await parseJsonBody(request, userPatchBodySchema);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.data;
 
     // Build the update payload — enforce field-level access control
     const update: Record<string, unknown> = {};

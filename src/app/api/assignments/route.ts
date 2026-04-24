@@ -14,6 +14,8 @@ import { adminDb } from "@/lib/firebase-admin";
 import { ok, created, err, verifyAuth, requireAdmin, isErrorResponse } from "@/lib/api-helpers";
 import { logServerRouteException } from "@/lib/server/appErrorLog";
 import { FieldValue } from "firebase-admin/firestore";
+import { parseJsonBody } from "@/lib/api/parseJsonBody";
+import { assignmentCreateSchema } from "@/lib/api/schemas/requestBodies";
 
 export async function GET(request: NextRequest) {
   const auth = await verifyAuth(request);
@@ -42,12 +44,10 @@ export async function POST(request: NextRequest) {
   if (isErrorResponse(auth)) return auth;
 
   try {
-    const body = await request.json();
-    const { weekNumber, sessionId, title, description } = body;
-
-    if (!weekNumber || !title || !description) {
-      return err("weekNumber, title and description are required");
-    }
+    const parsed = await parseJsonBody(request, assignmentCreateSchema);
+    if (!parsed.ok) return parsed.response;
+    const { weekNumber, sessionId, title, description, githubUrl, notebookUrl, demoUrl } =
+      parsed.data;
 
     // Fetch user display name to denormalise into the document
     const userSnap = await adminDb().collection("users").doc(auth.uid).get();
@@ -57,13 +57,13 @@ export async function POST(request: NextRequest) {
       userId:      auth.uid,
       userEmail:   auth.email ?? "",
       userName:    userData?.displayName ?? "",
-      weekNumber:  Number(weekNumber),
-      sessionId:   sessionId ?? "",
+      weekNumber,
+      sessionId,
       title,
       description,
-      githubUrl:   body.githubUrl   ?? "",
-      notebookUrl: body.notebookUrl ?? "",
-      demoUrl:     body.demoUrl     ?? "",
+      githubUrl,
+      notebookUrl,
+      demoUrl,
       status:      "submitted",
       submittedAt: FieldValue.serverTimestamp(),
     };
