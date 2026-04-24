@@ -10,10 +10,20 @@ export function useSessions() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
     getSessions()
-      .then(setSessions)
-      .catch(() => setError("Failed to load sessions"))
-      .finally(() => setLoading(false));
+      .then((data) => {
+        if (!cancelled) setSessions(data);
+      })
+      .catch(() => {
+        if (!cancelled) setError("Failed to load sessions");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   return { sessions, loading, error };

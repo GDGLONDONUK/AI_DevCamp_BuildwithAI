@@ -10,14 +10,14 @@ A web platform for the AI DevCamp programme. Attendees register, browse sessions
 
 - **Firebase Auth** — Email/password & Google sign-in
 - **Multi-step registration** — Profile, skills, expertise, location
-- **Session schedule** — Live data from Firestore, managed by admins
+- **Session schedule** — Live data from Firestore; **multiple speakers** per session (name, title, photo); collapsed cards show a mic line; managed by admins
 - **Curriculum** — 4-week beginner AI learning roadmap
 - **Assignment & project submission** — Weekly work tracked per user
 - **User dashboard** — Personal progress overview
 - **Admin panel** — Attendance grid (per-session filters, Kick Off join mode), user management (including programme de-registration), status updates, session CRUD, users map (by location), CSV export with kick-off in-person fields
 - **Programme lifecycle** — Attendees can leave the programme (no app access until staff restore them); cohort email respects communications eligibility
 - **Session attendance** — Schedule and dashboard show an **Attended** label when marked; optional **live 6-digit self check-in** during a host-configured window (`session_self_checkin` + `/api/me/attendance/*`)
-- **Favicons** — `npm run generate-favicons` builds square icons from `public/logo.png`; see docs
+- **Tooling** — `npm run generate-favicons` (icons from `public/logo.png`); **`npm run ensure-profiles -- you@example.com`** backfills `users/{uid}` (Firebase Admin env in `.env.local`); see [docs/06-getting-started.md](./docs/06-getting-started.md)
 - **Error logging (Firestore)** — Client, React, and API failures are written to **`error_logs`** via the Admin SDK (never from the browser client). The collection **only appears in the Firebase console after the first document exists**; use **Test log** on **`/admin/errors`** to create one, or [open Firestore Data](https://console.firebase.google.com/project/buildwithai-gdglondon/firestore/databases/-default-/data) and look for the `error_logs` collection. Admins can search and filter in **`/admin/errors`**.
 
 ## Tech stack

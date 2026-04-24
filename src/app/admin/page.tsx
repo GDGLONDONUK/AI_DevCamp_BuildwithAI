@@ -75,6 +75,7 @@ import {
   isKickoffInPersonInApp,
   userMatchesInPersonLooseRsvp,
 } from "@/lib/kickoffRsvp";
+import { getSessionSpeakersList } from "@/lib/sessionSpeakers";
 import {
   type AdminConsoleTab,
   type AttendanceMap,
@@ -1960,7 +1961,9 @@ export default function AdminPage() {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {sessions.map((s) => (
+                    {sessions.map((s) => {
+                      const sessionSpeakers = getSessionSpeakersList(s);
+                      return (
                       <div key={s.id} className="bg-gray-900/50 border border-white/8 rounded-xl p-5 hover:border-white/15 transition-all">
                         <div className="flex flex-wrap items-start gap-4">
 
@@ -1993,18 +1996,31 @@ export default function AdminPage() {
                               {s.duration && <span>⏱ {s.duration}</span>}
                             </div>
 
-                            {/* Speaker */}
-                            {s.speaker && (
-                              <div className="flex items-center gap-2 mb-2">
-                                {s.speakerPhoto ? (
-                                  <img src={s.speakerPhoto} alt={s.speaker} className="w-6 h-6 rounded-full object-cover" />
-                                ) : (
-                                  <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-[10px] text-gray-400">
-                                    {s.speaker[0]}
+                            {/* Speakers */}
+                            {sessionSpeakers.length > 0 && (
+                              <div className="flex flex-wrap items-center gap-2 mb-2">
+                                {sessionSpeakers.map((sp, i) => (
+                                  <div
+                                    key={`${sp.name}-${i}`}
+                                    className="flex items-center gap-1.5 min-w-0 max-w-full"
+                                  >
+                                    {sp.photo ? (
+                                      <img
+                                        src={sp.photo}
+                                        alt={sp.name}
+                                        className="w-6 h-6 rounded-full object-cover shrink-0"
+                                      />
+                                    ) : (
+                                      <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-[10px] text-gray-400 shrink-0">
+                                        {sp.name[0] ?? "?"}
+                                      </div>
+                                    )}
+                                    <span className="text-xs text-gray-300 font-semibold truncate">{sp.name}</span>
+                                    {sp.title && (
+                                      <span className="text-xs text-gray-500 truncate hidden sm:inline">{sp.title}</span>
+                                    )}
                                   </div>
-                                )}
-                                <span className="text-xs text-gray-300 font-semibold">{s.speaker}</span>
-                                {s.speakerTitle && <span className="text-xs text-gray-500">{s.speakerTitle}</span>}
+                                ))}
                               </div>
                             )}
 
@@ -2089,7 +2105,8 @@ export default function AdminPage() {
                           </div>
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>

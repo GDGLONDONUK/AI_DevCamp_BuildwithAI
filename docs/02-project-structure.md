@@ -39,6 +39,8 @@ AI_DevCamp_BuildwithAI/
 │   │       └── admin/            ← preregistered, pending-user, error-logs, tags, bevy-merge, approve-all-users, users-location-map, …
 │   │
 │   ├── components/               ← Reusable UI pieces
+│   │   ├── icons/
+│   │   │   └── SocialBrandIcons.tsx ← LinkedIn / GitHub SVGs (profile, register, User Editor)
 │   │   ├── Navbar.tsx            ← Top navigation bar
 │   │   ├── AuthModal.tsx         ← Sign-in modal (email + Google)
 │   │   ├── AuthenticatedMain.tsx ← App shell: profile completion, kickoff prompts, children
@@ -53,7 +55,8 @@ AI_DevCamp_BuildwithAI/
 │   │   └── ui/
 │   │       ├── ProfileCompletion.tsx  ← Nudge to finish profile
 │   │       ├── Button.tsx        ← Reusable button component
-│   │       ├── Input.tsx         ← Labeled input with error state
+│   │       ├── Input.tsx         ← Labeled input (+ optional trailing slot, e.g. copy)
+│   │       ├── CopyTextButton.tsx ← Clipboard copy with toast
 │   │       ├── LocationPicker.tsx← City + country selector
 │   │       ├── SkillsSelector.tsx← Tag chip selector (skills, expertise…)
 │   │       └── CountryFlag.tsx   ← Renders a flag image from flagcdn.com
@@ -80,7 +83,9 @@ AI_DevCamp_BuildwithAI/
 │   │   ├── profileCompletion.ts  ← Profile completeness helpers (gating)
 │   │   ├── kickoffRsvp.ts        ← Kick-off RSVP labels and write payloads
 │   │   ├── adminService.ts       ← Admin Firestore + authenticated admin API fetches
-│   │   ├── admin/                ← Admin-only helpers (CSV, exports, shared formatting)
+│   │   ├── admin/                ← Admin-only helpers (CSV, exports, shared formatting, domain rules)
+│   │   │   ├── adminPageDomain.ts ← Pure admin UI rules (tab ids, kick-off filters, pre-reg dupes)
+│   │   │   ├── emailIdentity.ts  ← Canonical email / mailbox aliases (dedup, scripts)
 │   │   │   ├── format.ts         ← formatAdminDateTime (tables + CSV)
 │   │   │   ├── csvPreRegistered.ts ← parseCSVText, buildPreRegisteredUsersFromRows
 │   │   │   ├── exportAttendeesCsv.ts ← Download attendees as CSV (includes in-person columns)
@@ -91,6 +96,8 @@ AI_DevCamp_BuildwithAI/
 │   │   │   ├── mergePendingUserIntoProfile.ts
 │   │   │   ├── selfCheckInCode.ts, selfCheckInWindow.ts, selfCheckInRateLimit.ts ← /api/me/attendance/*
 │   │   │   └── …                  ← e.g. preRegisteredLookup, appErrorLog, ensureUserProfileDocument
+│   │   ├── logging/              ← redactEmail, logClientError (safer logs)
+│   │   ├── sessionSpeakers.ts   ← getSessionSpeakersList() — multi-speaker + legacy fallback
 │   │   ├── sessionService.ts     ← Session CRUD + seeding
 │   │   ├── sessionSelfCheckInConstants.ts ← Firestore collection name + audit field key
 │   │   ├── attendanceAudit.ts    ← Merge sessionAttendanceAudit on attendance writes
@@ -108,6 +115,7 @@ AI_DevCamp_BuildwithAI/
 │   └── proxy.ts                 ← Edge proxy (UX route protection, Next.js 16)
 │
 ├── scripts/
+│   ├── ensure-profiles.ts        ← npm run ensure-profiles — backfill profiles by email (Admin SDK; pass emails as args)
 │   └── generate-favicons.ts      ← npm run generate-favicons — square PNGs from public/logo.png (requires sharp)
 │
 ├── firestore.rules               ← Firestore security rules (deployed to Firebase)
@@ -134,6 +142,7 @@ AI_DevCamp_BuildwithAI/
 | Admin users map (Nominatim geocoding) | `src/lib/server/nominatimGeocode.ts`, `src/app/api/admin/users-location-map/route.ts` |
 | Add admin-only UI tied to `/admin` | `src/features/admin/components/` |
 | Change session CRUD logic | `src/lib/sessionService.ts` |
+| Session speaker list for schedule / admin | `src/lib/sessionSpeakers.ts` (`getSessionSpeakersList`) |
 | Live check-in (code window) data shape / API | `session_self_checkin` in [03](./03-database-schema.md); `src/app/api/me/attendance/*`, `SessionEditor.tsx` |
 | Attendance audit map | `src/lib/attendanceAudit.ts`, `PATCH /api/attendance/[uid]` |
 | Regenerate favicons from logo | `npm run generate-favicons` |

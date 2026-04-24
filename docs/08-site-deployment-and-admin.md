@@ -104,6 +104,18 @@ Writes **`public/favicon-16x16.png`**, **`favicon-32x32.png`**, **`favicon-48x48
 
 ---
 
+## CLI: profile backfill (`ensure-profiles`)
+
+For operators who need to run **`ensureUserProfileForEmail`** outside the app (same logic as `POST /api/me/ensure-profile`), use:
+
+```bash
+npm run ensure-profiles -- attendee@example.com
+```
+
+Requires Firebase Admin credentials in `.env.local` (same as local API routes). See [06-getting-started.md](./06-getting-started.md) §9.
+
+---
+
 ## Related docs
 
 - [04-auth-and-security.md](./04-auth-and-security.md) — proxy, CORS, layers

@@ -155,6 +155,13 @@ export interface UserProfile {
   firestoreId?: string;
 }
 
+/** One person presenting (session may list several). */
+export interface SessionSpeaker {
+  name: string;
+  title?: string;
+  photo?: string;
+}
+
 export interface Session {
   id: string;
   number: number;
@@ -165,6 +172,9 @@ export interface Session {
   week: number;
   topic: string;
   description: string;
+  /** Multiple speakers; when set (non-empty), takes precedence over legacy `speaker*` fields for display. */
+  speakers?: SessionSpeaker[];
+  /** @deprecated Prefer `speakers`; kept for backward compatibility and first-speaker mirror on save. */
   speaker?: string;
   speakerTitle?: string;
   speakerPhoto?: string;

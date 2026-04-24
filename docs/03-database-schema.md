@@ -125,10 +125,11 @@ Document ID = `session-1`, `session-2`, … (set by admin at creation).
   time:               string        // "6:00 PM – 9:00 PM"
   duration?:          string        // "3 hours"
 
-  // Speaker
-  speaker?:           string        // Speaker full name
-  speakerTitle?:      string        // Job title / company
-  speakerPhoto?:      string        // Photo URL
+  // Speaker(s) — prefer `speakers`; legacy single-speaker fields mirror the first entry on save
+  speakers?:          { name: string; title?: string; photo?: string }[]
+  speaker?:           string        // Legacy: primary name (kept in sync with speakers[0])
+  speakerTitle?:      string        // Legacy: primary title
+  speakerPhoto?:      string        // Legacy: primary photo URL
 
   // Content
   tags?:              string[]      // Topic tags, e.g. ["Python", "Beginner"]

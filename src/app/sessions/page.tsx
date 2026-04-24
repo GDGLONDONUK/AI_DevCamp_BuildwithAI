@@ -12,6 +12,7 @@ import {
 import AuthModal from "@/components/AuthModal";
 import SessionSelfCheckInPanel from "@/components/SessionSelfCheckInPanel";
 import { Session } from "@/types";
+import { getSessionSpeakersList } from "@/lib/sessionSpeakers";
 
 function groupByWeek(sessions: Session[]): Record<number, Session[]> {
   return sessions.reduce((acc, s) => {
@@ -164,6 +165,7 @@ export default function SessionsPage() {
                         const isOpen = expanded === session.id;
                         const isSpecial = session.isKickoff || session.isClosing;
                         const attended = attendance[session.id] === true;
+                        const speakersList = getSessionSpeakersList(session);
 
                         return (
                           <div key={session.id} className="flex gap-5">
@@ -256,6 +258,16 @@ export default function SessionsPage() {
                                       )}
                                     </div>
 
+                                    {/* Speakers (summary on collapsed card) */}
+                                    {speakersList.length > 0 && (
+                                      <div className="flex items-start gap-2 mt-2.5 text-sm text-gray-400">
+                                        <Mic size={14} className="text-green-500 shrink-0 mt-0.5" />
+                                        <span className="leading-snug">
+                                          {speakersList.map((s) => s.name).join(" · ")}
+                                        </span>
+                                      </div>
+                                    )}
+
                                     {/* Tags */}
                                     {session.tags && session.tags.length > 0 && (
                                       <div className="flex flex-wrap gap-1.5 mt-3">
@@ -296,28 +308,40 @@ export default function SessionsPage() {
                                     </p>
                                   )}
 
-                                  {/* Speaker */}
-                                  {session.speaker && (
-                                    <div className="flex items-center gap-3 bg-white/[0.03] border border-white/8 rounded-xl p-4">
-                                      {session.speakerPhoto ? (
-                                        <img
-                                          src={session.speakerPhoto}
-                                          alt={session.speaker}
-                                          className="w-12 h-12 rounded-full object-cover flex-shrink-0"
-                                        />
-                                      ) : (
-                                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-500 to-green-700 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
-                                          {session.speaker[0]}
-                                        </div>
-                                      )}
-                                      <div>
-                                        <div className="flex items-center gap-1.5">
-                                          <Mic size={13} className="text-green-400" />
-                                          <span className="text-base font-semibold text-white">{session.speaker}</span>
-                                        </div>
-                                        {session.speakerTitle && (
-                                          <p className="text-sm text-gray-500 mt-0.5">{session.speakerTitle}</p>
-                                        )}
+                                  {/* Speakers */}
+                                  {speakersList.length > 0 && (
+                                    <div className="space-y-3">
+                                      <div className="flex items-center gap-2 text-sm font-bold text-gray-400 uppercase tracking-wider">
+                                        <Mic size={14} className="text-green-400" />
+                                        {speakersList.length === 1 ? "Speaker" : "Speakers"}
+                                      </div>
+                                      <div className="space-y-3">
+                                        {speakersList.map((sp, i) => (
+                                          <div
+                                            key={`${sp.name}-${i}`}
+                                            className="flex items-center gap-3 bg-white/[0.03] border border-white/8 rounded-xl p-4"
+                                          >
+                                            {sp.photo ? (
+                                              <img
+                                                src={sp.photo}
+                                                alt={sp.name}
+                                                className="w-12 h-12 rounded-full object-cover flex-shrink-0"
+                                              />
+                                            ) : (
+                                              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-500 to-green-700 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
+                                                {sp.name[0] ?? "?"}
+                                              </div>
+                                            )}
+                                            <div className="min-w-0">
+                                              <div className="flex items-center gap-1.5 flex-wrap">
+                                                <span className="text-base font-semibold text-white">{sp.name}</span>
+                                              </div>
+                                              {sp.title && (
+                                                <p className="text-sm text-gray-500 mt-0.5">{sp.title}</p>
+                                              )}
+                                            </div>
+                                          </div>
+                                        ))}
                                       </div>
                                     </div>
                                   )}

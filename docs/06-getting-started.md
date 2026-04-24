@@ -151,10 +151,23 @@ firebase deploy
 ## 9. Project scripts
 
 ```bash
-npm run dev      # Start development server (localhost:3000)
-npm run build    # Build for production
-npm run start    # Run production build locally
-npm run lint     # Run ESLint
+npm run dev               # Start development server (localhost:3000)
+npm run build             # Build for production
+npm run start             # Run production build locally
+npm run lint              # Run ESLint
+npm run generate-favicons # Regenerate favicons + apple-touch-icon from public/logo.png (devDependency: sharp)
+npm run ensure-profiles -- user@example.com [another@example.com ...]
+```
+
+Emails after `--` are forwarded to the script (required). Uses `.env.local` via the script’s `--env-file` flag.
+
+### `ensure-profiles` (operators)
+
+Runs `scripts/ensure-profiles.ts` with the same **Firebase Admin** credentials as your API routes (however `src/lib/firebase-admin.ts` is configured). Examples:
+
+```bash
+npm run ensure-profiles -- user@example.com
+npx tsx --env-file=.env.local scripts/ensure-profiles.ts user@example.com other@example.com
 ```
 
 ---

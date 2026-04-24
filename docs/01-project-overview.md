@@ -16,12 +16,12 @@
 |------|------------------------|
 | **Auth** | Email/password and Google sign-in; password reset; deep links `/?login=1` and `/?login=1&reset=1`. |
 | **Registration** | Multi-step signup; pending `users/{email}` merged on first sign-in via `POST /api/me/ensure-profile`. |
-| **Sessions** | Schedule from Firestore; public browse; **recordings & rich content** gated to approved statuses (`participated`, `certified`). |
+| **Sessions** | Schedule from Firestore; **one or more speakers** per session (`speakers[]` + legacy single-speaker fields); public browse; **recordings & rich content** gated to approved statuses (`participated`, `certified`). |
 | **Attendance** | Admin grid + per-session filters; Kick Off **in-person vs online** note (`kickoffJoinedAs`); **live self check-in** (6-digit code + admin-defined time window) on `/sessions`; **Attended** badge on schedule + dashboard when marked. |
 | **Assignments & projects** | Submit, review, statuses; gallery-style project visibility where configured. |
 | **Dashboard** | Progress, programme communications opt-out / leave programme, session list with attendance labels. |
 | **Programme lifecycle** | **Leave programme** sets `programOptOut` → no API/session until admin clears; cohort email uses `receivesProgramCommunications()`. |
-| **Admin** | Users (grid/table, CSV export, bulk email, User Editor), Attendance, Sessions (CRUD + **live check-in config** in Session Editor), Pre-registered, Assignments, Projects, sub-routes: email, import, Bevy, errors, users map. |
+| **Admin** | Users (grid/table, CSV export, bulk email, User Editor), Attendance, Sessions (CRUD, **multi-speaker** editor, **live check-in config**), Pre-registered, Assignments, Projects, sub-routes: email, import, Bevy, errors, users map. |
 | **Observability** | Client/server errors to `error_logs`; `/admin/errors`. |
 | **Branding** | Navbar uses `public/logo.png`; **favicons** are generated square PNGs from the logo (`npm run generate-favicons`) — see [08-site-deployment-and-admin.md](./08-site-deployment-and-admin.md). |
 

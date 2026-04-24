@@ -48,5 +48,7 @@ Use this as a changelog-style index; details live in the linked docs.
 | **Auth & profile** | Password reset, `OpenLoginFromQuery`, **`ensure-profile`**, pending user merge, `authProviders` sync. [04](./04-auth-and-security.md). |
 | **Project layout** | [02-project-structure.md](./02-project-structure.md) — `src/app/api/me/attendance/*`, `attendanceAudit.ts`, `sessionSelfCheckInConstants.ts`, scripts. |
 | **Session gating** | Rich content for **`participated`** / **`certified`** (see sessions page). |
+| **Multi-speaker sessions** | `sessions.speakers[]` + legacy `speaker` / `speakerTitle` / `speakerPhoto`; `getSessionSpeakersList` in `src/lib/sessionSpeakers.ts`; Session Editor + `/sessions` schedule. [03](./03-database-schema.md), [02](./02-project-structure.md). |
+| **Shared UI / logging** | `SocialBrandIcons.tsx`; `src/lib/admin/*` domain helpers; `src/lib/logging/*` for safer client logs. [02](./02-project-structure.md). |
 
 Start with [01-project-overview.md](./01-project-overview.md) →
