@@ -233,6 +233,7 @@ When Firestore asks you to create an index:
 | `npm run build` fails | Run `npm run lint` first to find TypeScript/ESLint errors |
 | `"middleware" file convention is deprecated` warning | Rename `middleware.ts` → `proxy.ts` and the export `middleware` → `proxy` (Next.js 16) |
 | Stale TypeScript build errors after fixing code | Delete the `.next/` folder and run `npm run build` again |
+| Safari / iPhone: **“Connection to Indexed Database server lost”** | WebKit + Firebase IndexedDB (often Auth persistence). This app uses **session-scoped Auth on iOS/iPadOS** and **in-memory Firestore cache** to reduce this. If it still appears, close the tab and reopen, or clear site data once. |
 
 ---
 

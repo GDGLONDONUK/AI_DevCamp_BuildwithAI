@@ -11,10 +11,25 @@ export type ClientErrorPayload = {
  * Send a non-throwing error report to `POST /api/log-error` (stored in Firestore).
  * Safe to call from try/catch or listeners.
  */
+/** WebKit / Safari IndexedDB flakes; not actionable in error_logs and very noisy on iOS. */
+function isNoisyIndexedDbRejectionMessage(message: string): boolean {
+  const m = message.toLowerCase();
+  return (
+    m.includes("indexed database server lost") ||
+    (m.includes("indexed database") && m.includes("refresh the page"))
+  );
+}
+
 export async function reportClientError(
   payload: ClientErrorPayload
 ): Promise<void> {
   if (typeof window === "undefined") return;
+  if (
+    payload.source === "unhandledrejection" &&
+    isNoisyIndexedDbRejectionMessage(payload.message)
+  ) {
+    return;
+  }
   try {
     const token = auth.currentUser ? await auth.currentUser.getIdToken() : undefined;
     const headers: Record<string, string> = { "Content-Type": "application/json" };

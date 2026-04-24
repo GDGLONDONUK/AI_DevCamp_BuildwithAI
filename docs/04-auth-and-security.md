@@ -7,7 +7,7 @@ We use **Firebase Authentication** for identity. It handles:
 - Email/password signup and login (including **password reset** via Firebase `sendPasswordResetEmail` — see [08-site-deployment-and-admin.md](./08-site-deployment-and-admin.md))
 - Google OAuth ("Sign in with Google")
 - Issuing and refreshing short-lived **ID tokens** (JWT)
-- Persisting the session in the browser (IndexedDB)
+- Persisting the session in the browser (typically **local** persistence). On **iPhone / iPad / iPod** (and iPadOS desktop UA with touch), `src/lib/firebase.ts` uses **`browserSessionPersistence`** so the session is tied to the tab and avoids long-lived **IndexedDB** that Safari often drops (“Connection to Indexed Database server lost”). Desktop browsers keep Firebase’s default **local** persistence.
 
 ### Sign-in flow
 
