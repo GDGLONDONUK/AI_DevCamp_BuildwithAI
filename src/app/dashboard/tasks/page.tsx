@@ -6,16 +6,22 @@ import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import {
   AlarmClock,
+  ArrowDown,
   ArrowLeft,
   Calendar,
   CalendarDays,
+  CheckCircle2,
+  Circle,
   ClipboardList,
+  Equal,
+  Flame,
   Flag,
   History,
   LayoutGrid,
   Link2,
   MonitorPlay,
   MoreVertical,
+  PlayCircle,
   Plus,
   Sparkles,
   Table2,
@@ -41,6 +47,7 @@ import {
   paginateLearningTasks,
   type LearningTaskListFilters,
 } from "@/features/learning-tasks/domain/taskList";
+import { TaskCategoryGlyph } from "@/features/learning-tasks/components/taskDisplayIcons";
 
 function pct(done: number, total: number): number {
   if (total <= 0) return 0;
@@ -108,6 +115,12 @@ function formatTaskDateTime(iso?: string | Date | null): string {
   return d.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 }
 
+const PRIORITY_ICONS: Record<LearningTaskPriority, typeof ArrowDown> = {
+  low: ArrowDown,
+  medium: Equal,
+  high: Flame,
+};
+
 function PriorityToggle({
   value,
   onChange,
@@ -126,24 +139,36 @@ function PriorityToggle({
   };
   const inactive = "border-white/10 bg-gray-900/40 text-gray-500 hover:bg-white/10 hover:text-gray-300";
   const pad = compact ? "px-2 py-1 text-[10px] min-w-[3rem]" : "px-3 py-2.5 text-xs flex-1";
+  const iconSz = compact ? 12 : 15;
   return (
     <div className={`flex gap-1.5 ${compact ? "flex-wrap" : ""}`} role="group" aria-label="Priority">
-      {opts.map((p) => (
-        <button
-          key={p}
-          type="button"
-          aria-pressed={value === p}
-          onClick={() => onChange(p)}
-          className={`rounded-lg border font-semibold capitalize transition-all ${pad} ${
-            value === p ? active[p] : inactive
-          }`}
-        >
-          {compact ? ({ low: "Low", medium: "Med", high: "High" }[p]) : p}
-        </button>
-      ))}
+      {opts.map((p) => {
+        const Icon = PRIORITY_ICONS[p];
+        const on = value === p;
+        return (
+          <button
+            key={p}
+            type="button"
+            aria-pressed={on}
+            onClick={() => onChange(p)}
+            className={`rounded-lg border font-semibold capitalize transition-all inline-flex items-center justify-center gap-1 ${pad} ${
+              on ? active[p] : inactive
+            }`}
+          >
+            <Icon size={iconSz} className={on ? "opacity-100 shrink-0" : "opacity-50 shrink-0"} aria-hidden />
+            {compact ? ({ low: "Low", medium: "Med", high: "High" }[p]) : p}
+          </button>
+        );
+      })}
     </div>
   );
 }
+
+const PROGRESS_ICONS: Record<LearningTaskProgress, typeof Circle> = {
+  not_started: Circle,
+  in_progress: PlayCircle,
+  done: CheckCircle2,
+};
 
 function ProgressToggle({
   value,
@@ -173,21 +198,27 @@ function ProgressToggle({
   };
   const inactive = "border-white/10 bg-gray-900/40 text-gray-500 hover:bg-white/10 hover:text-gray-300";
   const pad = compact ? "px-2 py-1 text-[10px] flex-1 min-w-0" : "px-2 py-2.5 text-[11px] flex-1 leading-tight";
+  const iconSz = compact ? 12 : 14;
   return (
     <div className="flex gap-1.5 w-full" role="group" aria-label="Progress">
-      {meta.map(({ value: v, label }) => (
-        <button
-          key={v}
-          type="button"
-          aria-pressed={value === v}
-          onClick={() => onChange(v)}
-          className={`rounded-lg border font-semibold transition-all ${pad} ${
-            value === v ? active[v] : inactive
-          }`}
-        >
-          {label}
-        </button>
-      ))}
+      {meta.map(({ value: v, label }) => {
+        const Icon = PROGRESS_ICONS[v];
+        const on = value === v;
+        return (
+          <button
+            key={v}
+            type="button"
+            aria-pressed={on}
+            onClick={() => onChange(v)}
+            className={`rounded-lg border font-semibold transition-all inline-flex items-center justify-center gap-1 ${pad} ${
+              on ? active[v] : inactive
+            }`}
+          >
+            <Icon size={iconSz} className={on ? "opacity-100 shrink-0" : "opacity-50 shrink-0"} aria-hidden />
+            <span className={compact ? "truncate" : ""}>{label}</span>
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -582,9 +613,13 @@ export default function LearningTasksPage() {
       in_progress: "bg-sky-500/15 text-sky-300 border-sky-500/25",
       done: "bg-emerald-500/15 text-emerald-300 border-emerald-500/25",
     };
+    const Icon = PROGRESS_ICONS[p];
     const label = p.replace(/_/g, " ");
     return (
-      <span className={`text-[11px] px-2 py-0.5 rounded-full border capitalize ${map[p]}`}>
+      <span
+        className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border capitalize ${map[p]}`}
+      >
+        <Icon size={11} className="opacity-90 shrink-0" aria-hidden />
         {label}
       </span>
     );
@@ -596,8 +631,12 @@ export default function LearningTasksPage() {
       medium: "text-amber-300 bg-amber-500/15 border-amber-500/25",
       low: "text-gray-400 bg-white/5 border-white/10",
     };
+    const Icon = PRIORITY_ICONS[pr];
     return (
-      <span className={`text-[11px] px-2 py-0.5 rounded-full border capitalize ${map[pr]}`}>
+      <span
+        className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border capitalize ${map[pr]}`}
+      >
+        <Icon size={11} className="opacity-90 shrink-0" aria-hidden />
         {pr}
       </span>
     );
@@ -834,26 +873,43 @@ export default function LearningTasksPage() {
                       {pageTasks.map((t) => (
                         <tr key={t.id} className="border-b border-white/5 hover:bg-white/[0.02]">
                           <td className="px-5 py-3">
-                            <button
-                              type="button"
-                              onClick={() => openEdit(t)}
-                              className="text-left font-medium text-white hover:text-green-400 transition-colors"
-                            >
-                              {t.title}
-                            </button>
-                            {t.notes ? (
-                              <p className="text-xs text-gray-500 mt-1 line-clamp-2">{t.notes}</p>
-                            ) : null}
+                            <div className="flex gap-3 items-start">
+                              <TaskCategoryGlyph category={t.category} className="mt-0.5" />
+                              <div className="min-w-0 flex-1">
+                                <button
+                                  type="button"
+                                  onClick={() => openEdit(t)}
+                                  className="text-left font-medium text-white hover:text-green-400 transition-colors"
+                                >
+                                  {t.title}
+                                </button>
+                                {t.notes ? (
+                                  <p className="text-xs text-gray-500 mt-1 line-clamp-2">{t.notes}</p>
+                                ) : null}
+                              </div>
+                            </div>
                           </td>
-                          <td className="px-5 py-3 text-gray-400 whitespace-nowrap">{t.sessionLabel}</td>
+                          <td className="px-5 py-3 text-gray-400 whitespace-nowrap">
+                            <span className="inline-flex items-center gap-2">
+                              {t.sessionKey === "general" ? (
+                                <Sparkles size={14} className="text-amber-500/65 shrink-0" aria-hidden />
+                              ) : (
+                                <MonitorPlay size={14} className="text-sky-500/65 shrink-0" aria-hidden />
+                              )}
+                              {t.sessionLabel}
+                            </span>
+                          </td>
                           <td className="px-5 py-3 text-gray-400 whitespace-nowrap font-mono text-xs">
-                            {t.dueDate
-                              ? parseDue(String(t.dueDate))?.toLocaleDateString(undefined, {
-                                  day: "numeric",
-                                  month: "short",
-                                  year: "numeric",
-                                }) ?? "—"
-                              : "—"}
+                            <span className="inline-flex items-center gap-1.5">
+                              <CalendarDays size={14} className="text-gray-600 shrink-0 opacity-85" aria-hidden />
+                              {t.dueDate
+                                ? parseDue(String(t.dueDate))?.toLocaleDateString(undefined, {
+                                    day: "numeric",
+                                    month: "short",
+                                    year: "numeric",
+                                  }) ?? "—"
+                                : "—"}
+                            </span>
                           </td>
                           <td className="px-5 py-3 align-middle">
                             <PriorityToggle
@@ -944,61 +1000,71 @@ export default function LearningTasksPage() {
                     key={group.sessionKey}
                     className="px-5 py-8 border-b border-white/5 last:border-b-0"
                   >
-                    <h3 className="text-xs font-mono uppercase tracking-wider text-green-400/90 mb-4">
+                    <h3 className="text-xs font-mono uppercase tracking-wider text-green-400/90 mb-4 flex items-center gap-2">
+                      {group.sessionKey === "general" ? (
+                        <Sparkles size={14} className="text-amber-400/85 shrink-0" aria-hidden />
+                      ) : (
+                        <MonitorPlay size={14} className="text-green-400/85 shrink-0" aria-hidden />
+                      )}
                       {group.sessionLabel}
                     </h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
                       {group.items.map((t) => (
                         <div
                           key={t.id}
-                          className="relative rounded-xl border border-white/10 bg-gray-950/50 p-4 pt-12 hover:border-green-500/25 transition-colors"
+                          className="relative rounded-xl border border-white/10 bg-gray-950/50 p-4 hover:border-green-500/25 transition-colors"
                         >
-                          <div className="absolute top-3 right-3">
-                            <button
-                              type="button"
-                              className="p-1.5 rounded-lg text-gray-500 hover:text-white hover:bg-white/10"
-                              aria-label="Task actions"
-                              onClick={() => setMenuTaskId((id) => (id === t.id ? null : t.id))}
-                            >
-                              <MoreVertical size={18} />
-                            </button>
-                            {menuTaskId === t.id && (
-                              <>
+                          <div className="flex gap-3">
+                            <TaskCategoryGlyph category={t.category} size={18} className="shrink-0 mt-0.5" />
+                            <div className="flex-1 min-w-0 relative">
+                              <div className="flex justify-between gap-2 items-start">
                                 <button
                                   type="button"
-                                  className="fixed inset-0 z-10 cursor-default bg-transparent"
-                                  aria-label="Close menu"
-                                  onClick={() => setMenuTaskId(null)}
-                                />
-                                <div className="absolute right-0 top-full mt-1 z-20 bg-gray-900 border border-white/15 rounded-xl shadow-xl py-1 min-w-[140px]">
+                                  onClick={() => openEdit(t)}
+                                  className="text-left font-semibold text-white text-sm leading-snug hover:text-green-400 transition-colors flex-1 min-w-0 pr-2"
+                                >
+                                  {t.title}
+                                </button>
+                                <button
+                                  type="button"
+                                  className="p-1.5 rounded-lg text-gray-500 hover:text-white hover:bg-white/10 shrink-0 -mr-1 -mt-1"
+                                  aria-label="Task actions"
+                                  onClick={() => setMenuTaskId((id) => (id === t.id ? null : t.id))}
+                                >
+                                  <MoreVertical size={18} />
+                                </button>
+                              </div>
+                              {t.notes ? (
+                                <p className="text-xs text-gray-500 mt-2 line-clamp-2">{t.notes}</p>
+                              ) : null}
+                              {menuTaskId === t.id && (
+                                <>
                                   <button
                                     type="button"
-                                    className="block w-full text-left px-3 py-2 text-xs text-gray-200 hover:bg-white/10"
-                                    onClick={() => openEdit(t)}
-                                  >
-                                    Edit
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="block w-full text-left px-3 py-2 text-xs text-red-400 hover:bg-red-500/10 flex items-center gap-2"
-                                    onClick={() => void handleDelete(t.id)}
-                                  >
-                                    <Trash2 size={14} /> Delete
-                                  </button>
-                                </div>
-                              </>
-                            )}
+                                    className="fixed inset-0 z-10 cursor-default bg-transparent"
+                                    aria-label="Close menu"
+                                    onClick={() => setMenuTaskId(null)}
+                                  />
+                                  <div className="absolute right-0 top-8 z-20 bg-gray-900 border border-white/15 rounded-xl shadow-xl py-1 min-w-[140px]">
+                                    <button
+                                      type="button"
+                                      className="block w-full text-left px-3 py-2 text-xs text-gray-200 hover:bg-white/10"
+                                      onClick={() => openEdit(t)}
+                                    >
+                                      Edit
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="block w-full text-left px-3 py-2 text-xs text-red-400 hover:bg-red-500/10 flex items-center gap-2"
+                                      onClick={() => void handleDelete(t.id)}
+                                    >
+                                      <Trash2 size={14} /> Delete
+                                    </button>
+                                  </div>
+                                </>
+                              )}
+                            </div>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => openEdit(t)}
-                            className="text-left w-full font-semibold text-white text-sm leading-snug hover:text-green-400 transition-colors pr-8"
-                          >
-                            {t.title}
-                          </button>
-                          {t.notes ? (
-                            <p className="text-xs text-gray-500 mt-2 line-clamp-2">{t.notes}</p>
-                          ) : null}
                           <div className="mt-4 pt-3 border-t border-white/5 space-y-3">
                             <div>
                               <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-1.5">Priority</p>
@@ -1015,7 +1081,8 @@ export default function LearningTasksPage() {
                               />
                             </div>
                             <div className="flex flex-wrap gap-2 items-center text-[11px] text-gray-500">
-                              <span className="font-mono">
+                              <span className="inline-flex items-center gap-1 font-mono">
+                                <CalendarDays size={13} className="text-gray-600 shrink-0 opacity-85" aria-hidden />
                                 Due:{" "}
                                 {t.dueDate
                                   ? parseDue(String(t.dueDate))?.toLocaleDateString(undefined, {
@@ -1083,14 +1150,22 @@ export default function LearningTasksPage() {
                                       : "bg-violet-600/15 border-violet-500/30 hover:bg-violet-600/28"
                                   }`}
                                 >
-                                  <div className="flex flex-wrap gap-1.5 mb-2">
-                                    {badgePriority(t.priority)}
-                                    {badgeProgress(t.progress)}
+                                  <div className="flex gap-2 mb-2 items-start">
+                                    <TaskCategoryGlyph category={t.category} size={14} compact className="shrink-0" />
+                                    <div className="flex flex-wrap gap-1.5 flex-1 min-w-0">
+                                      {badgePriority(t.priority)}
+                                      {badgeProgress(t.progress)}
+                                    </div>
                                   </div>
-                                  <p className="text-xs text-gray-100 font-medium leading-snug line-clamp-4">
+                                  <p className="text-xs text-gray-100 font-medium leading-snug line-clamp-4 pl-[2px]">
                                     {t.title}
                                   </p>
-                                  <p className="text-[10px] text-gray-500 mt-2 font-mono">
+                                  <p className="text-[10px] text-gray-500 mt-2 font-mono inline-flex items-center gap-1">
+                                    {t.sessionKey === "general" ? (
+                                      <Sparkles size={11} className="text-amber-500/55 shrink-0" aria-hidden />
+                                    ) : (
+                                      <MonitorPlay size={11} className="text-sky-500/55 shrink-0" aria-hidden />
+                                    )}
                                     {t.sessionLabel}
                                   </p>
                                 </button>
@@ -1111,65 +1186,77 @@ export default function LearningTasksPage() {
                         {timelineByDay.undated.map((t) => (
                           <div
                             key={t.id}
-                            className="relative rounded-xl border border-white/10 bg-gray-950/40 p-4 pt-11 hover:border-white/20 transition-colors"
+                            className="relative rounded-xl border border-white/10 bg-gray-950/40 p-4 hover:border-white/20 transition-colors"
                           >
-                            <div className="absolute top-2.5 right-2.5">
-                              <button
-                                type="button"
-                                className="p-1.5 rounded-lg text-gray-500 hover:text-white hover:bg-white/10"
-                                aria-label="Task actions"
-                                onClick={() => setMenuTaskId((id) => (id === t.id ? null : t.id))}
-                              >
-                                <MoreVertical size={18} />
-                              </button>
-                              {menuTaskId === t.id && (
-                                <>
+                            <div className="flex gap-3">
+                              <TaskCategoryGlyph category={t.category} size={17} className="shrink-0 mt-0.5" />
+                              <div className="flex-1 min-w-0 relative">
+                                <div className="flex justify-between gap-2 items-start">
                                   <button
                                     type="button"
-                                    className="fixed inset-0 z-10 cursor-default bg-transparent"
-                                    aria-label="Close menu"
-                                    onClick={() => setMenuTaskId(null)}
-                                  />
-                                  <div className="absolute right-0 top-full mt-1 z-20 bg-gray-900 border border-white/15 rounded-xl shadow-xl py-1 min-w-[140px]">
+                                    onClick={() => openEdit(t)}
+                                    className="text-left font-semibold text-white text-sm hover:text-green-400 transition-colors flex-1 min-w-0 pr-2"
+                                  >
+                                    {t.title}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="p-1.5 rounded-lg text-gray-500 hover:text-white hover:bg-white/10 shrink-0 -mr-1 -mt-1"
+                                    aria-label="Task actions"
+                                    onClick={() => setMenuTaskId((id) => (id === t.id ? null : t.id))}
+                                  >
+                                    <MoreVertical size={18} />
+                                  </button>
+                                </div>
+                                {menuTaskId === t.id && (
+                                  <>
                                     <button
                                       type="button"
-                                      className="block w-full text-left px-3 py-2 text-xs text-gray-200 hover:bg-white/10"
-                                      onClick={() => openEdit(t)}
-                                    >
-                                      Edit
-                                    </button>
-                                    <button
-                                      type="button"
-                                      className="block w-full text-left px-3 py-2 text-xs text-red-400 hover:bg-red-500/10 flex items-center gap-2"
-                                      onClick={() => void handleDelete(t.id)}
-                                    >
-                                      <Trash2 size={14} /> Delete
-                                    </button>
-                                  </div>
-                                </>
-                              )}
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => openEdit(t)}
-                              className="text-left font-semibold text-white text-sm hover:text-green-400 transition-colors pr-6"
-                            >
-                              {t.title}
-                            </button>
-                            <div className="flex flex-wrap gap-2 mt-3 pb-2 border-b border-white/5">
-                              {badgePriority(t.priority)}
-                              {badgeProgress(t.progress)}
-                              <span className="text-[10px] text-gray-500 ml-auto">{t.sessionLabel}</span>
-                            </div>
-                            <div className="text-[10px] text-gray-600 leading-relaxed mt-2 space-y-0.5">
-                              <p>
-                                Created {formatTaskDateTime(t.createdAt ?? null)}
-                                {t.createdByLabel ? ` · ${t.createdByLabel}` : ""}
-                              </p>
-                              <p>
-                                Updated {formatTaskDateTime(t.updatedAt ?? null)}
-                                {t.updatedByLabel ? ` · ${t.updatedByLabel}` : ""}
-                              </p>
+                                      className="fixed inset-0 z-10 cursor-default bg-transparent"
+                                      aria-label="Close menu"
+                                      onClick={() => setMenuTaskId(null)}
+                                    />
+                                    <div className="absolute right-0 top-8 z-20 bg-gray-900 border border-white/15 rounded-xl shadow-xl py-1 min-w-[140px]">
+                                      <button
+                                        type="button"
+                                        className="block w-full text-left px-3 py-2 text-xs text-gray-200 hover:bg-white/10"
+                                        onClick={() => openEdit(t)}
+                                      >
+                                        Edit
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="block w-full text-left px-3 py-2 text-xs text-red-400 hover:bg-red-500/10 flex items-center gap-2"
+                                        onClick={() => void handleDelete(t.id)}
+                                      >
+                                        <Trash2 size={14} /> Delete
+                                      </button>
+                                    </div>
+                                  </>
+                                )}
+                                <div className="flex flex-wrap gap-2 mt-3 pb-2 border-b border-white/5 items-center">
+                                  {badgePriority(t.priority)}
+                                  {badgeProgress(t.progress)}
+                                  <span className="text-[10px] text-gray-500 ml-auto inline-flex items-center gap-1">
+                                    {t.sessionKey === "general" ? (
+                                      <Sparkles size={11} className="text-amber-500/55 shrink-0" aria-hidden />
+                                    ) : (
+                                      <MonitorPlay size={11} className="text-sky-500/55 shrink-0" aria-hidden />
+                                    )}
+                                    {t.sessionLabel}
+                                  </span>
+                                </div>
+                                <div className="text-[10px] text-gray-600 leading-relaxed mt-2 space-y-0.5">
+                                  <p>
+                                    Created {formatTaskDateTime(t.createdAt ?? null)}
+                                    {t.createdByLabel ? ` · ${t.createdByLabel}` : ""}
+                                  </p>
+                                  <p>
+                                    Updated {formatTaskDateTime(t.updatedAt ?? null)}
+                                    {t.updatedByLabel ? ` · ${t.updatedByLabel}` : ""}
+                                  </p>
+                                </div>
+                              </div>
                             </div>
                           </div>
                         ))}
