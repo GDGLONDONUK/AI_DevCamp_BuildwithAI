@@ -14,6 +14,7 @@ Welcome! This folder contains everything you need to understand and contribute t
 | [06-getting-started.md](./06-getting-started.md) | How to run the project locally |
 | [07-api-routes.md](./07-api-routes.md) | REST API reference — endpoints, auth, request/response shapes |
 | [08-site-deployment-and-admin.md](./08-site-deployment-and-admin.md) | Production URL, env vars, Discord, admin features, `me` & pending-user APIs |
+| [09-learning-tasks-architecture.md](./09-learning-tasks-architecture.md) | Learning checklist (`/dashboard/tasks`), template catalogue, APIs, flows |
 
 ## Quick orientation
 
@@ -25,6 +26,7 @@ User visits site
   └─ Approved user: full session content, recordings, resources
   └─ Optional: live self check-in on /sessions (code + window set in Session Editor)
   └─ Assignments & projects submitted; admin reviews in /admin
+  └─ Signed-in user: optional private learning checklist /dashboard/tasks (imports from templates when empty)
   └─ Programme leave → programOptOut (no app until admin restores)
 ```
 
@@ -50,5 +52,6 @@ Use this as a changelog-style index; details live in the linked docs.
 | **Session gating** | Rich content for **`participated`** / **`certified`** (see sessions page). |
 | **Multi-speaker sessions** | `sessions.speakers[]` + legacy `speaker` / `speakerTitle` / `speakerPhoto`; `getSessionSpeakersList` in `src/lib/sessionSpeakers.ts`; Session Editor + `/sessions` schedule. [03](./03-database-schema.md), [02](./02-project-structure.md). |
 | **Shared UI / logging** | `SocialBrandIcons.tsx`; `src/lib/admin/*` domain helpers; `src/lib/logging/*` for safer client logs. [02](./02-project-structure.md). |
+| **Learning tasks** | Private checklist **`learningTasks`** + catalogue **`learningTaskTemplates`**; **`/dashboard/tasks`**; **`/admin/learning-tasks`** (seed, clear, edit). Full flows: [09](./09-learning-tasks-architecture.md); APIs [07](./07-api-routes.md); schema [03](./03-database-schema.md). |
 
 Start with [01-project-overview.md](./01-project-overview.md) →

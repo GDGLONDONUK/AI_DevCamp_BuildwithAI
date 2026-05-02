@@ -20,8 +20,9 @@
 | **Attendance** | Admin grid + per-session filters; Kick Off **in-person vs online** note (`kickoffJoinedAs`); **live self check-in** (6-digit code + admin-defined time window) on `/sessions`; **Attended** badge on schedule + dashboard when marked. |
 | **Assignments & projects** | Submit, review, statuses; gallery-style project visibility where configured. |
 | **Dashboard** | Progress, programme communications opt-out / leave programme, session list with attendance labels. |
+| **Learning tasks** | **`/dashboard/tasks`** — private per-user checklist (table / cards / timeline), filters & paging, optional auto-import from **`learningTaskTemplates`** when empty. Organisers maintain templates at **`/admin/learning-tasks`**. See [09-learning-tasks-architecture.md](./09-learning-tasks-architecture.md). |
 | **Programme lifecycle** | **Leave programme** sets `programOptOut` → no API/session until admin clears; cohort email uses `receivesProgramCommunications()`. |
-| **Admin** | Users (grid/table, CSV export, bulk email, User Editor), Attendance, Sessions (CRUD, **multi-speaker** editor, **live check-in config**), Pre-registered, Assignments, Projects, sub-routes: email, import, Bevy, errors, users map. |
+| **Admin** | Users (grid/table, CSV export, bulk email, User Editor), Attendance, Sessions (CRUD, **multi-speaker** editor, **live check-in config**), Pre-registered, Assignments, Projects, **Learning task templates** (`/admin/learning-tasks`), sub-routes: email, import, Bevy, errors, users map. |
 | **Observability** | Client/server errors to `error_logs`; `/admin/errors`. |
 | **Branding** | Navbar uses `public/logo.png`; **favicons** are generated square PNGs from the logo (`npm run generate-favicons`) — see [08-site-deployment-and-admin.md](./08-site-deployment-and-admin.md). |
 
@@ -65,10 +66,11 @@
                              │
 ┌────────────────────────────▼────────────────────────────────┐
 │                      Firebase                               │
-│  Authentication  — ID tokens for /api                     │
-│  Firestore       — users, sessions, attendance, assignments,│
-│                    projects, tags, error_logs,               │
-│                    session_self_checkin (admin-read check-in)│
+│  Authentication  — ID tokens for /api                         │
+│  Firestore       — users, sessions, attendance, assignments,  │
+│                    projects, tags, error_logs,                │
+│                    session_self_checkin, learningTasks,       │
+│                    learningTaskTemplates                      │
 │  Storage         — avatars                                   │
 │  Security rules  — client-side boundary; Admin SDK bypasses  │
 └─────────────────────────────────────────────────────────────┘
@@ -85,7 +87,7 @@
 ## Key design decisions
 
 ### 1. Firebase + Next.js API routes
-Firestore rules are the main **client** boundary. **Route handlers** under `src/app/api` use the **Admin SDK** for: JWT verification, `users` privileged fields, `attendance` writes with audit metadata, `session_self_checkin` reads during self check-in, programme leave, bulk email, merges, and error logging.
+Firestore rules are the main **client** boundary. **Route handlers** under `src/app/api` use the **Admin SDK** for: JWT verification, `users` privileged fields, `attendance` writes with audit metadata, `session_self_checkin` reads during self check-in, programme leave, bulk email, merges, **learning task listing scoped by `userId`**, and error logging.
 
 ### 2. Sensitive data not on public session documents
 `sessions/*` is **world-readable**. Live check-in **codes** live in **`session_self_checkin/{sessionId}`** (admin/moderator read/write in rules; attendees never read the code from Firestore — they hear it in session and POST to `/api/me/attendance/self-check-in`).

@@ -16,6 +16,7 @@ import {
   BookOpen,
   Upload,
   Shield,
+  ClipboardList,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import ProgramOptOutControl from "@/components/ProgramOptOutControl";
@@ -35,6 +36,7 @@ export default function Navbar() {
   const navLinks = [
     { href: "/sessions", label: "Sessions", icon: BookOpen },
     ...(user ? [{ href: "/dashboard", label: "Dashboard", icon: LayoutDashboard }] : []),
+    ...(user ? [{ href: "/dashboard/tasks", label: "Tasks", icon: ClipboardList }] : []),
     ...(user ? [{ href: "/submit", label: "Submit", icon: Upload }] : []),
     ...(userProfile?.role === "admin"
       ? [{ href: "/admin", label: "Admin", icon: Shield }]
@@ -131,6 +133,14 @@ export default function Navbar() {
                             >
                               <LayoutDashboard size={16} />
                               Dashboard
+                            </Link>
+                            <Link
+                              href="/dashboard/tasks"
+                              onClick={() => setDropdownOpen(false)}
+                              className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:text-white hover:bg-white/5 transition-colors"
+                            >
+                              <ClipboardList size={16} />
+                              Learning tasks
                             </Link>
                             <Link
                               href="/profile"

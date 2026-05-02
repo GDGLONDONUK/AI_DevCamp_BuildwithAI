@@ -16,6 +16,7 @@ AI_DevCamp_BuildwithAI/
 │   │   ├── sessions/page.tsx     ← /sessions  Session schedule (public)
 │   │   ├── curriculum/page.tsx   ← /curriculum Learning roadmap (static)
 │   │   ├── dashboard/page.tsx    ← /dashboard User progress (auth required)
+│   │   ├── dashboard/tasks/page.tsx ← /dashboard/tasks Private learning checklist (auth)
 │   │   ├── submit/page.tsx       ← /submit    Submit assignment or project
 │   │   ├── profile/page.tsx      ← /profile   Edit your profile
 │   │   ├── admin/
@@ -24,7 +25,8 @@ AI_DevCamp_BuildwithAI/
 │   │   │   ├── import/page.tsx   ← /admin/import CSV import tools
 │   │   │   ├── bevy/page.tsx     ← /admin/bevy  Bevy CSV merge
 │   │   │   ├── errors/page.tsx   ← /admin/errors  Error log viewer
-│   │   │   └── users-map/page.tsx← /admin/users-map  User locations on a map
+│   │   │   ├── users-map/page.tsx← /admin/users-map  User locations on a map
+│   │   │   └── learning-tasks/page.tsx ← /admin/learning-tasks  Template catalogue CRUD / seed / clear
 │   │   └── api/                  ← REST API (server-side, Firebase Admin SDK)
 │   │       ├── sessions/         ← GET list, POST create, GET/PUT/DELETE by id
 │   │       ├── users/            ← GET list (admin), GET/PATCH by uid
@@ -33,10 +35,14 @@ AI_DevCamp_BuildwithAI/
 │   │       ├── attendance/       ← GET all, GET/PATCH by uid (PATCH writes sessionAttendanceAudit)
 │   │       ├── assignments/      ← GET list, POST submit, GET/PATCH by id
 │   │       ├── projects/         ← GET list, POST submit, GET/PATCH by id
+│   │       ├── learning-tasks/   ← GET list, POST create (Bearer; scoped userId)
+│   │       ├── learning-tasks/[id]/ ← GET/PATCH/DELETE one task
+│   │       ├── learning-task-templates/ ← GET active catalogue (Bearer)
+│   │       ├── learning-task-templates/import/ ← POST copy templates → learningTasks
 │   │       ├── email/send/      ← server email send
 │   │       ├── log-error/        ← client error ingestion
 │   │       ├── tags/             ← public tag catalog
-│   │       └── admin/            ← preregistered, pending-user, error-logs, tags, bevy-merge, approve-all-users, users-location-map, …
+│   │       └── admin/            ← preregistered, pending-user, error-logs, tags, bevy-merge, approve-all-users, users-location-map, learning-task-templates (+ seed, PATCH/DELETE by id), …
 │   │
 │   ├── components/               ← Reusable UI pieces
 │   │   ├── icons/
@@ -61,11 +67,14 @@ AI_DevCamp_BuildwithAI/
 │   │       ├── SkillsSelector.tsx← Tag chip selector (skills, expertise…)
 │   │       └── CountryFlag.tsx   ← Renders a flag image from flagcdn.com
 │   │
-│   ├── features/                 ← Feature-scoped UI + types (domain “slices”)
-│   │   └── admin/
-│   │       ├── types.ts          ← Admin tab / filter types (e.g. tab ids)
-│   │       └── components/       ← Admin-only components used by app routes
-│   │           └── PreRegisteredDetailModal.tsx  ← Pre-registered row detail drawer
+│   ├── features/                 ← Feature-scoped UI + domain helpers (“slices”)
+│   │   ├── admin/
+│   │   │   ├── types.ts          ← Admin tab / filter types (e.g. tab ids)
+│   │   │   └── components/       ← Admin-only components used by app routes
+│   │   │       └── PreRegisteredDetailModal.tsx  ← Pre-registered row detail drawer
+│   │   └── learning-tasks/       ← Dashboard checklist UI + pure domain (filters, pagination, category presets)
+│   │       ├── components/
+│   │       └── domain/
 │   │
 │   ├── contexts/
 │   │   └── AuthContext.tsx       ← Global auth state (user + profile)
@@ -96,18 +105,21 @@ AI_DevCamp_BuildwithAI/
 │   │   │   ├── userAdminView.ts     ← user doc → admin profile shape
 │   │   │   ├── mergePendingUserIntoProfile.ts
 │   │   │   ├── selfCheckInCode.ts, selfCheckInWindow.ts, selfCheckInRateLimit.ts ← /api/me/attendance/*
+│   │   │   ├── learningTasksFirestore.ts, learningTaskActor.ts ← learning tasks serialisation / audit actor
 │   │   │   └── …                  ← e.g. preRegisteredLookup, appErrorLog, ensureUserProfileDocument
 │   │   ├── logging/              ← redactEmail, logClientError (safer logs)
 │   │   ├── sessionSpeakers.ts   ← getSessionSpeakersList() — multi-speaker + legacy fallback
 │   │   ├── sessionService.ts     ← Session CRUD + seeding
 │   │   ├── sessionSelfCheckInConstants.ts ← Firestore collection name + audit field key
 │   │   ├── attendanceAudit.ts    ← Merge sessionAttendanceAudit on attendance writes
+│   │   ├── learningTasksApi.ts   ← Client fetch helpers for learning tasks & templates APIs
 │   │   ├── programCommunications.ts ← Eligibility for cohort email (programOptOut, accountDisabled)
 │   │   ├── flags.ts              ← Country → flag image URL
 │   │   └── utils.ts              ← cn() Tailwind class merger
 │   │
 │   ├── data/                     ← Static seed data (TypeScript constants)
 │   │   ├── sessions.ts           ← Default 6 sessions (source of truth for seeding)
+│   │   ├── learningTaskTemplatesSeed.ts ← Stable ids for POST …/admin/learning-task-templates/seed
 │   │   └── tags.ts               ← Skill/expertise tag presets
 │   │
 │   ├── types/
@@ -151,7 +163,7 @@ AI_DevCamp_BuildwithAI/
 | Add a new TypeScript type | `src/types/index.ts` |
 | Change who can access what in the DB | `firestore.rules` |
 | Add/remove skill tag presets | `src/data/tags.ts` |
-| Change session seed data | `src/data/sessions.ts` |
+| Learning checklist & template catalogue | `src/app/dashboard/tasks/page.tsx`, `src/features/learning-tasks/*`, `src/lib/learningTasksApi.ts`; admin `src/app/admin/learning-tasks/page.tsx`; seed `src/data/learningTaskTemplatesSeed.ts`. **Docs:** [09](./09-learning-tasks-architecture.md). |
 | Add an environment variable | `.env.local` |
 | Change route protection logic | `src/proxy.ts` |
 

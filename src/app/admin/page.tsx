@@ -715,6 +715,9 @@ export default function AdminPage() {
             <Link href="/admin/errors" className="flex items-center gap-2 text-sm text-rose-400 hover:text-rose-300 border border-rose-500/20 hover:border-rose-500/40 bg-rose-500/10 px-4 py-2 rounded-lg font-mono transition-all">
               <Bug size={14} /> Error logs
             </Link>
+            <Link href="/admin/learning-tasks" className="flex items-center gap-2 text-sm text-teal-400 hover:text-teal-300 border border-teal-500/20 hover:border-teal-500/40 bg-teal-500/10 px-4 py-2 rounded-lg font-mono transition-all">
+              <ClipboardList size={14} /> Learning templates
+            </Link>
             <button
               type="button"
               onClick={handleSeedTags}

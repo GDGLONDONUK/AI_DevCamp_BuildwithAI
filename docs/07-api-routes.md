@@ -277,6 +277,42 @@ Valid statuses: `submitted` → `reviewed` → `shortlisted` → `winner`; admin
 
 ---
 
+### Learning tasks & templates
+
+Attendee checklist CRUD is **scoped by uid** on the server. Template catalogue writes require **admin or moderator**; **bulk delete all templates** requires **admin** only.
+
+#### Attendee — `/api/learning-tasks`
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/learning-tasks` | Bearer | List tasks where **`userId == auth.uid`**, ordered by `sessionOrder`, `sortOrder`. |
+| `POST` | `/api/learning-tasks` | Bearer | Create a task owned by **`auth.uid`**. Body validated with **`learningTaskCreateSchema`** (`src/lib/api/schemas/requestBodies.ts`). |
+| `GET` | `/api/learning-tasks/[id]` | Bearer | Single task **only if** `userId == auth.uid`. |
+| `PATCH` | `/api/learning-tasks/[id]` | Bearer | Partial update (**`learningTaskPatchSchema`**); cannot change owner. |
+| `DELETE` | `/api/learning-tasks/[id]` | Bearer | Delete **only if** owner. |
+
+#### Templates — read & import
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/learning-task-templates` | Bearer | Active catalogue rows for attendees (serialized templates). |
+| `POST` | `/api/learning-task-templates/import` | Bearer | Copy selected or **all active** templates into **`learningTasks`** for the caller; skips duplicates using **`sourceTemplateId`**. |
+
+#### Admin — catalogue (`requireAdmin`: admin **or** moderator, except where noted)
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/admin/learning-task-templates` | Admin / Moderator | List **all** templates (including inactive). |
+| `POST` | `/api/admin/learning-task-templates` | Admin / Moderator | Create template; optional **`id`** upserts stable doc (`learningTaskTemplateAdminCreateSchema`). |
+| `DELETE` | `/api/admin/learning-task-templates` | **Admin only** | Delete **every** document in **`learningTaskTemplates`** (does **not** delete **`learningTasks`**). |
+| `POST` | `/api/admin/learning-task-templates/seed` | Admin / Moderator | Upsert rows from **`LEARNING_TASK_TEMPLATES_SEED`** (`merge`). |
+| `PATCH` | `/api/admin/learning-task-templates/[id]` | Admin / Moderator | Update fields (`learningTaskTemplatePatchSchema`). |
+| `DELETE` | `/api/admin/learning-task-templates/[id]` | Admin / Moderator | Delete one template. |
+
+**UI:** **`/dashboard/tasks`** (attendee), **`/admin/learning-tasks`** (catalogue). Architecture diagram: [09-learning-tasks-architecture.md](./09-learning-tasks-architecture.md).
+
+---
+
 ## File structure (high level)
 
 ```
@@ -293,10 +329,12 @@ src/
         ├── attendance/
         ├── assignments/
         ├── projects/
+        ├── learning-tasks/
+        ├── learning-task-templates/
         ├── email/send/
         ├── log-error/
         ├── tags/
-        └── admin/             ← preregistered, pending-user, users-location-map, error-logs, …
+        └── admin/             ← … learning-task-templates (+ seed), …
 ```
 
 For the full list of route files, see `src/app/api/**/route.ts` in the repo.

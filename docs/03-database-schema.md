@@ -15,6 +15,8 @@ Firestore
 ├── assignments/           ← One document per submitted weekly assignment
 ├── projects/              ← One document per submitted final project
 ├── tags/                  ← Tag categories for forms (seeded via `POST /api/admin/tags`)
+├── learningTasks/         ← Private checklist items per user (`userId` = owner)
+├── learningTaskTemplates/ ← Organiser catalogue for suggested checklist rows (signed-in read)
 └── error_logs/            ← Client and server errors (Admin SDK / API only; `/admin/errors`)
 ```
 
@@ -271,6 +273,57 @@ Tag catalog used on registration and profile (prior knowledge, etc.). **GET** `/
 
 ---
 
+## `learningTasks/{taskId}`
+
+Private checklist rows. **Document ID** is auto-generated unless created via import paths that assign ids elsewhere; the app primarily uses Admin-generated ids from **`POST /api/learning-tasks`** / **`import`**.
+
+```ts
+{
+  userId:           string          // Firebase Auth UID — must match caller for reads/writes via rules + API
+  sessionKey:       string          // e.g. session-1 … session-6, general
+  sessionLabel:     string          // Display label for session grouping
+  sessionOrder:     number          // Sort key — aligns with programme order
+  title:            string
+  category:         string          // Presets (resource, …) or custom label (trimmed)
+  priority:         "low" | "medium" | "high"
+  progress:         "not_started" | "in_progress" | "done"
+  dueDate?:         Timestamp | null
+  notes?:           string
+  sourceTemplateId?: string | null // When copied from catalogue — avoids duplicate imports
+  sortOrder:        number          // Ordering within session group
+
+  createdAt?, updatedAt?           // ISO from API serialisation
+  createdByUid?, createdByLabel?   // Audit snapshots when available
+  updatedByUid?, updatedByLabel?
+}
+```
+
+**API:** List/query uses **`userId` + `sessionOrder` + `sortOrder`** (composite index in `firestore.indexes.json`). Client apps should use **`/api/learning-tasks`** (Bearer); Firestore rules restrict direct client access to **owner-only**.
+
+---
+
+## `learningTaskTemplates/{templateId}`
+
+Organiser-maintained catalogue. **Document ID** is often a **stable string** from **`src/data/learningTaskTemplatesSeed.ts`** so **`POST /api/admin/learning-task-templates/seed`** can upsert idempotently.
+
+```ts
+{
+  sessionKey:       string
+  sessionLabel:     string
+  sessionOrder:     number
+  title:            string
+  category:         string
+  sortOrder:        number
+  active:           boolean        // Import considers active rows when importing “all”
+
+  createdAt?, updatedAt?, updatedByUid?
+}
+```
+
+**Rules:** Any **signed-in** user may **read** (used by attendee-facing template listing); **create/update/delete** requires **admin or moderator**. Bulk **clear-all** for templates is exposed only via **`DELETE /api/admin/learning-task-templates`** (**admin role only** on the server).
+
+---
+
 ## `error_logs/{autoId}`
 
 Automatic error log entries (React boundaries, `POST /api/log-error`, server route exceptions). The collection is **only** written server-side. Admins use **`/admin/errors`** and **GET** `/api/admin/error-logs`. See `AppErrorLog` in `src/types/index.ts`.
@@ -285,6 +338,7 @@ Firestore needs compound indexes for queries that filter and sort on different f
 |-----------|-------|-------|
 | `assignments` | filter by `userId`, sort by `submittedAt` desc | `userId ASC + submittedAt DESC` |
 | `projects` | filter by `userId`, sort by `submittedAt` desc | `userId ASC + submittedAt DESC` |
+| `learningTasks` | filter by `userId`, order by `sessionOrder`, `sortOrder` | `userId ASC + sessionOrder ASC + sortOrder ASC` |
 
 These are defined in `firestore.indexes.json` and deployed with `firebase deploy --only firestore:indexes`.
 

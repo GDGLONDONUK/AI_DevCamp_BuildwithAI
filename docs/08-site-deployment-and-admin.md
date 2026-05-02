@@ -72,15 +72,16 @@ After handling, the component strips `login` and `reset` from the URL with `hist
 
 | Area | Features |
 |------|----------|
-| **Header** | **Add pending user** (opens modal) — same as pre-reg flow. Quick links: **Email**, **CSV Import**, **Users map** (`/admin/users-map`), **Error logs**, **Seed tags**, **Refresh**. **Bevy merge** is at `/admin/bevy` (also linked from `/admin/import`). |
+| **Header** | **Add pending user** (opens modal) — same as pre-reg flow. Quick links: **Email**, **CSV Import**, **Users map** (`/admin/users-map`), **Learning tasks** (`/admin/learning-tasks`), **Error logs**, **Seed tags**, **Refresh**. **Bevy merge** is at `/admin/bevy` (also linked from `/admin/import`). |
 | **Users** | **Grid (cards)** and **table** view; **checkboxes** per user (with email); **select all**; bulk bar **Send email to N selected** (opens `/admin/email?source=selection` with `sessionStorage` recipients). **Download CSV** exports attendees with session attendance counts and profile fields, including **Kickoff in-person RSVP** (Yes/No) and **Joining in person** (text from `UserProfile.joiningInPerson`). Badges include **De-reg** for programme opt-out. **User Editor** can clear or set programme de-registration. |
 | **Sessions (editor)** | **Live attendance code** — per session, admins can enable a **6-digit code** and **open/close** datetime window (`session_self_checkin/{sessionId}`). Saved with the session from **Session Editor**. Attendees use **`/sessions`** (expanded card) during the window; validation is server-side. |
 | **Attendance** | Grid of users × sessions; **filter** rows by attended / not attended for a chosen session. **Kick Off (session-1)** supports a **join mode** (in person vs online) on `attendance/{uid}` (`kickoffJoinedAs`). Grid toggles call **`PATCH /api/attendance/[uid]`** so **`sessionAttendanceAudit`** records **createdBy / updatedBy / createdAt / updatedAt / source**. |
 | **Users map** | `/admin/users-map` — map of where users are joining from when `location` or `city`/`country` is present. After a successful lookup, **lat/lon and label** are stored on each user (`registrationMapLat`, `registrationMapLon`, `registrationMapLabel`, `registrationMapGeocodedAt`) so repeat loads skip Nominatim for unchanged places. New or changed locations still use **OpenStreetMap Nominatim** (rate-limited; small in-process cache). **Pre-fill:** `npm run backfill-registration-map-coords` (add `--force` to re-query every place). Admin-only UI; API `GET /api/admin/users-location-map` allows **admin** and **moderator**. |
 | **Pre-Registered** | Table with checkboxes, CSV upload, **Add person**, filters, detail modal. |
+| **Learning task templates** | **`/admin/learning-tasks`** — catalogue for attendee checklist imports: edit rows, toggle active, **re-seed** / merge defaults, **clear catalogue** and **reset to defaults** (**admin-only** bulk deletes). Does **not** delete users’ private **`learningTasks`**. Flows: [09-learning-tasks-architecture.md](./09-learning-tasks-architecture.md). |
 | **User list** | Badges for **Google** / **email** sign-in from `authProviders` (or legacy `registrationSource`). |
 
-**Roles:** `requireAdmin` in API routes allows **admin** and **moderator** unless a route is admin-only (check each handler).
+**Roles:** `requireAdmin` in API routes allows **admin** and **moderator** unless a route is admin-only (check each handler — e.g. **`DELETE /api/admin/learning-task-templates`** without an id is **admin-only**).
 
 ---
 

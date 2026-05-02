@@ -293,3 +293,52 @@ export type UserMapPayload = {
   failed: UserMapFailedEntry[];
   skippedNoLocation: number;
 };
+
+/** Organiser-maintained checklist row in `learningTaskTemplates`. */
+export interface LearningTaskTemplate {
+  id: string;
+  sessionKey: string;
+  sessionLabel: string;
+  /** Numeric ordering for sessions (1 = Session 1). */
+  sessionOrder: number;
+  title: string;
+  category: LearningTaskCategory;
+  /** Ordering within the session group. */
+  sortOrder: number;
+  active: boolean;
+  createdAt?: Date | string;
+  updatedAt?: Date | string;
+}
+
+/** Per-user task in `learningTasks` — never visible to other users. */
+export interface LearningTask {
+  id: string;
+  userId: string;
+  sessionKey: string;
+  sessionLabel: string;
+  sessionOrder: number;
+  title: string;
+  category: LearningTaskCategory;
+  priority: LearningTaskPriority;
+  progress: LearningTaskProgress;
+  dueDate?: Date | string | null;
+  notes?: string;
+  /** When copied from a template; used to skip duplicates on import. */
+  sourceTemplateId?: string | null;
+  sortOrder: number;
+  createdAt?: Date | string;
+  updatedAt?: Date | string;
+  /** Firebase uid of creator (same as owner for normal creates). */
+  createdByUid?: string;
+  /** Snapshot display name / email when created (denormalised). */
+  createdByLabel?: string;
+  updatedByUid?: string;
+  updatedByLabel?: string;
+}
+
+/** Stored on tasks/templates — presets like `resource` are common; any trimmed label up to 80 chars is allowed. */
+export type LearningTaskCategory = string;
+
+export type LearningTaskPriority = "low" | "medium" | "high";
+
+export type LearningTaskProgress = "not_started" | "in_progress" | "done";

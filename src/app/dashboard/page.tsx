@@ -27,6 +27,7 @@ import {
   ArrowRight,
   User,
   XCircle,
+  ClipboardList,
 } from "lucide-react";
 import ProfileCompletion from "@/components/ui/ProfileCompletion";
 import ProgramOptOutControl from "@/components/ProgramOptOutControl";
@@ -113,13 +114,22 @@ export default function DashboardPage() {
             </h1>
             <p className="text-gray-400 text-sm mt-0.5">{user.email}</p>
           </div>
-          <Link
-            href="/submit"
-            className="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-all"
-          >
-            <Upload size={15} />
-            Submit Work
-          </Link>
+          <div className="flex flex-wrap gap-2 justify-end">
+            <Link
+              href="/dashboard/tasks"
+              className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/15 border border-white/15 text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-all"
+            >
+              <ClipboardList size={15} />
+              Learning tasks
+            </Link>
+            <Link
+              href="/submit"
+              className="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-all"
+            >
+              <Upload size={15} />
+              Submit Work
+            </Link>
+          </div>
         </div>
 
         {/* Stats */}

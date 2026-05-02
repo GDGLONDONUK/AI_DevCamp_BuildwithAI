@@ -13,7 +13,7 @@ A web platform for the AI DevCamp programme. Attendees register, browse sessions
 - **Session schedule** — Live data from Firestore; **multiple speakers** per session (name, title, photo); collapsed cards show a mic line; managed by admins
 - **Curriculum** — 4-week beginner AI learning roadmap
 - **Assignment & project submission** — Weekly work tracked per user
-- **User dashboard** — Personal progress overview
+- **Learning tasks** — Private per-user checklist (`/dashboard/tasks`, imports suggested rows when empty); organisers maintain catalogue (`/admin/learning-tasks`). Architecture: [docs/09-learning-tasks-architecture.md](./docs/09-learning-tasks-architecture.md).
 - **Admin panel** — Attendance grid (per-session filters, Kick Off join mode), user management (including programme de-registration), status updates, session CRUD, users map (by location), CSV export with kick-off in-person fields
 - **Programme lifecycle** — Attendees can leave the programme (no app access until staff restore them); cohort email respects communications eligibility
 - **Session attendance** — Schedule and dashboard show an **Attended** label when marked; optional **live 6-digit self check-in** during a host-configured window (`session_self_checkin` + `/api/me/attendance/*`)
