@@ -22,7 +22,7 @@
 | **Dashboard** | Progress, programme communications opt-out / leave programme, session list with attendance labels. |
 | **Learning tasks** | **`/dashboard/tasks`** — private per-user checklist (table / cards / timeline), filters & paging, optional auto-import from **`learningTaskTemplates`** when empty. Organisers maintain templates at **`/admin/learning-tasks`**. See [09-learning-tasks-architecture.md](./09-learning-tasks-architecture.md). |
 | **Programme lifecycle** | **Leave programme** sets `programOptOut` → no API/session until admin clears; cohort email uses `receivesProgramCommunications()`. |
-| **Admin** | Users (grid/table, CSV export, bulk email, User Editor), Attendance, Sessions (CRUD, **multi-speaker** editor, **live check-in config**), Pre-registered, Assignments, Projects, **Learning task templates** (`/admin/learning-tasks`), sub-routes: email, import, Bevy, errors, users map. |
+| **Admin** | Users (grid/table, CSV export, bulk email, User Editor), **Inactive** (`disabledUsers` archive / restore, multi-select), Attendance, Sessions (CRUD, **multi-speaker** editor, **live check-in config**), Pre-registered, Assignments, Projects, **Learning task templates** (`/admin/learning-tasks`), sub-routes: email, import, Bevy, errors, users map. |
 | **Observability** | Client/server errors to `error_logs`; `/admin/errors`. |
 | **Branding** | Navbar uses `public/logo.png`; **favicons** are generated square PNGs from the logo (`npm run generate-favicons`) — see [08-site-deployment-and-admin.md](./08-site-deployment-and-admin.md). |
 

@@ -9,6 +9,7 @@ We use **Cloud Firestore** — a NoSQL document database. Data is organised into
 ```
 Firestore
 ├── users/                 ← One document per registered user (or pending `users/{email}`)
+├── disabledUsers/         ← Archived profiles moved from `users/{uid}` (client rules: no access)
 ├── sessions/              ← One document per DevCamp session (public read — no secrets here)
 ├── session_self_checkin/  ← Per-session live check-in: 6-digit code + time window (admin/moderator only)
 ├── attendance/            ← One document per user: session booleans + optional audit map
@@ -95,7 +96,33 @@ Some documents use the **user’s email** as the document id (lowercase) while t
 
 See [08-site-deployment-and-admin.md](./08-site-deployment-and-admin.md).
 
-### User status lifecycle
+---
+
+## `disabledUsers/{uid}`
+
+Document ID = **Firebase Auth UID** — the same id the profile used under **`users/{uid}`** before archival.
+
+When an admin **archives** someone ( **`/admin` → Inactive** tab or **`POST /api/admin/disabled-users`** ), the server **copies** the full **`users/{uid}`** document into **`disabledUsers/{uid}`**, adds metadata fields below, then **deletes** **`users/{uid}`**. **Firebase Auth** is **not** deleted; the person simply has no active Firestore profile until **restore**.
+
+```ts
+{
+  // … all fields that were on users/{uid} at archive time …
+
+  profileArchivedAt: string;       // ISO 8601
+  profileArchivedByUid: string;    // Firebase uid of admin who archived
+  profileArchivedReason?: string | null;
+}
+```
+
+**Restore** writes the document back to **`users/{uid}`** (the three **`profileArchived*`** keys are stripped), then deletes **`disabledUsers/{uid}`**.
+
+**Firestore rules:** **`disabledUsers`** has **`allow read, write: if false`** — only the **Admin SDK** (API routes) may touch it.
+
+**Vs. `accountDisabled` on `users/*`:** That flag is an in-place soft block while the doc stays in **`users`**. **`disabledUsers`** is a separate collection used when the organisers **move** the profile off **`users`** entirely (same **`403 ACCOUNT_DISABLED`** behaviour for APIs once archived — see [04-auth-and-security.md](./04-auth-and-security.md)).
+
+---
+
+## User status lifecycle
 
 ```
 Registration → pending

@@ -35,6 +35,11 @@ export async function ensureUserProfileForUid(uid: string): Promise<EnsureUserPr
     };
   }
 
+  const archivedOnly = await db.collection("disabledUsers").doc(uid).get();
+  if (archivedOnly.exists) {
+    throw new Error("ACCOUNT_DISABLED");
+  }
+
   let record: UserRecord;
   try {
     record = await adminAuth().getUser(uid);

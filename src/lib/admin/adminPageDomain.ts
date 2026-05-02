@@ -13,6 +13,7 @@ import { canonicalPreRegEmail } from "@/lib/admin/emailIdentity";
 export type AdminConsoleTab =
   | "attendance"
   | "users"
+  | "inactive"
   | "assignments"
   | "projects"
   | "sessions"

@@ -134,7 +134,7 @@ Attendees **cannot** PATCH `programOptOut` / `programOptOutAt`; they use **`POST
 
 | Method | Path | Description |
 |--------|------|--------------|
-| `POST` | `/api/me/ensure-profile` | Create `users/{uid}` if missing; merge and delete `users/{email}` when present. Returns **`403`** + **`PROGRAM_OPT_OUT`** if the user document or pending row is programme-opted-out. |
+| `POST` | `/api/me/ensure-profile` | Create **`users/{uid}`** if missing; merge and delete **`users/{email}`** when present. Returns **`403`** + **`ACCOUNT_DISABLED`** if **`disabledUsers/{uid}`** exists or **`accountDisabled`** is set on **`users`** / pending row. Returns **`403`** + **`PROGRAM_OPT_OUT`** if the user document or pending row is programme-opted-out. |
 | `POST` | `/api/me/leave-program` | **Bearer required.** Sets `programOptOut: true`, `programOptOutAt`, `keepUpdated: false` on `users/{uid}`. Caller must not already be blocked (same token checks as other routes). Client should sign out after success. |
 | `GET` | `/api/me/attendance/check-in-status` | **Bearer required.** Query `?sessionId=`. Returns `{ eligible, active, opensAt, closesAt }` — **no code** exposed. |
 | `POST` | `/api/me/attendance/self-check-in` | **Bearer required.** Body `{ sessionId, code }`. Validates window + code against `session_self_checkin`; sets `attendance/{uid}` and **`sessionAttendanceAudit`**. Idempotent if already marked. **`429`** if rate-limited. |
@@ -165,6 +165,20 @@ Merge logic and field list: `src/lib/server/mergePendingUserIntoProfile.ts`.
 | `POST` | `/api/admin/tags` | Admin / Moderator | Seed or upsert tag categories. |
 | `POST` | `/api/admin/bevy-merge` | Admin / Moderator | Reconcile Bevy export rows with `users`. |
 | `POST` | `/api/admin/approve-all-users` | Admin / Moderator | Bulk-approve pending users (see handler for behaviour). |
+
+---
+
+### Admin — inactive archive (**admin** role only)
+
+Moderators **cannot** call these routes — **`verifyAuth`** must resolve **`role === "admin"`**.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/admin/users-no-session-attendance` | Lists **`users/{uid}`** documents (real Auth-backed ids only — skips **`users/{email}`** pending imports) where **`role`** is **not** **`admin`** or **`moderator`** and **`attendance/{uid}`** has **no** programme session field (**`session-1`** … **`session-6`**, matching **`SESSIONS`** in **`src/data/sessions.ts`**) set to **`true`**. Response includes **`programmeSessionIds`**, **`count`**, **`users`** (summary rows). |
+| `GET` | `/api/admin/disabled-users` | Lists up to **500** documents from **`disabledUsers/*`** (sorted by **`profileArchivedAt`** descending). |
+| `POST` | `/api/admin/disabled-users` | Archive or restore. Body is a discriminated union: **`{ "action": "archive", "uid": string, "reason"?: string }`** copies **`users/{uid}`** → **`disabledUsers/{uid}`** (adds **`profileArchivedAt`**, **`profileArchivedByUid`**, optional **`profileArchivedReason`**), then deletes **`users/{uid}`**. **`uid`** must not be an email-shaped pending id. **`role: admin`** profiles **cannot** be archived (demote first). **`{ "action": "restore", "uid": string }`** writes back to **`users/{uid}`** (strips archive metadata fields) and deletes **`disabledUsers/{uid}`** if **`users/{uid}`** does not already exist. |
+
+**UI:** **`/admin` → Inactive** — multi-select + bulk archive / bulk restore; **`adminService`** helpers: **`fetchUsersNeverAttendedSessions`**, **`fetchDisabledUsersArchive`**, **`postArchiveUserProfile`**.
 
 ---
 
@@ -334,7 +348,7 @@ src/
         ├── email/send/
         ├── log-error/
         ├── tags/
-        └── admin/             ← … learning-task-templates (+ seed), …
+        └── admin/             ← … disabled-users, users-no-session-attendance, learning-task-templates (+ seed), …
 ```
 
 For the full list of route files, see `src/app/api/**/route.ts` in the repo.
@@ -364,12 +378,13 @@ Client sends request with Authorization: Bearer <idToken>
         └─ adminAuth().verifyIdToken(token)   ← Firebase Admin SDK
               ├─ Valid token → decode uid, email
               │     └─ Read users/{uid} from Firestore
-              │           ├─ accountDisabled → 403 ACCOUNT_DISABLED
-              │           ├─ programOptOut → 403 PROGRAM_OPT_OUT
-              │           └─ Else return { uid, email, role }
+              │           ├─ users/{uid} missing AND disabledUsers/{uid} exists → 403 ACCOUNT_DISABLED
+              │           ├─ accountDisabled on users/{uid} → 403 ACCOUNT_DISABLED
+              │           ├─ programOptOut on users/{uid} → 403 PROGRAM_OPT_OUT
+              │           └─ Else return { uid, email, role } (role from users doc, default attendee)
               └─ Invalid / expired → 401 Unauthorized
 ```
-(Also checks `users/{normalisedEmail}` when the token includes an email, for the same flags on pending-id docs.)
+Also checks **`users/{normalisedEmail}`** when the token includes an email, for **`accountDisabled`** / **`programOptOut`** on pending-id docs.
 
 The Firebase Admin SDK uses your service account private key to verify tokens **without a network round-trip** (the public keys are cached locally). This is fast and doesn't count toward Firebase usage quotas.
 

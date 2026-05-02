@@ -37,6 +37,11 @@ service cloud.firestore {
     }
 
     // ── Users ─────────────────────────────────────────────────────────────────
+    // Archived profiles (server / Admin SDK only — no client access).
+    match /disabledUsers/{uid} {
+      allow read, write: if false;
+    }
+
     match /users/{userId} {
       // Any signed-in user can read their own doc; admins/mods can read all.
       allow read: if isSignedIn() && (isOwner(userId) || isAdminOrMod());

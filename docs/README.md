@@ -28,6 +28,7 @@ User visits site
   └─ Assignments & projects submitted; admin reviews in /admin
   └─ Signed-in user: optional private learning checklist /dashboard/tasks (imports from templates when empty)
   └─ Programme leave → programOptOut (no app until admin restores)
+  └─ Admin “Inactive” archive → disabledUsers/{uid} (no users/{uid}; APIs → ACCOUNT_DISABLED until restore)
 ```
 
 **Full feature table and architecture diagram:** [01 · Project overview](./01-project-overview.md).
@@ -53,5 +54,6 @@ Use this as a changelog-style index; details live in the linked docs.
 | **Multi-speaker sessions** | `sessions.speakers[]` + legacy `speaker` / `speakerTitle` / `speakerPhoto`; `getSessionSpeakersList` in `src/lib/sessionSpeakers.ts`; Session Editor + `/sessions` schedule. [03](./03-database-schema.md), [02](./02-project-structure.md). |
 | **Shared UI / logging** | `SocialBrandIcons.tsx`; `src/lib/admin/*` domain helpers; `src/lib/logging/*` for safer client logs. [02](./02-project-structure.md). |
 | **Learning tasks** | Private checklist **`learningTasks`** + catalogue **`learningTaskTemplates`**; **`/dashboard/tasks`**; **`/admin/learning-tasks`** (seed, clear, edit). Full flows: [09](./09-learning-tasks-architecture.md); APIs [07](./07-api-routes.md); schema [03](./03-database-schema.md). |
+| **Inactive archive** | Collection **`disabledUsers/{uid}`**; **`/admin` → Inactive** (multi-select bulk archive / restore); **`verifyAuth`** + **`ensure-profile`** respect archived profiles (**`403 ACCOUNT_DISABLED`**). [03](./03-database-schema.md), [04](./04-auth-and-security.md), [07](./07-api-routes.md), [08](./08-site-deployment-and-admin.md). |
 
 Start with [01-project-overview.md](./01-project-overview.md) →

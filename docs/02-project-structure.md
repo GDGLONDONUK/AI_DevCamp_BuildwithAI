@@ -20,7 +20,7 @@ AI_DevCamp_BuildwithAI/
 │   │   ├── submit/page.tsx       ← /submit    Submit assignment or project
 │   │   ├── profile/page.tsx      ← /profile   Edit your profile
 │   │   ├── admin/
-│   │   │   ├── page.tsx          ← /admin     Main admin panel (tabs: attendance, users, …)
+│   │   │   ├── page.tsx          ← /admin     Main admin panel (tabs: attendance, users, inactive, …)
 │   │   │   ├── email/page.tsx    ← /admin/email  Bulk email to attendees / selections
 │   │   │   ├── import/page.tsx   ← /admin/import CSV import tools
 │   │   │   ├── bevy/page.tsx     ← /admin/bevy  Bevy CSV merge
@@ -42,7 +42,7 @@ AI_DevCamp_BuildwithAI/
 │   │       ├── email/send/      ← server email send
 │   │       ├── log-error/        ← client error ingestion
 │   │       ├── tags/             ← public tag catalog
-│   │       └── admin/            ← preregistered, pending-user, error-logs, tags, bevy-merge, approve-all-users, users-location-map, learning-task-templates (+ seed, PATCH/DELETE by id), …
+│   │       └── admin/            ← preregistered, pending-user, disabled-users, users-no-session-attendance, error-logs, tags, bevy-merge, approve-all-users, users-location-map, learning-task-templates (+ seed, PATCH/DELETE by id), …
 │   │
 │   ├── components/               ← Reusable UI pieces
 │   │   ├── icons/

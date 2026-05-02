@@ -14,6 +14,10 @@ import {
   updateUserFields,
   approveAllPendingUsersFromServer,
   setKickoffAttendanceNote,
+  fetchUsersNeverAttendedSessions,
+  fetchDisabledUsersArchive,
+  postArchiveUserProfile,
+  type NeverAttendedUserSummary,
 } from "@/lib/adminService";
 import { auth } from "@/lib/firebase";
 import { userAuthShowsGoogle, userAuthShowsPassword } from "@/lib/auth";
@@ -66,7 +70,9 @@ import {
   Trash2,
   Upload,
   UserCheck,
+  UserX,
   Users,
+  RotateCcw,
   X,
   XCircle,
 } from "lucide-react";
@@ -131,6 +137,15 @@ export default function AdminPage() {
   const [usersAuthFilter, setUsersAuthFilter] = useState<"all" | "google" | "password">("all");
   const [usersKickoffFilter, setUsersKickoffFilter] = useState<KickoffRsvpFilter>("all");
   const [approveAllBusy, setApproveAllBusy] = useState(false);
+
+  const [inactiveNeverAttended, setInactiveNeverAttended] = useState<NeverAttendedUserSummary[]>([]);
+  const [inactiveArchived, setInactiveArchived] = useState<UserProfile[]>([]);
+  const [inactiveLoading, setInactiveLoading] = useState(false);
+  /** Multi-select on Inactive tab — never-joined list (archive). */
+  const [inactiveSelNeverJoined, setInactiveSelNeverJoined] = useState<Set<string>>(new Set());
+  /** Multi-select on Inactive tab — disabledUsers list (restore). */
+  const [inactiveSelArchived, setInactiveSelArchived] = useState<Set<string>>(new Set());
+  const [inactiveBulkBusy, setInactiveBulkBusy] = useState(false);
 
   const [projectsQuery, setProjectsQuery] = useState("");
   const [projectsStatusFilter, setProjectsStatusFilter] = useState<"all" | Project["status"]>("all");
@@ -205,6 +220,153 @@ export default function AdminPage() {
       loadPreRegistered();
     }
   }, [activeTab, preRegistered.length, loadPreRegistered]);
+
+  const loadInactivePanel = useCallback(async () => {
+    if (!user || userProfile?.role !== "admin") return;
+    setInactiveLoading(true);
+    try {
+      const [na, archived] = await Promise.all([
+        fetchUsersNeverAttendedSessions(),
+        fetchDisabledUsersArchive(),
+      ]);
+      setInactiveNeverAttended(na.users);
+      setInactiveArchived(archived);
+    } catch (e) {
+      logClientError("admin.loadInactivePanel", e);
+      toast.error("Failed to load inactive / archive data");
+    } finally {
+      setInactiveLoading(false);
+    }
+  }, [user, userProfile]);
+
+  useEffect(() => {
+    if (activeTab === "inactive") {
+      loadInactivePanel();
+    }
+  }, [activeTab, loadInactivePanel]);
+
+  useEffect(() => {
+    const allowed = new Set(inactiveNeverAttended.map((r) => r.uid));
+    setInactiveSelNeverJoined((prev) => new Set([...prev].filter((uid) => allowed.has(uid))));
+  }, [inactiveNeverAttended]);
+
+  useEffect(() => {
+    const allowed = new Set(
+      inactiveArchived.map((r) => String(r.uid || r.firestoreId || "").trim()).filter(Boolean)
+    );
+    setInactiveSelArchived((prev) => new Set([...prev].filter((uid) => allowed.has(uid))));
+  }, [inactiveArchived]);
+
+  const archiveUserToDisabledCollection = async (uid: string, displayLabel: string) => {
+    if (
+      !confirm(
+        `Move "${displayLabel}" to disabledUsers? They will lose app access until restored (Firebase Auth is unchanged).`
+      )
+    ) {
+      return;
+    }
+    try {
+      await postArchiveUserProfile({ action: "archive", uid });
+      toast.success("Profile moved to disabledUsers");
+      setInactiveSelNeverJoined((prev) => {
+        const next = new Set(prev);
+        next.delete(uid);
+        return next;
+      });
+      await fetchAll();
+      await loadInactivePanel();
+    } catch (e) {
+      logClientError("admin.archiveUserToDisabled", e);
+      toast.error(e instanceof Error ? e.message : "Archive failed");
+    }
+  };
+
+  const bulkArchiveNeverJoinedToDisabled = async () => {
+    const uids = [...inactiveSelNeverJoined];
+    if (uids.length === 0) return;
+    if (
+      !confirm(
+        `Archive ${uids.length} selected profile(s)? They will lose app access until restored (Firebase Auth unchanged).`
+      )
+    ) {
+      return;
+    }
+    setInactiveBulkBusy(true);
+    let ok = 0;
+    let failed = 0;
+    try {
+      for (const uid of uids) {
+        try {
+          await postArchiveUserProfile({ action: "archive", uid });
+          ok++;
+        } catch (e) {
+          failed++;
+          logClientError("admin.bulkArchiveNeverJoined", e);
+        }
+      }
+      if (ok > 0) toast.success(`Archived ${ok} profile(s)`);
+      if (failed > 0) toast.error(`${failed} archive(s) failed (check console / logs)`);
+      setInactiveSelNeverJoined(new Set());
+      await fetchAll();
+      await loadInactivePanel();
+    } finally {
+      setInactiveBulkBusy(false);
+    }
+  };
+
+  const restoreUserFromDisabledCollection = async (uid: string, displayLabel: string) => {
+    if (!confirm(`Restore "${displayLabel}" to users? They regain normal app access.`)) return;
+    try {
+      await postArchiveUserProfile({ action: "restore", uid });
+      toast.success("Profile restored to users");
+      setInactiveSelArchived((prev) => {
+        const next = new Set(prev);
+        next.delete(uid);
+        return next;
+      });
+      await fetchAll();
+      await loadInactivePanel();
+    } catch (e) {
+      logClientError("admin.restoreUserFromDisabled", e);
+      toast.error(e instanceof Error ? e.message : "Restore failed");
+    }
+  };
+
+  const bulkRestoreArchivedToUsers = async () => {
+    const uids = [...inactiveSelArchived];
+    if (uids.length === 0) return;
+    if (!confirm(`Restore ${uids.length} selected profile(s) to users? They regain normal app access.`)) return;
+    setInactiveBulkBusy(true);
+    let ok = 0;
+    let failed = 0;
+    try {
+      for (const uid of uids) {
+        try {
+          await postArchiveUserProfile({ action: "restore", uid });
+          ok++;
+        } catch (e) {
+          failed++;
+          logClientError("admin.bulkRestoreArchived", e);
+        }
+      }
+      if (ok > 0) toast.success(`Restored ${ok} profile(s)`);
+      if (failed > 0) toast.error(`${failed} restore(s) failed`);
+      setInactiveSelArchived(new Set());
+      await fetchAll();
+      await loadInactivePanel();
+    } finally {
+      setInactiveBulkBusy(false);
+    }
+  };
+
+  const inactiveArchivedRows = useMemo(() => {
+    return inactiveArchived
+      .map((row) => {
+        const uid = String(row.uid || row.firestoreId || "").trim();
+        return uid ? ({ row, uid } as const) : null;
+      })
+      .filter((x): x is { row: UserProfile; uid: string } => x !== null);
+  }, [inactiveArchived]);
 
   const handleCsvUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -675,6 +837,12 @@ export default function AdminPage() {
   const TABS = [
     { id: "attendance" as AdminConsoleTab, label: "Attendance", icon: ClipboardList, count: users.length },
     { id: "users" as AdminConsoleTab, label: "Users", icon: Users, count: users.length },
+    {
+      id: "inactive" as AdminConsoleTab,
+      label: "Inactive",
+      icon: UserX,
+      count: inactiveNeverAttended.length + inactiveArchived.length,
+    },
     { id: "preregistered" as AdminConsoleTab, label: "Pre-Registered", icon: FileText, count: preRegistered.length },
     { id: "sessions" as AdminConsoleTab, label: "Sessions", icon: Calendar, count: sessions.length },
     { id: "assignments" as AdminConsoleTab, label: "Assignments", icon: BookOpen, count: assignments.length },
@@ -1741,6 +1909,283 @@ export default function AdminPage() {
                       </button>
                     </div>
                   </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── INACTIVE / ARCHIVE TAB ── */}
+            {activeTab === "inactive" && (
+              <div className="space-y-6 font-mono">
+                <div className="p-4 rounded-xl border border-orange-500/25 bg-orange-500/8 text-sm text-orange-100/95">
+                  <strong className="text-orange-300">disabledUsers archive</strong>
+                  <p className="mt-2 text-gray-400 leading-relaxed">
+                    The left list is attendees who have <strong className="text-gray-300">never</strong> had{" "}
+                    <strong className="text-gray-300">true</strong> on any programme session field (
+                    <code className="text-cyan-400/90">session-1</code> …{" "}
+                    <code className="text-cyan-400/90">session-6</code>) in{" "}
+                    <code className="text-gray-300">attendance/&lt;uid&gt;</code>. Admins and moderators are omitted from
+                    that report. Archiving writes the full profile to{" "}
+                    <code className="text-gray-300">disabledUsers/&lt;uid&gt;</code> and removes{" "}
+                    <code className="text-gray-300">users/&lt;uid&gt;</code>; Firebase Auth is unchanged. Restore moves
+                    the document back.
+                  </p>
+                </div>
+
+                {inactiveLoading ? (
+                  <div className="flex justify-center py-16">
+                    <div className="animate-spin w-8 h-8 border-2 border-green-500 border-t-transparent rounded-full" />
+                  </div>
+                ) : (
+                  <div className="grid lg:grid-cols-2 gap-6">
+                    <div className="rounded-xl border border-white/10 bg-gray-900/40 overflow-hidden flex flex-col min-h-[280px]">
+                      <div className="px-4 py-3 border-b border-white/10 flex flex-wrap items-center justify-between gap-3">
+                        <div className="flex flex-wrap items-center gap-2 min-w-0">
+                          <h2 className="text-white font-semibold text-sm">Never joined a programme session</h2>
+                          <span className="text-xs text-gray-500 shrink-0">{inactiveNeverAttended.length}</span>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          {inactiveSelNeverJoined.size > 0 ? (
+                            <>
+                              <button
+                                type="button"
+                                disabled={inactiveBulkBusy}
+                                onClick={bulkArchiveNeverJoinedToDisabled}
+                                className="text-xs font-semibold text-orange-200 bg-orange-600/90 hover:bg-orange-500 disabled:opacity-50 px-3 py-1.5 rounded-lg border border-orange-400/40 transition-colors"
+                              >
+                                Archive selected ({inactiveSelNeverJoined.size})
+                              </button>
+                              <button
+                                type="button"
+                                disabled={inactiveBulkBusy}
+                                onClick={() => setInactiveSelNeverJoined(new Set())}
+                                className="text-xs text-gray-400 hover:text-white border border-white/15 px-2 py-1 rounded-lg transition-colors disabled:opacity-50"
+                              >
+                                Clear
+                              </button>
+                            </>
+                          ) : null}
+                        </div>
+                      </div>
+                      <div className="flex-1 max-h-[520px] overflow-y-auto">
+                        {inactiveNeverAttended.length === 0 ? (
+                          <p className="text-gray-500 text-sm p-6 text-center">No matching attendees.</p>
+                        ) : (
+                          <table className="w-full text-sm">
+                            <thead className="sticky top-0 bg-gray-900/95 border-b border-white/10 z-[1]">
+                              <tr className="text-left text-xs text-gray-500 uppercase tracking-wide">
+                                <th className="w-10 px-2 py-2">
+                                  <input
+                                    type="checkbox"
+                                    disabled={inactiveBulkBusy}
+                                    checked={
+                                      inactiveNeverAttended.length > 0 &&
+                                      inactiveNeverAttended.every((r) => inactiveSelNeverJoined.has(r.uid))
+                                    }
+                                    ref={(el) => {
+                                      if (!el) return;
+                                      const some =
+                                        inactiveNeverAttended.some((r) => inactiveSelNeverJoined.has(r.uid)) &&
+                                        !inactiveNeverAttended.every((r) => inactiveSelNeverJoined.has(r.uid));
+                                      el.indeterminate = some;
+                                    }}
+                                    onChange={() => {
+                                      const ids = inactiveNeverAttended.map((r) => r.uid);
+                                      const allOn =
+                                        ids.length > 0 && ids.every((id) => inactiveSelNeverJoined.has(id));
+                                      setInactiveSelNeverJoined(allOn ? new Set() : new Set(ids));
+                                    }}
+                                    aria-label="Select all in never joined list"
+                                    className="rounded border-white/20 bg-gray-900 accent-orange-500"
+                                  />
+                                </th>
+                                <th className="px-3 py-2">Name</th>
+                                <th className="px-3 py-2">Email</th>
+                                <th className="px-3 py-2 w-[72px]">Role</th>
+                                <th className="px-3 py-2 text-right w-[96px]">Action</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {inactiveNeverAttended.map((row) => (
+                                <tr key={row.uid} className="border-b border-white/5 hover:bg-white/[0.03]">
+                                  <td className="px-2 py-2 align-top">
+                                    <input
+                                      type="checkbox"
+                                      disabled={inactiveBulkBusy}
+                                      checked={inactiveSelNeverJoined.has(row.uid)}
+                                      onChange={() => {
+                                        setInactiveSelNeverJoined((prev) => {
+                                          const next = new Set(prev);
+                                          if (next.has(row.uid)) next.delete(row.uid);
+                                          else next.add(row.uid);
+                                          return next;
+                                        });
+                                      }}
+                                      aria-label={`Select ${row.displayName || row.email || row.uid}`}
+                                      className="rounded border-white/20 bg-gray-900 accent-orange-500"
+                                    />
+                                  </td>
+                                  <td className="px-3 py-2 text-white align-top">{row.displayName || "—"}</td>
+                                  <td className="px-3 py-2 text-gray-400 text-xs break-all align-top">
+                                    {row.email || "—"}
+                                  </td>
+                                  <td className="px-3 py-2 text-gray-500 text-xs align-top">{row.role}</td>
+                                  <td className="px-3 py-2 text-right align-top">
+                                    <button
+                                      type="button"
+                                      disabled={inactiveBulkBusy}
+                                      onClick={() =>
+                                        archiveUserToDisabledCollection(
+                                          row.uid,
+                                          row.displayName || row.email || row.uid
+                                        )
+                                      }
+                                      className="text-xs text-orange-400 hover:text-orange-300 border border-orange-500/35 hover:border-orange-400/50 px-2 py-1 rounded-lg transition-colors disabled:opacity-40"
+                                    >
+                                      Archive
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl border border-white/10 bg-gray-900/40 overflow-hidden flex flex-col min-h-[280px]">
+                      <div className="px-4 py-3 border-b border-white/10 flex flex-wrap items-center justify-between gap-3">
+                        <div className="flex flex-wrap items-center gap-2 min-w-0">
+                          <h2 className="text-white font-semibold text-sm">Archived in disabledUsers</h2>
+                          <span className="text-xs text-gray-500 shrink-0">{inactiveArchived.length}</span>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          {inactiveSelArchived.size > 0 ? (
+                            <>
+                              <button
+                                type="button"
+                                disabled={inactiveBulkBusy}
+                                onClick={bulkRestoreArchivedToUsers}
+                                className="text-xs font-semibold text-green-200 bg-green-700/90 hover:bg-green-600 disabled:opacity-50 px-3 py-1.5 rounded-lg border border-green-500/40 transition-colors inline-flex items-center gap-1"
+                              >
+                                <RotateCcw size={12} /> Restore selected ({inactiveSelArchived.size})
+                              </button>
+                              <button
+                                type="button"
+                                disabled={inactiveBulkBusy}
+                                onClick={() => setInactiveSelArchived(new Set())}
+                                className="text-xs text-gray-400 hover:text-white border border-white/15 px-2 py-1 rounded-lg transition-colors disabled:opacity-50"
+                              >
+                                Clear
+                              </button>
+                            </>
+                          ) : null}
+                        </div>
+                      </div>
+                      <div className="flex-1 max-h-[520px] overflow-y-auto">
+                        {inactiveArchivedRows.length === 0 ? (
+                          <p className="text-gray-500 text-sm p-6 text-center">No archived profiles.</p>
+                        ) : (
+                          <table className="w-full text-sm">
+                            <thead className="sticky top-0 bg-gray-900/95 border-b border-white/10 z-[1]">
+                              <tr className="text-left text-xs text-gray-500 uppercase tracking-wide">
+                                <th className="w-10 px-2 py-2">
+                                  <input
+                                    type="checkbox"
+                                    disabled={inactiveBulkBusy}
+                                    checked={
+                                      inactiveArchivedRows.length > 0 &&
+                                      inactiveArchivedRows.every(({ uid }) => inactiveSelArchived.has(uid))
+                                    }
+                                    ref={(el) => {
+                                      if (!el) return;
+                                      const ids = inactiveArchivedRows.map((r) => r.uid);
+                                      const some =
+                                        ids.some((id) => inactiveSelArchived.has(id)) &&
+                                        !ids.every((id) => inactiveSelArchived.has(id));
+                                      el.indeterminate = some;
+                                    }}
+                                    onChange={() => {
+                                      const ids = inactiveArchivedRows.map((r) => r.uid);
+                                      const allOn =
+                                        ids.length > 0 && ids.every((id) => inactiveSelArchived.has(id));
+                                      setInactiveSelArchived(allOn ? new Set() : new Set(ids));
+                                    }}
+                                    aria-label="Select all archived profiles"
+                                    className="rounded border-white/20 bg-gray-900 accent-green-500"
+                                  />
+                                </th>
+                                <th className="px-3 py-2">Name</th>
+                                <th className="px-3 py-2">Archived</th>
+                                <th className="px-3 py-2 text-right w-[108px]">Action</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {inactiveArchivedRows.map(({ row, uid }) => {
+                                const archivedAt =
+                                  typeof (row as UserProfile & { profileArchivedAt?: string }).profileArchivedAt ===
+                                  "string"
+                                    ? (row as UserProfile & { profileArchivedAt?: string }).profileArchivedAt
+                                    : "";
+                                const reason =
+                                  typeof (row as UserProfile & { profileArchivedReason?: string })
+                                    .profileArchivedReason === "string"
+                                    ? (row as UserProfile & { profileArchivedReason?: string }).profileArchivedReason
+                                    : "";
+                                return (
+                                  <tr key={uid} className="border-b border-white/5 hover:bg-white/[0.03]">
+                                    <td className="px-2 py-2 align-top">
+                                      <input
+                                        type="checkbox"
+                                        disabled={inactiveBulkBusy}
+                                        checked={inactiveSelArchived.has(uid)}
+                                        onChange={() => {
+                                          setInactiveSelArchived((prev) => {
+                                            const next = new Set(prev);
+                                            if (next.has(uid)) next.delete(uid);
+                                            else next.add(uid);
+                                            return next;
+                                          });
+                                        }}
+                                        aria-label={`Select ${row.displayName || row.email || uid}`}
+                                        className="rounded border-white/20 bg-gray-900 accent-green-500"
+                                      />
+                                    </td>
+                                    <td className="px-3 py-2 align-top">
+                                      <div className="text-white">{row.displayName || "—"}</div>
+                                      <div className="text-[11px] text-gray-500 break-all mt-0.5">
+                                        {row.email || uid}
+                                      </div>
+                                      {reason ? (
+                                        <div className="text-[11px] text-gray-600 mt-1 italic">{reason}</div>
+                                      ) : null}
+                                    </td>
+                                    <td className="px-3 py-2 text-gray-500 text-xs align-top whitespace-nowrap">
+                                      {archivedAt ? formatAdminDateTime(archivedAt) : "—"}
+                                    </td>
+                                    <td className="px-3 py-2 text-right align-top">
+                                      <button
+                                        type="button"
+                                        disabled={inactiveBulkBusy}
+                                        onClick={() =>
+                                          restoreUserFromDisabledCollection(
+                                            uid,
+                                            row.displayName || row.email || uid
+                                          )
+                                        }
+                                        className="inline-flex items-center gap-1 text-xs text-green-400 hover:text-green-300 border border-green-500/35 hover:border-green-400/50 px-2 py-1 rounded-lg transition-colors disabled:opacity-40"
+                                      >
+                                        <RotateCcw size={12} /> Restore
+                                      </button>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>

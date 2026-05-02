@@ -346,6 +346,79 @@ export async function fetchErrorLogsFromServer(options: {
   return json.data as ErrorLogsResponse;
 }
 
+/** Programme attendees who never marked attended on any configured session row (admin report). */
+export type NeverAttendedUserSummary = {
+  uid: string;
+  firestoreId: string;
+  email: string;
+  displayName: string;
+  role: string;
+  userStatus?: unknown;
+};
+
+/** GET /api/admin/users-no-session-attendance — excludes admins/moderators from the list. */
+export async function fetchUsersNeverAttendedSessions(): Promise<{
+  programmeSessionIds: string[];
+  count: number;
+  users: NeverAttendedUserSummary[];
+}> {
+  const token = await auth.currentUser?.getIdToken();
+  if (!token) throw new Error("Not signed in");
+  const res = await fetch("/api/admin/users-no-session-attendance", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(String((json as { error?: string }).error ?? res.status));
+  }
+  if (!(json as { ok?: boolean }).ok) {
+    throw new Error(String((json as { error?: string }).error ?? "not ok"));
+  }
+  return (json as { data: { programmeSessionIds: string[]; count: number; users: NeverAttendedUserSummary[] } }).data;
+}
+
+/** GET /api/admin/disabled-users — archived profiles (`disabledUsers/*`). */
+export async function fetchDisabledUsersArchive(): Promise<UserProfile[]> {
+  const token = await auth.currentUser?.getIdToken();
+  if (!token) throw new Error("Not signed in");
+  const res = await fetch("/api/admin/disabled-users", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(String((json as { error?: string }).error ?? res.status));
+  }
+  if (!(json as { ok?: boolean }).ok) {
+    throw new Error(String((json as { error?: string }).error ?? "not ok"));
+  }
+  return ((json as { data?: { users?: UserProfile[] } }).data?.users ?? []) as UserProfile[];
+}
+
+/** Archive (`users/{uid}` → `disabledUsers/{uid}`) or restore (reverse). Admin-only API. */
+export async function postArchiveUserProfile(payload: {
+  action: "archive" | "restore";
+  uid: string;
+  reason?: string;
+}): Promise<void> {
+  const token = await auth.currentUser?.getIdToken();
+  if (!token) throw new Error("Not signed in");
+  const res = await fetch("/api/admin/disabled-users", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(String((json as { error?: string }).error ?? res.status));
+  }
+  if (!(json as { ok?: boolean }).ok) {
+    throw new Error(String((json as { error?: string }).error ?? "not ok"));
+  }
+}
+
 /** Write one `error_logs` row (verifies collection + admin credentials). */
 export async function postTestErrorLogEntry(): Promise<string> {
   const token = await auth.currentUser?.getIdToken();

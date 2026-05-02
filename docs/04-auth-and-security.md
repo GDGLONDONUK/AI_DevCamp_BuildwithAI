@@ -27,6 +27,7 @@ User clicks "Sign In"
        getUserProfile() reads the user doc from Firestore
             │
             ├─ If no profile: POST /api/me/ensure-profile (merge pending users/{email} if any)
+            │    └─ Archived profile (`disabledUsers/{uid}` only): **403 ACCOUNT_DISABLED** → sign out
             ├─ syncAuthProvidersToUserDoc() — writes authProviders to Firestore
             ▼
        userProfile state populated → UI updates
@@ -153,6 +154,7 @@ service cloud.firestore {
     function isAdminOrMod() { ... }
     function touchesPrivilegedFields() { ... }
 
+    match /disabledUsers/{uid} { ... }   // deny all — Admin SDK only
     match /users/{userId} { ... }
     match /sessions/{sessionId} { ... }
     match /attendance/{userId} { ... }
@@ -174,7 +176,9 @@ allow update: if isSignedIn() && (
 ```
 `touchesPrivilegedFields()` includes `role`, `userStatus`, `kickoffInPersonAdminConfirmed`, `accountDisabled`, `accountDisabledReason`, **`programOptOut`**, and **`programOptOutAt`**. Without this, a user could promote themselves or undo programme de-registration from the browser SDK.
 
-**API token checks (`verifyAuth` in `src/lib/api-helpers.ts`):** after validating the ID token, the server reads `users/{uid}` (and, when the token has an email, `users/{email}` for pending-id collisions). If **`accountDisabled`** is true, the API returns **`403`** with code **`ACCOUNT_DISABLED`**. If **`programOptOut`** is true, the API returns **`403`** with code **`PROGRAM_OPT_OUT`**. The client **`AuthContext`** signs the user out when the profile shows either flag (and when ensure-profile returns those codes).
+**API token checks (`verifyAuth` in `src/lib/api-helpers.ts`):** after validating the ID token, the server reads **`users/{uid}`**. If that document **does not exist** but **`disabledUsers/{uid}`** does (profile was moved to the archive collection), the API returns **`403`** with code **`ACCOUNT_DISABLED`** — same code as for an in-place disabled account. Otherwise, when **`users/{uid}`** exists, if **`accountDisabled`** is true → **`403`** **`ACCOUNT_DISABLED`**. If **`programOptOut`** is true → **`403`** **`PROGRAM_OPT_OUT`**. When the token includes an email, **`users/{normalisedEmail}`** is also checked for those flags (pending-id collisions). The client **`AuthContext`** signs the user out when the profile shows **`accountDisabled`** / **`programOptOut`** or when **`ensure-profile`** returns those codes.
+
+**Ensure-profile (`src/lib/server/ensureUserProfileDocument.ts`):** if **`users/{uid}`** is missing but **`disabledUsers/{uid}`** exists, **`POST /api/me/ensure-profile`** returns **`403`** with **`ACCOUNT_DISABLED`** — it does **not** create a new **`users`** row over the archive.
 
 **Immutable userId on submissions:**
 ```
