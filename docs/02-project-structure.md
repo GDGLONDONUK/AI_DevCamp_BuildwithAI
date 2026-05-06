@@ -19,6 +19,8 @@ AI_DevCamp_BuildwithAI/
 │   │   ├── dashboard/tasks/page.tsx ← /dashboard/tasks Private learning checklist (auth)
 │   │   ├── submit/page.tsx       ← /submit    Submit assignment or project
 │   │   ├── profile/page.tsx      ← /profile   Edit your profile
+│   │   ├── buddies/page.tsx      ← /buddies    DevcampBuddies (directory, requests, connections; profile modal)
+│   │   ├── buddies/[uid]/page.tsx← redirects to /buddies?u=… (shareable deep link)
 │   │   ├── admin/
 │   │   │   ├── page.tsx          ← /admin     Main admin panel (tabs: attendance, users, inactive, …)
 │   │   │   ├── email/page.tsx    ← /admin/email  Bulk email to attendees / selections
@@ -43,6 +45,7 @@ AI_DevCamp_BuildwithAI/
 │   │       ├── email/send/      ← server email send
 │   │       ├── log-error/        ← client error ingestion
 │   │       ├── tags/             ← public tag catalog
+│   │       ├── buddies/          ← directory, profile/[uid], requests, requests/[id], connections (Bearer)
 │   │       └── admin/            ← preregistered, pending-user, disabled-users, users-no-session-attendance, error-logs, tags, bevy-merge, approve-all-users, users-location-map, learning-task-templates (+ seed, PATCH/DELETE by id), …
 │   │
 │   ├── components/               ← Reusable UI pieces
@@ -54,6 +57,8 @@ AI_DevCamp_BuildwithAI/
 │   │   ├── KickoffRsvpBanner.tsx ← Kick-off RSVP (23 Apr)
 │   │   ├── ProgramOptOutControl.tsx ← Leave programme (nav + dashboard)
 │   │   ├── SessionSelfCheckInPanel.tsx ← Live code check-in on /sessions (expanded card)
+│   │   ├── buddies/
+│   │   │   └── BuddyProfileModal.tsx ← Full profile + buddy request (modal on /buddies)
 │   │   ├── admin/
 │   │   │   ├── SessionEditor.tsx ← Create/edit session modal form
 │   │   │   ├── UserEditor.tsx    ← Admin edit user fields modal

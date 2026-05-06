@@ -36,6 +36,11 @@ service cloud.firestore {
                       'programOptOut', 'programOptOutAt']);
     }
 
+    /** Maintained only by Admin SDK (DevcampBuddies APIs) — not client-patchable. */
+    function touchesServerMaintainedUserFields() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasAny(['buddyCount']);
+    }
+
     // ── Users ─────────────────────────────────────────────────────────────────
     // Archived profiles (server / Admin SDK only — no client access).
     match /disabledUsers/{uid} {
@@ -53,10 +58,10 @@ service cloud.firestore {
                          : false)
                     && request.resource.data.userStatus in ['pending', 'participated'];
 
-      // Self-updates: allowed, UNLESS they touch role or userStatus.
+      // Self-updates: allowed, UNLESS they touch role or userStatus or server-only fields.
       // Admins/mods may update anything.
       allow update: if isSignedIn() && (
-        (isOwner(userId) && !touchesPrivilegedFields()) ||
+        (isOwner(userId) && !touchesPrivilegedFields() && !touchesServerMaintainedUserFields()) ||
         isAdminOrMod()
       );
 
@@ -158,6 +163,14 @@ service cloud.firestore {
     match /learningTaskTemplates/{templateId} {
       allow read: if isSignedIn();
       allow write: if isAdminOrMod();
+    }
+
+    // ── DevcampBuddies (buddyRequests, buddyPairs) — Admin SDK / API only ────
+    match /buddyRequests/{requestId} {
+      allow read, write: if false;
+    }
+    match /buddyPairs/{pairId} {
+      allow read, write: if false;
     }
   }
 }

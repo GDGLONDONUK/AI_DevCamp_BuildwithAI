@@ -110,8 +110,8 @@ On Vercel, `https://${VERCEL_URL}` is added automatically (hostname-only env var
 
 Checks for a `firebase-session` cookie (set by `AuthContext` when the user signs in):
 
-- If the cookie is missing → redirects to `/`
-- Protects: `/dashboard`, `/submit`, `/profile`, `/admin`
+- If the cookie is missing → redirects to `/` (with `?redirect=` back to the requested path)
+- Protects: `/dashboard`, `/submit`, `/profile`, `/buddies`, and `/admin` (see `PROTECTED_ROUTES` / `ADMIN_ROUTES` in `src/proxy.ts`)
 
 **Important:** This is a UX shortcut, not a true security boundary. A motivated user could bypass it. The real enforcement is Layer 4.
 
@@ -146,6 +146,12 @@ This redirects immediately if the wrong user tries to access a page.
 ### Layer 4: Firestore Security Rules (`firestore.rules`)
 
 **This is the real security boundary.** Rules run inside Firebase's servers. No client code can bypass them — even if someone uses the Firebase SDK directly from the browser console.
+
+#### DevcampBuddies
+
+- **`users/{uid}`** — attendees **cannot** read other users’ documents from the client SDK. Discovery and buddy flows use **`GET /api/buddies/*`** (Admin SDK), which applies **`profilePublic`**, eligibility, and buddy relationship checks.
+- **`buddyRequests`** and **`buddyPairs`** — **deny all** client reads/writes; only server routes mutate them.
+- **`buddyCount`** on **`users/*`** — incremented only by APIs; **Firestore rules reject self-updates** that patch `buddyCount` (admins/mods may still update user docs for support).
 
 #### How rules are structured
 

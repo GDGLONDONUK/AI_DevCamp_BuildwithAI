@@ -17,6 +17,7 @@ import {
   Upload,
   Shield,
   ClipboardList,
+  UsersRound,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import ProgramOptOutControl from "@/components/ProgramOptOutControl";
@@ -38,6 +39,7 @@ export default function Navbar() {
     ...(user ? [{ href: "/dashboard", label: "Dashboard", icon: LayoutDashboard }] : []),
     ...(user ? [{ href: "/dashboard/tasks", label: "Tasks", icon: ClipboardList }] : []),
     ...(user ? [{ href: "/submit", label: "Submit", icon: Upload }] : []),
+    ...(user ? [{ href: "/buddies", label: "Buddies", icon: UsersRound }] : []),
     ...(userProfile?.role === "admin"
       ? [{ href: "/admin", label: "Admin", icon: Shield }]
       : []),

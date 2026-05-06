@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X, Loader2, Globe, User, Trash2 } from "lucide-react";
+import { HeartHandshake, Loader2, Globe, User, Trash2, X } from "lucide-react";
 import toast from "react-hot-toast";
 import { UserProfile, UserRole, UserStatus } from "@/types";
 import StatusDropdown from "@/components/admin/StatusDropdown";
@@ -66,6 +66,7 @@ export default function UserEditor({ user, onClose, onSave, onDeleteUser, adminC
   const [accountDisabled, setAccountDisabled] = useState(user.accountDisabled === true);
   const [accountDisabledReason, setAccountDisabledReason] = useState(user.accountDisabledReason || "");
   const [programOptOut, setProgramOptOut] = useState(user.programOptOut === true);
+  const [profilePublic, setProfilePublic] = useState(user.profilePublic === true);
 
   useEffect(() => {
     setDisplayName(user.displayName || "");
@@ -92,6 +93,7 @@ export default function UserEditor({ user, onClose, onSave, onDeleteUser, adminC
     setAccountDisabled(user.accountDisabled === true);
     setAccountDisabledReason(user.accountDisabledReason || "");
     setProgramOptOut(user.programOptOut === true);
+    setProfilePublic(user.profilePublic === true);
   }, [user]);
 
   useEffect(() => {
@@ -160,6 +162,7 @@ export default function UserEditor({ user, onClose, onSave, onDeleteUser, adminC
         programOptOutAt: programOptOut
           ? user.programOptOutAt || new Date().toISOString()
           : null,
+        profilePublic,
       };
 
       const rsvpAudit = adminContext
@@ -337,6 +340,30 @@ export default function UserEditor({ user, onClose, onSave, onDeleteUser, adminC
                 <span className="block text-[11px] text-gray-500 leading-snug mt-0.5">
                   No site login or API access, and excluded from cohort bulk email, until you clear this. Users can
                   de-register from the app; only admins can restore access here.
+                </span>
+              </span>
+            </label>
+          </div>
+
+          <div>
+            <div className="text-[10px] font-mono text-green-400 uppercase tracking-widest mb-2">
+              DevcampBuddies
+            </div>
+            <label className="flex items-start gap-3 cursor-pointer rounded-lg border border-green-500/25 bg-green-500/5 px-3 py-3 has-[:focus-visible]:ring-1 has-[:focus-visible]:ring-green-500">
+              <input
+                type="checkbox"
+                className="mt-0.5 h-4 w-4 rounded border-white/20 bg-gray-900 text-green-500 focus:ring-green-500"
+                checked={profilePublic}
+                onChange={(e) => setProfilePublic(e.target.checked)}
+              />
+              <span className="flex gap-2 min-w-0">
+                <HeartHandshake className="h-4 w-4 shrink-0 text-green-400 mt-0.5" aria-hidden />
+                <span>
+                  <span className="block text-sm font-semibold text-green-100/95">Public profile (directory)</span>
+                  <span className="block text-[11px] text-gray-500 leading-snug mt-0.5">
+                    When enabled, this attendee appears in the DevcampBuddies directory and can send/receive buddy
+                    requests (same as if they toggled it on their profile page).
+                  </span>
                 </span>
               </span>
             </label>

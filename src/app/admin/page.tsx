@@ -113,6 +113,8 @@ export default function AdminPage() {
   const [togglingCell, setTogglingCell] = useState<string | null>(null);
   /** Attendance tab: filter rows by session attended Y/N — value `"session-1:yes"` etc. */
   const [attendanceSessionFilter, setAttendanceSessionFilter] = useState<string>("");
+  /** Attendance + Users tabs: filter by count of programme sessions attended (exact:N) or pass70 (≥70%). */
+  const [sessionsAttendedFilter, setSessionsAttendedFilter] = useState<string>("");
   const [editingSession, setEditingSession] = useState<Partial<Session> | null | false>(false); // false=closed, null=new
   const [usersView, setUsersView] = useState<"grid" | "table">("grid");
   const [statusFilter, setStatusFilter] = useState<"all" | UserStatus>("all");
@@ -620,26 +622,50 @@ export default function AdminPage() {
     [usersAuthFiltered, usersKickoffFilter]
   );
 
-  const usersTotalPages = Math.max(1, Math.ceil(usersKickoffFiltered.length / USERS_PER_PAGE));
+  /** Programme sessions marked attended (Y) — same as Attendance tab Total column. */
+  const attendanceCount = (uid: string | undefined) =>
+    uid
+      ? sessions.filter((s) => attendance[uid]?.[s.id] === true).length
+      : 0;
+
+  const usersAdminTableFiltered = useMemo(() => {
+    let list = usersKickoffFiltered;
+    if (!sessionsAttendedFilter) return list;
+    const n = sessions.length;
+    if (sessionsAttendedFilter === "pass70") {
+      if (n <= 0) return list;
+      const minSessions = Math.ceil(n * 0.7);
+      return list.filter((u) => attendanceCount(u.uid) >= minSessions);
+    }
+    if (sessionsAttendedFilter.startsWith("exact:")) {
+      const k = Number.parseInt(sessionsAttendedFilter.slice(6), 10);
+      if (!Number.isNaN(k)) {
+        return list.filter((u) => attendanceCount(u.uid) === k);
+      }
+    }
+    return list;
+  }, [usersKickoffFiltered, sessionsAttendedFilter, sessions, attendance]);
+
+  const usersTotalPages = Math.max(1, Math.ceil(usersAdminTableFiltered.length / USERS_PER_PAGE));
   const paginatedUsers = useMemo(
     () =>
-      usersKickoffFiltered.slice(
+      usersAdminTableFiltered.slice(
         (usersPage - 1) * USERS_PER_PAGE,
         usersPage * USERS_PER_PAGE
       ),
-    [usersKickoffFiltered, usersPage, USERS_PER_PAGE]
+    [usersAdminTableFiltered, usersPage, USERS_PER_PAGE]
   );
 
   useEffect(() => {
     setUsersPage(1);
-  }, [statusFilter, usersRoleFilter, usersAuthFilter, usersKickoffFilter, search]);
+  }, [statusFilter, usersRoleFilter, usersAuthFilter, usersKickoffFilter, sessionsAttendedFilter, search]);
 
   useEffect(() => {
-    const max = Math.max(1, Math.ceil(usersKickoffFiltered.length / USERS_PER_PAGE));
+    const max = Math.max(1, Math.ceil(usersAdminTableFiltered.length / USERS_PER_PAGE));
     setUsersPage((p) => (p > max ? max : p));
-  }, [usersKickoffFiltered.length, USERS_PER_PAGE]);
+  }, [usersAdminTableFiltered.length, USERS_PER_PAGE]);
 
-  const usersListWithEmail = usersKickoffFiltered.filter(
+  const usersListWithEmail = usersAdminTableFiltered.filter(
     (u) => Boolean(u.email?.trim()) && receivesProgramCommunications(u)
   );
   const allVisibleUsersSelectedForEmail =
@@ -675,7 +701,7 @@ export default function AdminPage() {
   };
 
   const openEmailToSelectedUsers = () => {
-    const sel = usersKickoffFiltered.filter(
+    const sel = usersAdminTableFiltered.filter(
       (u) => u.email && selectedUsersEmails.has(u.email)
     );
     if (sel.length === 0) {
@@ -714,8 +740,22 @@ export default function AdminPage() {
         );
       }
     }
+    if (sessionsAttendedFilter) {
+      const n = sessions.length;
+      if (sessionsAttendedFilter === "pass70") {
+        if (n > 0) {
+          const minSessions = Math.ceil(n * 0.7);
+          list = list.filter((u) => attendanceCount(u.uid) >= minSessions);
+        }
+      } else if (sessionsAttendedFilter.startsWith("exact:")) {
+        const k = Number.parseInt(sessionsAttendedFilter.slice(6), 10);
+        if (!Number.isNaN(k)) {
+          list = list.filter((u) => attendanceCount(u.uid) === k);
+        }
+      }
+    }
     return list;
-  }, [attendanceUsers, attendance, attendanceSessionFilter]);
+  }, [attendanceUsers, attendance, attendanceSessionFilter, sessionsAttendedFilter, sessions]);
 
   /** Kick Off join mode — counts all eligible users so numbers match imports (not search/status). */
   const kickoffJoinNoteStats = useMemo(() => {
@@ -839,10 +879,6 @@ export default function AdminPage() {
       setSeedingTags(false);
     }
   };
-
-  // ── Attendance summary (programme session Y/N only — S1…S6) ─────────────────
-  const attendanceCount = (uid: string) =>
-    sessions.filter((s) => attendance[uid]?.[s.id] === true).length;
 
   // ── Guards ────────────────────────────────────────────────────────────────
   if (loading || !user || userProfile?.role !== "admin") {
@@ -987,8 +1023,16 @@ export default function AdminPage() {
                     Attended Y/N = joined the session; <strong className="text-amber-200/90">Joined as</strong> = venue
                     vs stream. Headline counts use everyone with an account (search/status filters do not apply).
                   </span>
+                  {sessions.length > 0 && (
+                    <span className="block mt-3 pt-3 border-t border-amber-500/25 text-xs text-amber-100/95 leading-relaxed">
+                      <strong className="text-amber-300/95">70% passing threshold:</strong> at least{" "}
+                      <strong className="text-white">{Math.ceil(sessions.length * 0.7)}</strong> of{" "}
+                      <strong className="text-white">{sessions.length}</strong> programme sessions marked attended (use
+                      &quot;Sessions joined&quot; below).
+                    </span>
+                  )}
                 </div>
-                <div className="mb-3 flex flex-wrap items-center gap-3">
+                <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-3">
                   <label className="flex items-center gap-2 text-xs font-mono text-gray-400">
                     <Filter size={14} className="text-gray-500 shrink-0" aria-hidden />
                     Session attendance
@@ -1007,7 +1051,29 @@ export default function AdminPage() {
                       ))}
                     </select>
                   </label>
-                  {attendanceSessionFilter && (
+                  <label className="flex items-center gap-2 text-xs font-mono text-gray-400">
+                    <ClipboardList size={14} className="text-gray-500 shrink-0" aria-hidden />
+                    Sessions joined
+                    <select
+                      value={sessionsAttendedFilter}
+                      onChange={(e) => setSessionsAttendedFilter(e.target.value)}
+                      className="bg-gray-900/80 border border-white/15 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:ring-1 focus:ring-green-500 min-w-[240px]"
+                      aria-label="Filter by number of programme sessions attended"
+                    >
+                      <option value="">Any count</option>
+                      {sessions.length > 0 ? (
+                        <option value="pass70">
+                          ≥{Math.ceil(sessions.length * 0.7)} of {sessions.length} (70% passing)
+                        </option>
+                      ) : null}
+                      {Array.from({ length: sessions.length + 1 }, (_, k) => (
+                        <option key={k} value={`exact:${k}`}>
+                          Exactly {k} session{k === 1 ? "" : "s"}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  {(attendanceSessionFilter || sessionsAttendedFilter) && (
                     <span className="text-[11px] font-mono text-gray-500">
                       Showing {attendanceTableUsers.length} of {attendanceUsers.length} in current search/status view
                     </span>
@@ -1059,7 +1125,7 @@ export default function AdminPage() {
                         <td colSpan={sessions.length + 4} className="text-center py-10 text-gray-500 font-mono">
                           {attendanceUsers.length === 0
                             ? "No users in current search/status view"
-                            : "No rows match this session filter — try another session or clear the filter"}
+                            : "No rows match the current filters — adjust Session attendance / Sessions joined or clear filters"}
                         </td>
                       </tr>
                     )}
@@ -1376,9 +1442,34 @@ export default function AdminPage() {
                     <MonitorPlay size={12} className="text-sky-400/80 shrink-0" aria-hidden />
                   </div>
 
+                  <div className="flex items-center gap-2 bg-gray-900/60 border border-white/8 rounded-xl px-2 py-1">
+                    <ClipboardList size={12} className="text-green-400/85 shrink-0" aria-hidden />
+                    <select
+                      value={sessionsAttendedFilter}
+                      onChange={(e) => setSessionsAttendedFilter(e.target.value)}
+                      className="bg-transparent text-xs font-mono text-white border-0 rounded-lg py-1.5 pr-6 focus:ring-0 cursor-pointer max-w-[min(100vw-8rem,260px)]"
+                      title="Filter by programme sessions attended (same as Attendance tab)"
+                    >
+                      <option value="">Sessions joined: any</option>
+                      {sessions.length > 0 ? (
+                        <option value="pass70">
+                          ≥{Math.ceil(sessions.length * 0.7)} / {sessions.length} (70%)
+                        </option>
+                      ) : null}
+                      {Array.from({ length: sessions.length + 1 }, (_, k) => (
+                        <option key={k} value={`exact:${k}`}>
+                          Exactly {k} session{k === 1 ? "" : "s"}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
                   <span className="text-xs text-gray-600 font-mono hidden md:inline">
-                    {usersKickoffFiltered.length} match
-                    {usersRoleFilter !== "all" || usersAuthFilter !== "all" || usersKickoffFilter !== "all"
+                    {usersAdminTableFiltered.length} match
+                    {usersRoleFilter !== "all" ||
+                    usersAuthFilter !== "all" ||
+                    usersKickoffFilter !== "all" ||
+                    sessionsAttendedFilter
                       ? " (filtered)"
                       : ""}
                   </span>
@@ -1404,7 +1495,7 @@ export default function AdminPage() {
 
                     {/* CSV export */}
                     <button
-                      onClick={() => exportAttendeesCsv(usersKickoffFiltered, attendance, sessions)}
+                      onClick={() => exportAttendeesCsv(usersAdminTableFiltered, attendance, sessions)}
                       className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-white border border-white/10 hover:border-white/20 px-3 py-2 rounded-xl font-mono transition-all"
                       title="Export current filter results"
                     >
@@ -1438,7 +1529,7 @@ export default function AdminPage() {
                   </div>
                 )}
 
-                {usersKickoffFiltered.length === 0 && (
+                {usersAdminTableFiltered.length === 0 && (
                   <p className="text-center text-gray-500 py-10 font-mono">No users match these filters</p>
                 )}
 
@@ -1456,11 +1547,11 @@ export default function AdminPage() {
                         />
                         Select all matching filters ({usersListWithEmail.length} with email)
                       </label>
-                      {usersKickoffFiltered.length > 0 && (
+                      {usersAdminTableFiltered.length > 0 && (
                         <span>
                           Page {usersPage} / {usersTotalPages} · {(usersPage - 1) * USERS_PER_PAGE + 1}–
-                          {Math.min(usersPage * USERS_PER_PAGE, usersKickoffFiltered.length)} of{" "}
-                          {usersKickoffFiltered.length}
+                          {Math.min(usersPage * USERS_PER_PAGE, usersAdminTableFiltered.length)} of{" "}
+                          {usersAdminTableFiltered.length}
                         </span>
                       )}
                     </div>
@@ -1656,11 +1747,11 @@ export default function AdminPage() {
                 {/* ── TABLE VIEW ── */}
                 {usersView === "table" && (
                   <div className="space-y-2">
-                    {usersKickoffFiltered.length > 0 && usersTotalPages > 1 && (
+                    {usersAdminTableFiltered.length > 0 && usersTotalPages > 1 && (
                       <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-xs font-mono text-gray-500">
                         <span>
                           Page {usersPage} / {usersTotalPages} · rows {(usersPage - 1) * USERS_PER_PAGE + 1}–
-                          {Math.min(usersPage * USERS_PER_PAGE, usersKickoffFiltered.length)} of {usersKickoffFiltered.length}
+                          {Math.min(usersPage * USERS_PER_PAGE, usersAdminTableFiltered.length)} of {usersAdminTableFiltered.length}
                         </span>
                         <div className="flex items-center gap-2">
                           <button
@@ -1699,7 +1790,7 @@ export default function AdminPage() {
                           {[
                             "Name / Email", "Handle", "Location", "Role", "Status",
                             "23 Apr", "RSVP log",
-                            "Experience", "Sessions", "Skills",
+                            "Experience", "Sessions", "Skills", "Buddies",
                             "Registered At", "Updated At",
                             "Actions",
                           ].map((h) => (
@@ -1710,9 +1801,9 @@ export default function AdminPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {usersKickoffFiltered.length === 0 && (
+                        {usersAdminTableFiltered.length === 0 && (
                           <tr>
-                            <td colSpan={14} className="text-center py-10 text-gray-500 font-mono">
+                            <td colSpan={15} className="text-center py-10 text-gray-500 font-mono">
                               No users
                             </td>
                           </tr>
@@ -1867,6 +1958,10 @@ export default function AdminPage() {
                                   )}
                                 </div>
                               </td>
+                              {/* DevcampBuddies count */}
+                              <td className="px-4 py-3 text-center font-mono text-sm text-cyan-300/90 whitespace-nowrap">
+                                {typeof u.buddyCount === "number" ? u.buddyCount : "—"}
+                              </td>
                               {/* Registered At */}
                               <td className="px-4 py-3 font-mono text-xs text-gray-400 whitespace-nowrap">
                                 {formatAdminDateTime(u.createdAt)}
@@ -1915,13 +2010,13 @@ export default function AdminPage() {
                     {/* Table footer */}
                     <div className="px-4 py-3 bg-gray-900/40 border-t border-white/5 flex items-center justify-between">
                       <span className="font-mono text-xs text-gray-500">
-                        Showing {usersKickoffFiltered.length} of {users.length} users
+                        Showing {usersAdminTableFiltered.length} of {users.length} users
                         {usersTotalPages > 1
                           ? ` (page ${usersPage}/${usersTotalPages})`
                           : ""}
                       </span>
                       <button
-                        onClick={() => exportAttendeesCsv(usersKickoffFiltered, attendance, sessions)}
+                        onClick={() => exportAttendeesCsv(usersAdminTableFiltered, attendance, sessions)}
                         className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-white font-mono transition-colors"
                       >
                         <Download size={12} /> Download CSV

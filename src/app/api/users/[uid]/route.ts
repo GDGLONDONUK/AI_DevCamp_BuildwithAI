@@ -42,6 +42,7 @@ const SELF_EDITABLE_FIELDS = [
   "experienceLevel", "skills", "expertise", "wantToLearn",
   "canOffer", "handle", "keepUpdated", "roleTitle", "photoURL",
   "kickoffRsvpExplicitInApp",
+  "profilePublic",
 ];
 
 export async function GET(request: NextRequest, { params }: Params) {

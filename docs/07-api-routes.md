@@ -124,7 +124,8 @@ Legacy single-speaker fields (`speaker`, `speakerTitle`, `speakerPhoto`) and emb
 ```
 Attendees **cannot** PATCH `programOptOut` / `programOptOutAt`; they use **`POST /api/me/leave-program`** to leave (see **Me** table below).
 
-**PATCH /api/users/[uid] — body for self** (non-privileged fields only; `role` / `userStatus` return 403):
+**PATCH /api/users/[uid] — body for self** (non-privileged fields only; `role` / `userStatus` return 403). Includes DevcampBuddies opt-in **`profilePublic`**.
+
 ```json
 {
   "displayName": "Jane Doe",
@@ -132,9 +133,29 @@ Attendees **cannot** PATCH `programOptOut` / `programOptOutAt`; they use **`POST
   "city": "London",
   "country": "United Kingdom",
   "skills": ["Python", "TensorFlow"],
-  "experienceLevel": "intermediate"
+  "experienceLevel": "intermediate",
+  "profilePublic": true
 }
 ```
+
+> **`buddyCount`** is not in the self-allow list for client convenience — it is maintained by **`/api/buddies/*`** and **must not** be patched from the client; Firestore rules block self-updates that touch `buddyCount`.
+
+---
+
+### DevcampBuddies (Bearer required)
+
+Cross-user profile data is **not** read from client Firestore (rules only allow self + admin read on `users/*`). Directory, requests, and buddy-gated fields are served through these routes using the Admin SDK. See [03-database-schema.md](./03-database-schema.md) for `buddyRequests` / `buddyPairs`.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/buddies/directory` | Public directory cards: `?q=` optional name filter. Each row includes `isBuddy` for the signed-in viewer. |
+| `GET` | `/api/buddies/profile/[uid]` | Public fields; **GitHub / website / projects** only if viewer is self, admin/mod, or **accepted buddy**. |
+| `GET` | `/api/buddies/requests` | `{ incoming, outgoing }` pending requests (enriched names). |
+| `POST` | `/api/buddies/requests` | Body `{ "toUid" }`. Caller must have `profilePublic`; reverse pending request can auto-accept. |
+| `PATCH` | `/api/buddies/requests/[requestId]` | Body `{ "action": "accept" \| "reject" }` — recipient only. |
+| `GET` | `/api/buddies/connections` | Accepted buddies with buddy-only extras. |
+
+**UI:** `/buddies` (Discover, Requests, My buddies); profile detail opens in a **modal**; shareable query **`/buddies?u=<uid>`**; legacy `/buddies/<uid>` redirects to that query.
 
 ---
 

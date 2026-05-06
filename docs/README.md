@@ -28,6 +28,7 @@ User visits site
   └─ Optional: live self check-in on /sessions (code + window set in Session Editor)
   └─ Assignments & projects submitted; admin reviews in /admin
   └─ Signed-in user: optional private learning checklist /dashboard/tasks (imports from templates when empty)
+  └─ DevcampBuddies (/buddies): opt-in profilePublic, directory, buddy requests, accepted pairs — APIs only for buddy collections
   └─ Programme leave → programOptOut (no app until admin restores)
   └─ Admin “Inactive” archive → disabledUsers/{uid} (no users/{uid}; APIs → ACCOUNT_DISABLED until restore)
 ```
@@ -40,6 +41,7 @@ Use this as a changelog-style index; details live in the linked docs.
 
 | Topic | Summary |
 |-------|---------|
+| **DevcampBuddies** | Opt-in **`profilePublic`**; collections **`buddyRequests`**, **`buddyPairs`**; REST **`/api/buddies/*`**; UI **`/buddies`** (modal profile, `?u=` query); **`buddyCount`** server-maintained + rules. [03](./03-database-schema.md), [04](./04-auth-and-security.md), [07](./07-api-routes.md). |
 | **Architecture & features** | [01-project-overview.md](./01-project-overview.md) — product feature table, layered diagram (React ↔ Next API ↔ Firebase), design decisions. |
 | **Self check-in** | `session_self_checkin/{sessionId}` (code + window); **`POST /api/me/attendance/self-check-in`**, **`GET /api/me/attendance/check-in-status`**; UI on **`/sessions`** (`SessionSelfCheckInPanel`); admin: **Session Editor → Live attendance code**. Attendance **`sessionAttendanceAudit`** for traceability. [03](./03-database-schema.md), [07](./07-api-routes.md), [08](./08-site-deployment-and-admin.md). |
 | **Attendance audit** | `attendance/{uid}.sessionAttendanceAudit` — `createdBy`, `updatedBy`, `createdAt`, `updatedAt`, `source` (`admin` \| `self_check_in`). Admin toggles use **`PATCH /api/attendance/[uid]`** via `adminService.toggleAttendance`. |

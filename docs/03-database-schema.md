@@ -19,6 +19,8 @@ Firestore
 ├── tags/                  ← Tag categories for forms (seeded via `POST /api/admin/tags`)
 ├── learningTasks/         ← Private checklist items per user (`userId` = owner)
 ├── learningTaskTemplates/ ← Organiser catalogue for suggested checklist rows (signed-in read)
+├── buddyRequests/       ← DevcampBuddies pending/accepted/rejected requests (API / Admin SDK only)
+├── buddyPairs/            ← Accepted buddy pairs (`uids` pair + `createdAt`; API / Admin SDK only)
 └── error_logs/            ← Client and server errors (Admin SDK / API only; `/admin/errors`)
 ```
 
@@ -57,6 +59,10 @@ Document ID = Firebase Auth UID (same for every user across the whole system).
   expertise?:       string[]        // Domain expertise (ML, DevOps, etc.)
   wantToLearn?:     string[]        // Topics the user wants to learn
   canOffer?:        string[]        // Ways the user can help others
+
+  // DevcampBuddies (networking — see `/buddies`, `/api/buddies/*`)
+  profilePublic?:   boolean         // Opt-in: appear in directory; required to send buddy requests
+  buddyCount?:      number          // Denormalised accepted-buddy count — **only APIs may write** (Firestore rules block owner PATCH)
 
   // Kick-off (e.g. 23 April) — in person vs online
   kickoffInPersonRsvp?: boolean      // true = in person, false = online / not in person
@@ -383,6 +389,39 @@ Automatic error log entries (React boundaries, `POST /api/log-error`, server rou
 
 ---
 
+## `buddyRequests/{requestId}`
+
+Auto id. **Client Firestore rules:** read/write denied — all access via **Next.js API + Admin SDK**.
+
+```ts
+{
+  fromUid: string;
+  toUid: string;
+  status: "pending" | "accepted" | "rejected";
+  createdAt: Timestamp;
+  respondedAt?: Timestamp;
+}
+```
+
+Incoming/outgoing lists use composite queries on `fromUid` / `toUid` + `status` + `createdAt` (see `firestore.indexes.json`).
+
+---
+
+## `buddyPairs/{pairId}`
+
+Document id = **`${minUid}__${maxUid}`** (lexicographic). **Client rules:** deny all.
+
+```ts
+{
+  uids: [string, string];   // sorted pair of Firebase UIDs
+  createdAt: Timestamp;
+}
+```
+
+Listed with `where("uids", "array-contains", viewerUid)` for “my buddies”. Accepting a request creates the pair doc and increments **`buddyCount`** on both **`users/{uid}`** documents (transaction).
+
+---
+
 ## Composite indexes
 
 Firestore needs compound indexes for queries that filter and sort on different fields simultaneously.
@@ -392,6 +431,10 @@ Firestore needs compound indexes for queries that filter and sort on different f
 | `assignments` | filter by `userId`, sort by `submittedAt` desc | `userId ASC + submittedAt DESC` |
 | `projects` | filter by `userId`, sort by `submittedAt` desc | `userId ASC + submittedAt DESC` |
 | `learningTasks` | filter by `userId`, order by `sessionOrder`, `sortOrder` | `userId ASC + sessionOrder ASC + sortOrder ASC` |
+| `users` | `profilePublic == true`, order by `displayName` | `profilePublic ASC + displayName ASC` |
+| `buddyRequests` | `fromUid` + `toUid` + `status` (duplicate detection) | composite |
+| `buddyRequests` | `toUid` / `fromUid` + `status` + `createdAt` desc | inbox / outbox |
+| `buddyPairs` | `uids` array-contains + `createdAt` desc | list buddies for viewer |
 
 These are defined in `firestore.indexes.json` and deployed with `firebase deploy --only firestore:indexes`.
 

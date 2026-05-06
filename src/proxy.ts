@@ -43,7 +43,7 @@ function isAllowedOrigin(origin: string | null): boolean {
 }
 
 // ── Route protection ─────────────────────────────────────────────────────────
-const PROTECTED_ROUTES = ["/dashboard", "/submit", "/profile"];
+const PROTECTED_ROUTES = ["/dashboard", "/submit", "/profile", "/buddies"];
 const ADMIN_ROUTES     = ["/admin"];
 
 // ── Security response headers ─────────────────────────────────────────────────

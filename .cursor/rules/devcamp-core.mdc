@@ -1,0 +1,25 @@
+---
+description: Core workflow, scope, and Next.js version expectations for AI DevCamp
+alwaysApply: true
+---
+
+# AI DevCamp — core rules
+
+## Next.js
+
+This repo uses **Next.js with breaking changes** vs common training knowledge. Before adding routes, config, or App Router APIs, **consult the in-repo guides** under `node_modules/next/dist/docs/` (and heed deprecations). Do not assume APIs from older Next versions.
+
+## Scope and edits
+
+- **Only change what the task requires.** No drive-by refactors, no unrelated files, no “cleanup” unless asked.
+- **Match the codebase:** imports, naming, types, component structure, and Tailwind/Radix patterns used nearby.
+- **Reuse and extend** existing helpers (`src/lib/`, `src/components/`, server modules) instead of duplicating logic.
+- **Do not remove** unrelated comments or code in passing.
+
+## Documentation
+
+- **Do not add or edit** markdown under `docs/` or README-style files **unless the user explicitly asks** for documentation updates.
+
+## Verification
+
+- After substantive changes, run **`npm run lint`** and **`npm run build`** (from the project root) and fix failures you introduce.

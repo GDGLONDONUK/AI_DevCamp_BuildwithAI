@@ -77,6 +77,15 @@ export interface UserProfile {
   importLinkedAt?: string;
   /** Normalised tags from the `tags` catalog (e.g. prior-ai-knowledge). Optional alongside free-text fields. */
   priorAIKnowledgeTags?: string[];
+
+  /**
+   * When true, other signed-in attendees can discover this profile in DevcampBuddies and send buddy requests.
+   * You must enable this (and keep your profile in good shape) to use the buddies directory.
+   */
+  profilePublic?: boolean;
+
+  /** Denormalised count of accepted DevcampBuddies connections (maintained by API). */
+  buddyCount?: number;
   /** RSVP for the 23 Apr kick-off: in person (London) vs online only. */
   kickoffInPersonRsvp?: boolean;
   /**

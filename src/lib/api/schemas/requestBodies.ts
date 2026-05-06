@@ -210,3 +210,11 @@ export const learningTaskImportSchema = z
   .refine((b) => (b.templateIds?.length ?? 0) > 0 || b.importAllActive === true, {
     message: "Provide templateIds or set importAllActive to true",
   });
+
+export const buddyRequestCreateSchema = z.object({
+  toUid: z.string().trim().min(1).max(128),
+});
+
+export const buddyRequestPatchSchema = z.object({
+  action: z.enum(["accept", "reject"]),
+});
