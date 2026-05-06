@@ -388,7 +388,6 @@ export default function RegisterPage() {
       if (!skip && form.projectName.trim()) {
         await setDoc(doc(collection(db, "projects")), {
           userId: newUser.uid,
-          userEmail: form.email,
           userName: form.displayName,
           title: form.projectName,
           description: form.projectDescription,

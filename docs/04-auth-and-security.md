@@ -153,6 +153,15 @@ This redirects immediately if the wrong user tries to access a page.
 - **`buddyRequests`** and **`buddyPairs`** — **deny all** client reads/writes; only server routes mutate them.
 - **`buddyCount`** on **`users/*`** — incremented only by APIs; **Firestore rules reject self-updates** that patch `buddyCount` (admins/mods may still update user docs for support).
 
+#### Email (PII) — where it appears
+
+| Surface | Behaviour |
+|--------|-----------|
+| **`users/{uid}`** | `email` lives on the profile doc; client SDK may **read only your own** doc (plus admins/mods read all). Not exposed via DevcampBuddies directory cards (`publicBuddyCardFromUser` omits email). |
+| **`projects/{id}`** | **Read:** signed-in **owner** (`userId`) or **admin/moderator** only — not world-readable. **Write:** new submissions store **`userId` + `userName`**; **`userEmail` is omitted** on new docs (legacy rows may still have it). Resolve contact via **`users/{userId}`** in admin tools if needed. |
+| **`assignments/{id}`** | Already scoped to owner or admin/mod for read; new submissions likewise omit **`userEmail`** where possible. |
+| **`error_logs`** | Optional reporter email is stored **redacted** (see `redactEmail` in `insertErrorLog`) so support still has coarse identity without full addresses in Firestore. |
+
 #### How rules are structured
 
 ```
@@ -202,6 +211,8 @@ allow update: if
   !...affectedKeys().hasAny(['status', 'userId'])
 ```
 Without this, a user could change which user "owns" a submission.
+
+**Projects are not public-read:** only the submitter or admins/mods may read each document (same spirit as assignments — avoids leaking **`userEmail`** / ownership metadata to anonymous or unrelated clients).
 
 **Sessions are public-read, admin-write:**
 ```

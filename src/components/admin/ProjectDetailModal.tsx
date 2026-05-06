@@ -64,7 +64,15 @@ export default function ProjectDetailModal({ project, onClose, onSave }: Project
               {project.title}
             </h2>
             <p className="text-sm text-gray-400 mt-1">
-              {project.userName} · <span className="text-green-400/90 font-mono">{project.userEmail}</span>
+              {project.userName}
+              {project.userEmail ? (
+                <>
+                  {" "}
+                  · <span className="text-green-400/90 font-mono">{project.userEmail}</span>
+                </>
+              ) : (
+                <span className="text-gray-600 font-mono text-xs"> · uid {project.userId}</span>
+              )}
             </p>
             <p className="text-xs text-gray-600 font-mono mt-1">
               Submitted {formatAdminDateTime(project.submittedAt)} · Week {project.weekCompleted}

@@ -126,8 +126,10 @@ service cloud.firestore {
 
     // ── Projects ──────────────────────────────────────────────────────────────
     match /projects/{projectId} {
-      // Public read (gallery).
-      allow read: if true;
+      // Owner or admins/mods only — do not expose submitter email via world-readable queries.
+      allow read: if isSignedIn() && (
+        resource.data.userId == request.auth.uid || isAdminOrMod()
+      );
 
       allow create: if isSignedIn()
                     && request.resource.data.userId == request.auth.uid;

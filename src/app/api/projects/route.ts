@@ -52,7 +52,6 @@ export async function POST(request: NextRequest) {
 
     const project = {
       userId:        auth.uid,
-      userEmail:     auth.email ?? "",
       userName:      userData?.displayName ?? "",
       title,
       description,

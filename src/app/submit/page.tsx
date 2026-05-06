@@ -83,7 +83,6 @@ export default function SubmitPage() {
     try {
       await addDoc(collection(db, "assignments"), {
         userId: user!.uid,
-        userEmail: user!.email,
         userName: userProfile?.displayName || user!.email,
         weekNumber: assignmentForm.weekNumber,
         sessionId: assignmentForm.sessionId,
@@ -120,7 +119,6 @@ export default function SubmitPage() {
     try {
       await addDoc(collection(db, "projects"), {
         userId: user!.uid,
-        userEmail: user!.email,
         userName: userProfile?.displayName || user!.email,
         title: projectForm.title,
         description: projectForm.description,

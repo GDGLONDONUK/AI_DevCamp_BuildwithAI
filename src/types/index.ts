@@ -252,7 +252,8 @@ export interface TagCategoryDocument {
 export interface Assignment {
   id?: string;
   userId: string;
-  userEmail: string;
+  /** Legacy / optional — new submissions omit this field (use userId + users/{uid} for email). */
+  userEmail?: string;
   userName: string;
   weekNumber: number;
   sessionId: string;
@@ -270,7 +271,8 @@ export interface Assignment {
 export interface Project {
   id?: string;
   userId: string;
-  userEmail: string;
+  /** Legacy / optional — new submissions omit this field (use userId + users/{uid} for email). */
+  userEmail?: string;
   userName: string;
   title: string;
   description: string;

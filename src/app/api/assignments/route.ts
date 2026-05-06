@@ -55,7 +55,6 @@ export async function POST(request: NextRequest) {
 
     const assignment = {
       userId:      auth.uid,
-      userEmail:   auth.email ?? "",
       userName:    userData?.displayName ?? "",
       weekNumber,
       sessionId,

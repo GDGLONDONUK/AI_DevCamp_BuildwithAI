@@ -1,5 +1,6 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase-admin";
+import { redactEmail } from "@/lib/logging/redactEmail";
 
 export type InsertAppErrorLogInput = {
   message: string;
@@ -30,7 +31,10 @@ export async function insertErrorLog(input: InsertAppErrorLogInput): Promise<str
         path: input.path != null ? String(input.path).slice(0, 500) : null,
         url: input.url != null ? String(input.url).slice(0, 2_000) : null,
         userId: input.userId ?? null,
-        userEmail: input.userEmail ?? null,
+        userEmail:
+          input.userEmail != null && String(input.userEmail).trim() !== ""
+            ? redactEmail(String(input.userEmail))
+            : null,
         userAgent: input.userAgent != null ? String(input.userAgent).slice(0, 500) : null,
         createdAt: FieldValue.serverTimestamp(),
       });

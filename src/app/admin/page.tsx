@@ -629,7 +629,7 @@ export default function AdminPage() {
       : 0;
 
   const usersAdminTableFiltered = useMemo(() => {
-    let list = usersKickoffFiltered;
+    const list = usersKickoffFiltered;
     if (!sessionsAttendedFilter) return list;
     const n = sessions.length;
     if (sessionsAttendedFilter === "pass70") {
@@ -2321,7 +2321,10 @@ export default function AdminPage() {
                             Week {a.weekNumber}
                           </span>
                         </div>
-                        <p className="text-sm text-gray-400">{a.userName} · {a.userEmail}</p>
+                        <p className="text-sm text-gray-400">
+                          {a.userName}
+                          {a.userEmail ? ` · ${a.userEmail}` : ""}
+                        </p>
                         <p className="text-sm text-gray-500 mt-1 line-clamp-2">{a.description}</p>
                         <div className="flex gap-3 mt-2">
                           {a.githubUrl && (
@@ -2410,7 +2413,10 @@ export default function AdminPage() {
                             {p.status}
                           </span>
                         </div>
-                        <p className="text-sm text-gray-400">{p.userName} · {p.userEmail}</p>
+                        <p className="text-sm text-gray-400">
+                          {p.userName}
+                          {p.userEmail ? ` · ${p.userEmail}` : ""}
+                        </p>
                         <p className="text-sm text-gray-500 mt-1 line-clamp-2">{p.description}</p>
                         {p.techStack && p.techStack.length > 0 && (
                           <div className="flex flex-wrap gap-1.5 mt-2">
@@ -2598,7 +2604,7 @@ export default function AdminPage() {
                             {/* What you'll learn */}
                             {s.whatYouWillLearn && s.whatYouWillLearn.length > 0 && (
                               <div className="mt-2">
-                                <span className="text-[10px] text-gray-600 font-mono uppercase tracking-wider">You'll learn:</span>
+                                <span className="text-[10px] text-gray-600 font-mono uppercase tracking-wider">You&apos;ll learn:</span>
                                 <div className="flex flex-wrap gap-1 mt-1">
                                   {s.whatYouWillLearn.map((item) => (
                                     <span key={item} className="text-[10px] bg-white/[0.04] text-gray-400 border border-white/8 px-2 py-0.5 rounded-full">▸ {item}</span>
