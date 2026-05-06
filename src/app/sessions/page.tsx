@@ -1,18 +1,20 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSessions } from "@/hooks/useSessions";
+import { useSpeakers } from "@/hooks/useSpeakers";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import {
-  Calendar, Clock, ExternalLink, MapPin,
+  Calendar, Clock, ExternalLink, MapPin, Link2,
   ChevronDown, Lightbulb, BookOpen, Mic, Timer, CheckCircle2, Check,
 } from "lucide-react";
 import AuthModal from "@/components/AuthModal";
 import SessionSelfCheckInPanel from "@/components/SessionSelfCheckInPanel";
 import { Session } from "@/types";
-import { getSessionSpeakersList } from "@/lib/sessionSpeakers";
+import { SPEAKERS as STATIC_SPEAKERS } from "@/data/speakers";
+import { getSessionSpeakersList, speakerRecordsToLookup } from "@/lib/sessionSpeakers";
 
 function groupByWeek(sessions: Session[]): Record<number, Session[]> {
   return sessions.reduce((acc, s) => {
@@ -25,6 +27,11 @@ function groupByWeek(sessions: Session[]): Record<number, Session[]> {
 export default function SessionsPage() {
   const { user, userProfile } = useAuth();
   const { sessions, loading } = useSessions();
+  const { speakers } = useSpeakers();
+  const speakerLookup = useMemo(() => {
+    const src = speakers.length > 0 ? speakers : STATIC_SPEAKERS;
+    return speakerRecordsToLookup(src);
+  }, [speakers]);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [authModal, setAuthModal] = useState(false);
   const [attendance, setAttendance] = useState<Record<string, boolean>>({});
@@ -165,7 +172,7 @@ export default function SessionsPage() {
                         const isOpen = expanded === session.id;
                         const isSpecial = session.isKickoff || session.isClosing;
                         const attended = attendance[session.id] === true;
-                        const speakersList = getSessionSpeakersList(session);
+                        const speakersList = getSessionSpeakersList(session, speakerLookup);
 
                         return (
                           <div key={session.id} className="flex gap-5">
@@ -338,6 +345,17 @@ export default function SessionsPage() {
                                               </div>
                                               {sp.title && (
                                                 <p className="text-sm text-gray-500 mt-0.5">{sp.title}</p>
+                                              )}
+                                              {sp.linkedinUrl && (
+                                                <a
+                                                  href={sp.linkedinUrl}
+                                                  target="_blank"
+                                                  rel="noopener noreferrer"
+                                                  className="inline-flex items-center gap-1.5 text-xs text-sky-400/90 hover:text-sky-300 mt-1.5"
+                                                >
+                                                  <Link2 size={12} className="shrink-0" />
+                                                  LinkedIn profile
+                                                </a>
                                               )}
                                             </div>
                                           </div>

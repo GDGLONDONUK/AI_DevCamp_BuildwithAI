@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -27,10 +27,9 @@ import CopyTextButton from "@/components/ui/CopyTextButton";
 import { GithubIcon, LinkedinIcon } from "@/components/icons/SocialBrandIcons";
 import {
   createUserWithEmailAndPassword,
-  signInWithPopup,
-  GoogleAuthProvider,
   updateProfile,
   sendEmailVerification,
+  getRedirectResult,
 } from "firebase/auth";
 import {
   doc,
@@ -39,6 +38,7 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { auth, db, storage } from "@/lib/firebase";
+import { loginWithGoogle } from "@/lib/auth";
 import {
   ensureProfileOnServer,
   fetchMyPreregisteredRow,
@@ -138,10 +138,54 @@ export default function RegisterPage() {
     projectUrl: "",
   });
 
+  const GOOGLE_REGISTER_PENDING = "bwai_pending_google_register";
+
+  /** After Google `signInWithRedirect` (mobile), finish registration navigation here — popup path uses `handleGoogle`. */
+  const completeGoogleRegistration = useCallback(async () => {
+    try {
+      const ensured = await ensureProfileOnServer();
+      if (!ensured.created && ensured.profileExists) {
+        toast.success("Welcome back!");
+        router.push("/dashboard");
+        return;
+      }
+      if (ensured.preRegistrationMatched) {
+        toast.success("Welcome back! Your registration form has been matched ✓");
+      } else {
+        toast.success("Welcome to AI DevCamp! 🚀");
+      }
+      sessionStorage.setItem(SESSION_SKIP_REGISTER_REDIRECT, "1");
+      router.push("/register/kickoff");
+    } finally {
+      sessionStorage.removeItem(GOOGLE_REGISTER_PENDING);
+    }
+  }, [router]);
+
+  useEffect(() => {
+    let cancelled = false;
+    getRedirectResult(auth).then(async (cred) => {
+      if (!cred?.user || cancelled) return;
+      setSubmitting(true);
+      try {
+        await completeGoogleRegistration();
+      } catch (err) {
+        console.error(err);
+        toast.error(firebaseAuthErrorMessage(err));
+      } finally {
+        if (!cancelled) setSubmitting(false);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [completeGoogleRegistration]);
+
   // Redirect if already logged in (not when heading to kick-off RSVP)
   useEffect(() => {
     if (loading || !user) return;
     if (typeof sessionStorage !== "undefined" && sessionStorage.getItem(SESSION_SKIP_REGISTER_REDIRECT) === "1") return;
+    /* Mobile Google redirect: finish `completeGoogleRegistration` before bouncing to dashboard */
+    if (typeof sessionStorage !== "undefined" && sessionStorage.getItem(GOOGLE_REGISTER_PENDING) === "1") return;
     router.push("/dashboard");
   }, [user, loading, router]);
 
@@ -238,26 +282,23 @@ export default function RegisterPage() {
   // ── Google sign-up ──────────────────────────────────────────────────────────
 
   const handleGoogle = async () => {
+    if (typeof sessionStorage !== "undefined") {
+      sessionStorage.setItem(GOOGLE_REGISTER_PENDING, "1");
+    }
     setSubmitting(true);
     try {
-      const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
-      const ensured = await ensureProfileOnServer();
-      if (!ensured.created && ensured.profileExists) {
-        toast.success("Welcome back!");
-        router.push("/dashboard");
+      const cred = await loginWithGoogle();
+      if (!cred) {
+        /* Mobile: browser follows redirect to Google — flag cleared when `completeGoogleRegistration` runs */
         return;
       }
-      if (ensured.preRegistrationMatched) {
-        toast.success("Welcome back! Your registration form has been matched ✓");
-      } else {
-        toast.success("Welcome to AI DevCamp! 🚀");
-      }
-      sessionStorage.setItem(SESSION_SKIP_REGISTER_REDIRECT, "1");
-      router.push("/register/kickoff");
+      await completeGoogleRegistration();
     } catch (err) {
       console.error(err);
       toast.error(firebaseAuthErrorMessage(err));
+      if (typeof sessionStorage !== "undefined") {
+        sessionStorage.removeItem(GOOGLE_REGISTER_PENDING);
+      }
     } finally {
       setSubmitting(false);
     }

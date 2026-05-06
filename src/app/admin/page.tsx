@@ -4,8 +4,10 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import { Assignment, Project, Session, UserProfile, UserStatus } from "@/types";
+import { Assignment, Project, Session, Speaker, UserProfile, UserStatus } from "@/types";
 import { getSessions, upsertSession, deleteSession, seedDefaultSessions } from "@/lib/sessionService";
+import { getSpeakers, seedDefaultSpeakers } from "@/lib/speakerService";
+import { SPEAKERS as STATIC_SPEAKERS } from "@/data/speakers";
 import {
   fetchAllUsers, fetchAllAssignments, fetchAllProjects, fetchAttendanceForUsers,
   setUserStatus, setUserRole, setAssignmentStatus, setProjectStatus, deleteUserFromServer,
@@ -81,7 +83,7 @@ import {
   isKickoffInPersonInApp,
   userMatchesInPersonLooseRsvp,
 } from "@/lib/kickoffRsvp";
-import { getSessionSpeakersList } from "@/lib/sessionSpeakers";
+import { getSessionSpeakersList, speakerRecordsToLookup } from "@/lib/sessionSpeakers";
 import {
   type AdminConsoleTab,
   type AttendanceMap,
@@ -104,6 +106,7 @@ export default function AdminPage() {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
+  const [speakers, setSpeakers] = useState<Speaker[]>([]);
   const [attendance, setAttendance] = useState<AttendanceMap>({});
   const [dataLoading, setDataLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -161,22 +164,29 @@ export default function AdminPage() {
   }, [user, userProfile, loading, router]);
 
   // ── Load all data ─────────────────────────────────────────────────────────
+  const refreshSpeakers = useCallback(async () => {
+    const list = await getSpeakers();
+    setSpeakers(list);
+  }, []);
+
   const fetchAll = useCallback(async () => {
     if (!user || userProfile?.role !== "admin") return;
     setDataLoading(true);
     try {
-      const [loadedUsers, loadedAssignments, loadedProjects, loadedSessions] =
+      const [loadedUsers, loadedAssignments, loadedProjects, loadedSessions, loadedSpeakers] =
         await Promise.all([
           fetchAllUsers(),
           fetchAllAssignments(),
           fetchAllProjects(),
           getSessions(),
+          getSpeakers(),
         ]);
 
       setUsers(loadedUsers);
       setAssignments(loadedAssignments);
       setProjects(loadedProjects);
       setSessions(loadedSessions);
+      setSpeakers(loadedSpeakers);
 
       const attUids = loadedUsers
         .filter((u) => u.uid && u.signedIn !== false)
@@ -190,6 +200,11 @@ export default function AdminPage() {
       setDataLoading(false);
     }
   }, [user, userProfile]);
+
+  const speakerLookup = useMemo(() => {
+    const merged = speakers.length > 0 ? speakers : STATIC_SPEAKERS;
+    return speakerRecordsToLookup(merged);
+  }, [speakers]);
 
   useEffect(() => {
     fetchAll();
@@ -786,15 +801,19 @@ export default function AdminPage() {
   };
 
   const handleSeedSessions = async (force = false) => {
+    const spCount = await seedDefaultSpeakers(force);
     const added = await seedDefaultSessions(force);
-    const fresh = await getSessions();
-    setSessions(fresh);
+    const [freshSessions, freshSpeakers] = await Promise.all([getSessions(), getSpeakers()]);
+    setSessions(freshSessions);
+    setSpeakers(freshSpeakers);
     if (force) {
-      toast.success(`Re-seeded all ${added} sessions with latest data`);
-    } else if (added === 0) {
-      toast("All default sessions already exist — use Re-seed to overwrite", { icon: "ℹ️" });
+      toast.success(`Re-seeded roster (${spCount}) and all ${added} sessions`);
+    } else if (added === 0 && spCount === 0) {
+      toast("Defaults already imported — use Re-seed to overwrite sessions & speakers", { icon: "ℹ️" });
     } else {
-      toast.success(`Imported ${added} default session${added > 1 ? "s" : ""}`);
+      toast.success(
+        `Imported ${spCount} speaker${spCount !== 1 ? "s" : ""}, ${added} session${added !== 1 ? "s" : ""}`
+      );
     }
   };
 
@@ -1923,7 +1942,7 @@ export default function AdminPage() {
                     The left list is attendees who have <strong className="text-gray-300">never</strong> had{" "}
                     <strong className="text-gray-300">true</strong> on any programme session field (
                     <code className="text-cyan-400/90">session-1</code> …{" "}
-                    <code className="text-cyan-400/90">session-6</code>) in{" "}
+                    <code className="text-cyan-400/90">session-7</code>) in{" "}
                     <code className="text-gray-300">attendance/&lt;uid&gt;</code>. Admins and moderators are omitted from
                     that report. Archiving writes the full profile to{" "}
                     <code className="text-gray-300">disabledUsers/&lt;uid&gt;</code> and removes{" "}
@@ -2410,7 +2429,7 @@ export default function AdminPage() {
                 ) : (
                   <div className="space-y-3">
                     {sessions.map((s) => {
-                      const sessionSpeakers = getSessionSpeakersList(s);
+                      const sessionSpeakers = getSessionSpeakersList(s, speakerLookup);
                       return (
                       <div key={s.id} className="bg-gray-900/50 border border-white/8 rounded-xl p-5 hover:border-white/15 transition-all">
                         <div className="flex flex-wrap items-start gap-4">
@@ -2892,6 +2911,8 @@ export default function AdminPage() {
           session={editingSession}
           onSave={handleSaveSession}
           onClose={() => setEditingSession(false)}
+          speakersRoster={speakers.length > 0 ? speakers : STATIC_SPEAKERS}
+          onSpeakersChanged={refreshSpeakers}
         />
       )}
 

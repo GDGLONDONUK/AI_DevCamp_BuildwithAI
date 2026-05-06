@@ -2,11 +2,13 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signInWithPopup,
+  signInWithRedirect,
   sendPasswordResetEmail,
   GoogleAuthProvider,
   signOut,
   updateProfile,
   User,
+  type UserCredential,
 } from "firebase/auth";
 import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "./firebase";
@@ -36,6 +38,16 @@ export async function syncAuthProvidersToUserDoc(user: User): Promise<void> {
 }
 
 const googleProvider = new GoogleAuthProvider();
+
+/**
+ * Mobile browsers (especially iOS Safari) often block or break `signInWithPopup`.
+ * Redirect-based Google sign-in is the recommended flow there.
+ */
+export function preferGoogleRedirect(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent;
+  return /iPhone|iPad|iPod|Android/i.test(ua);
+}
 
 export async function createUserDocument(
   user: User,
@@ -79,7 +91,14 @@ export async function registerWithEmail(
 }
 
 export async function loginWithEmail(email: string, password: string) {
-  return signInWithEmailAndPassword(auth, email, password);
+  const e = typeof email === "string" ? email.trim() : "";
+  const p = typeof password === "string" ? password : "";
+  if (!e || !p) {
+    const err = new Error("missing-email-or-password") as Error & { code: string };
+    err.code = "auth/argument-error";
+    throw err;
+  }
+  return signInWithEmailAndPassword(auth, e, p);
 }
 
 /**
@@ -87,14 +106,20 @@ export async function loginWithEmail(email: string, password: string) {
  * The user follows the link in the email to choose a new password.
  */
 export async function sendPasswordResetToEmail(email: string): Promise<void> {
+  const trimmed = typeof email === "string" ? email.trim() : "";
+  if (!trimmed) {
+    const err = new Error("missing-email") as Error & { code: string };
+    err.code = "auth/missing-email";
+    throw err;
+  }
   const base =
     (typeof process !== "undefined" && process.env.NEXT_PUBLIC_APP_URL?.trim()) ||
     (typeof window !== "undefined" ? window.location.origin : "");
   const url = base ? `${base.replace(/\/$/, "")}/` : undefined;
   await sendPasswordResetEmail(
     auth,
-    email,
-    url
+    trimmed,
+    url && /^https?:\/\//i.test(url)
       ? {
           url,
           handleCodeInApp: false,
@@ -103,10 +128,16 @@ export async function sendPasswordResetToEmail(email: string): Promise<void> {
   );
 }
 
-export async function loginWithGoogle() {
+/**
+ * Email/password Google sign-in. On mobile, uses redirect (returns `null` while navigation happens).
+ * On desktop, uses popup and returns the credential.
+ */
+export async function loginWithGoogle(): Promise<UserCredential | null> {
+  if (preferGoogleRedirect()) {
+    await signInWithRedirect(auth, googleProvider);
+    return null;
+  }
   const result = await signInWithPopup(auth, googleProvider);
-  // Firestore profile is created by POST /api/me/ensure-profile from AuthContext
-  // when missing (Admin SDK).
   return result;
 }
 

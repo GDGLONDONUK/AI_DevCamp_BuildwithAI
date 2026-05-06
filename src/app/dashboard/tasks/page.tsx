@@ -28,8 +28,9 @@ import {
   Trash2,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { SESSIONS } from "@/data/sessions";
-import type { LearningTask, LearningTaskPriority, LearningTaskProgress } from "@/types";
+import { SESSIONS as STATIC_SESSIONS } from "@/data/sessions";
+import { useSessions } from "@/hooks/useSessions";
+import type { LearningTask, LearningTaskPriority, LearningTaskProgress, Session } from "@/types";
 import {
   createLearningTask,
   deleteLearningTask,
@@ -79,15 +80,20 @@ function isDueAhead(task: LearningTask): boolean {
   return due >= startOfToday();
 }
 
-/** Numbered programme sessions from curriculum (`sessions.ts`) plus General — stays aligned when sessions change. */
-const SESSION_PRESETS: { key: string; label: string; order: number }[] = [
-  ...SESSIONS.filter((s) => /^session-\d+$/.test(s.id)).map((s) => ({
-    key: s.id,
-    label: `Session ${s.number}`,
-    order: s.number,
-  })),
-  { key: "general", label: "General", order: 999 },
-];
+/** Numbered programme sessions from Firestore (fallback `sessions.ts`) plus General. */
+function buildSessionPresets(sessions: Session[]): { key: string; label: string; order: number }[] {
+  const list = sessions.length > 0 ? sessions : STATIC_SESSIONS;
+  return [
+    ...list
+      .filter((s) => /^session-\d+$/.test(s.id))
+      .map((s) => ({
+        key: s.id,
+        label: `Session ${s.number}`,
+        order: s.number,
+      })),
+    { key: "general", label: "General", order: 999 },
+  ];
+}
 
 function formatTimelineDayHeading(isoDay: string): string {
   const parts = isoDay.split("-").map(Number);
@@ -296,6 +302,11 @@ function TaskActivityReadOnly({ task, embedded }: { task: LearningTask; embedded
 
 export default function LearningTasksPage() {
   const { user, loading } = useAuth();
+  const { sessions: liveSessions } = useSessions();
+  const SESSION_PRESETS = useMemo(
+    () => buildSessionPresets(liveSessions),
+    [liveSessions]
+  );
   const router = useRouter();
   const [tasks, setTasks] = useState<LearningTask[]>([]);
   const [templatesCount, setTemplatesCount] = useState(0);
@@ -481,7 +492,7 @@ export default function LearningTasksPage() {
     }
     extras.sort((a, b) => a.label.localeCompare(b.label));
     return [{ key: "", label: "All sessions" }, ...fromPresets, ...extras];
-  }, [tasks]);
+  }, [tasks, SESSION_PRESETS]);
 
   const sessionSelectOptions = useMemo(() => {
     const base: { key: string; label: string; order: number }[] = SESSION_PRESETS.map((s) => ({
@@ -497,7 +508,7 @@ export default function LearningTasksPage() {
       });
     }
     return base.sort((a, b) => a.order - b.order);
-  }, [editing]);
+  }, [editing, SESSION_PRESETS]);
 
   const openCreate = () => {
     setEditing(null);

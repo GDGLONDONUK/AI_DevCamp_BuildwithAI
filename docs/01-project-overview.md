@@ -16,7 +16,7 @@
 |------|------------------------|
 | **Auth** | Email/password and Google sign-in; password reset; deep links `/?login=1` and `/?login=1&reset=1`. |
 | **Registration** | Multi-step signup; pending `users/{email}` merged on first sign-in via `POST /api/me/ensure-profile`. |
-| **Sessions** | Schedule from Firestore; **one or more speakers** per session (`speakers[]` + legacy single-speaker fields); public browse; **recordings & rich content** gated to approved statuses (`participated`, `certified`). |
+| **Sessions & roster** | Schedule from Firestore; each session lists people via **`speakerIds`** ( **`speakers`** collection) or legacy embedded **`speakers[]` / `speaker*`**; **home page** shows schedule + **Speakers & mentors**; **recordings & rich content** on **`/sessions`** gated to approved statuses (`participated`, `certified`). |
 | **Attendance** | Admin grid + per-session filters; Kick Off **in-person vs online** note (`kickoffJoinedAs`); **live self check-in** (6-digit code + admin-defined time window) on `/sessions`; **Attended** badge on schedule + dashboard when marked. |
 | **Assignments & projects** | Submit, review, statuses; gallery-style project visibility where configured. |
 | **Dashboard** | Progress, programme communications opt-out / leave programme, session list with attendance labels. |
@@ -67,8 +67,8 @@
 ┌────────────────────────────▼────────────────────────────────┐
 │                      Firebase                               │
 │  Authentication  — ID tokens for /api                         │
-│  Firestore       — users, sessions, attendance, assignments,  │
-│                    projects, tags, error_logs,                │
+│  Firestore       — users, speakers, sessions, attendance,     │
+│                    assignments, projects, tags, error_logs, │
 │                    session_self_checkin, learningTasks,       │
 │                    learningTaskTemplates                      │
 │  Storage         — avatars                                   │
@@ -98,8 +98,8 @@ Each `src/app/<segment>/page.tsx` maps to a URL. Layouts wrap shared UI (`Navbar
 ### 4. Roles and status
 `role`: `attendee` | `moderator` | `admin`. `userStatus`: `pending` | `participated` | `certified` | `not-certified` | `failed`. Content gating and self check-in eligibility depend on **status** (and **programOptOut** blocks all API access).
 
-### 5. Session content source
-Default seed data lives in `src/data/sessions.ts`; production schedule is **Firestore** (`sessionService`, admin Session Editor).
+### 5. Session & speaker content source
+Default seed data lives in `src/data/sessions.ts` and `src/data/speakers.ts`. Production schedule and roster are **Firestore** (`sessionService`, `speakerService`, admin Session Editor). Sessions reference people via **`speakerIds`** on each session document; names and photos resolve through **`getSessionSpeakersList`**.
 
 ---
 
@@ -129,5 +129,7 @@ FIREBASE_ADMIN_PRIVATE_KEY
 > Never put service account keys in `NEXT_PUBLIC_*`.
 
 ---
+
+**Journeys & diagrams:** [10-customer-journey.md](./10-customer-journey.md) — participant path, auth (including mobile Google), sessions ↔ speakers.
 
 Next → [02-project-structure.md](./02-project-structure.md)

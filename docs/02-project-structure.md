@@ -29,6 +29,7 @@ AI_DevCamp_BuildwithAI/
 │   │   │   └── learning-tasks/page.tsx ← /admin/learning-tasks  Template catalogue CRUD / seed / clear
 │   │   └── api/                  ← REST API (server-side, Firebase Admin SDK)
 │   │       ├── sessions/         ← GET list, POST create, GET/PUT/DELETE by id
+│   │       ├── speakers/         ← GET list (public roster)
 │   │       ├── users/            ← GET list (admin), GET/PATCH by uid
 │   │       ├── me/               ← ensure-profile, leave-program, preregistered, link-preregister
 │   │       │   └── attendance/   ← self-check-in POST, check-in-status GET
@@ -81,6 +82,7 @@ AI_DevCamp_BuildwithAI/
 │   │
 │   ├── hooks/                    ← Custom React hooks (data fetching)
 │   │   ├── useSessions.ts        ← Load sessions from Firestore
+│   │   ├── useSpeakers.ts        ← Load speakers / mentors roster from Firestore
 │   │   └── useAdminData.ts       ← Load all admin data in one call
 │   │
 │   ├── lib/                      ← Pure service/utility functions (no JSX)
@@ -108,8 +110,9 @@ AI_DevCamp_BuildwithAI/
 │   │   │   ├── learningTasksFirestore.ts, learningTaskActor.ts ← learning tasks serialisation / audit actor
 │   │   │   └── …                  ← e.g. preRegisteredLookup, appErrorLog, ensureUserProfileDocument
 │   │   ├── logging/              ← redactEmail, logClientError (safer logs)
-│   │   ├── sessionSpeakers.ts   ← getSessionSpeakersList() — multi-speaker + legacy fallback
+│   │   ├── sessionSpeakers.ts   ← getSessionSpeakersList() — speakerIds lookup + legacy fallback
 │   │   ├── sessionService.ts     ← Session CRUD + seeding
+│   │   ├── speakerService.ts     ← Speaker roster CRUD + seed from src/data/speakers.ts
 │   │   ├── sessionSelfCheckInConstants.ts ← Firestore collection name + audit field key
 │   │   ├── attendanceAudit.ts    ← Merge sessionAttendanceAudit on attendance writes
 │   │   ├── learningTasksApi.ts   ← Client fetch helpers for learning tasks & templates APIs
@@ -118,7 +121,8 @@ AI_DevCamp_BuildwithAI/
 │   │   └── utils.ts              ← cn() Tailwind class merger
 │   │
 │   ├── data/                     ← Static seed data (TypeScript constants)
-│   │   ├── sessions.ts           ← Default 6 sessions (source of truth for seeding)
+│   │   ├── speakers.ts           ← Default speaker / mentor roster (seed before sessions)
+│   │   ├── sessions.ts           ← Default sessions (source of truth for seeding & sync script)
 │   │   ├── learningTaskTemplatesSeed.ts ← Stable ids for POST …/admin/learning-task-templates/seed
 │   │   └── tags.ts               ← Skill/expertise tag presets
 │   │
@@ -130,6 +134,9 @@ AI_DevCamp_BuildwithAI/
 ├── scripts/
 │   ├── ensure-profiles.ts        ← npm run ensure-profiles — backfill profiles by email (Admin SDK; pass emails as args)
 │   ├── backfill-registration-map-coords.ts ← npm run backfill-registration-map-coords — geocode & store map coords on user docs
+│   ├── sync-firestore-programme.ts ← npm run sync-firestore-programme — upsert speakers + sessions from src/data (Admin SDK)
+│   ├── migrate-sessions-speakers.ts ← one-time migration: embedded session speakers → speakers collection + speakerIds
+│   ├── delete-legacy-speaker-docs.ts ← npm run delete-legacy-speaker-docs — remove abandoned speaker doc ids after rename
 │   └── generate-favicons.ts      ← npm run generate-favicons — square PNGs from public/logo.png (requires sharp)
 │
 ├── firestore.rules               ← Firestore security rules (deployed to Firebase)
@@ -156,6 +163,7 @@ AI_DevCamp_BuildwithAI/
 | Admin users map (Nominatim + per-user coord cache) | `src/lib/server/registrationMapSync.ts`, `nominatimGeocode.ts`, `scripts/backfill-registration-map-coords.ts` |
 | Add admin-only UI tied to `/admin` | `src/features/admin/components/` |
 | Change session CRUD logic | `src/lib/sessionService.ts` |
+| Change speaker roster CRUD / seed | `src/lib/speakerService.ts`, `src/data/speakers.ts` |
 | Session speaker list for schedule / admin | `src/lib/sessionSpeakers.ts` (`getSessionSpeakersList`) |
 | Live check-in (code window) data shape / API | `session_self_checkin` in [03](./03-database-schema.md); `src/app/api/me/attendance/*`, `SessionEditor.tsx` |
 | Attendance audit map | `src/lib/attendanceAudit.ts`, `PATCH /api/attendance/[uid]` |

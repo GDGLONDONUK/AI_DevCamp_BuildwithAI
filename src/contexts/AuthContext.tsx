@@ -7,11 +7,13 @@ import {
   useState,
   ReactNode,
 } from "react";
-import { User, onAuthStateChanged, signOut } from "firebase/auth";
+import { User, onAuthStateChanged, signOut, getRedirectResult } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { getUserProfile, syncAuthProvidersToUserDoc } from "@/lib/auth";
 import { ensureProfileOnServer } from "@/lib/meApi";
+import { firebaseAuthErrorMessage } from "@/lib/firebaseAuthErrors";
 import { UserProfile } from "@/types";
+import toast from "react-hot-toast";
 
 function profileAccessRevoked(profile: UserProfile | null | undefined): boolean {
   return profile?.accountDisabled === true || profile?.programOptOut === true;
@@ -84,6 +86,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error("refreshProfile", e);
     }
   };
+
+  /** Surface Google redirect failures (mobile); successful redirect is handled by onAuthStateChanged. */
+  useEffect(() => {
+    getRedirectResult(auth).catch((err: unknown) => {
+      console.error("getRedirectResult", err);
+      const code =
+        typeof err === "object" && err !== null && "code" in err
+          ? String((err as { code?: string }).code)
+          : "";
+      if (code && code !== "auth/popup-closed-by-user") {
+        toast.error(firebaseAuthErrorMessage(err));
+      }
+    });
+  }, []);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {

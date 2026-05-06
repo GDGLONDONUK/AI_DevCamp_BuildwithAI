@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { SESSIONS, CURRICULUM_WEEKS } from "@/data/sessions";
+import { SESSIONS as STATIC_SESSIONS, CURRICULUM_WEEKS } from "@/data/sessions";
+import { useSessions } from "@/hooks/useSessions";
 import { BookOpen, Code2, Link2, FileText, Globe } from "lucide-react";
 
 const GithubIcon = () => (
@@ -21,6 +22,11 @@ type SubmitType = "assignment" | "project";
 
 export default function SubmitPage() {
   const { user, userProfile, loading } = useAuth();
+  const { sessions: liveSessions } = useSessions();
+  const programmeSessions = useMemo(
+    () => (liveSessions.length > 0 ? liveSessions : STATIC_SESSIONS),
+    [liveSessions]
+  );
   const router = useRouter();
   const [submitType, setSubmitType] = useState<SubmitType>("assignment");
   const [submitting, setSubmitting] = useState(false);
@@ -243,7 +249,7 @@ export default function SubmitPage() {
                 className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
               >
                 <option value="">— Select session —</option>
-                {SESSIONS.filter(
+                {programmeSessions.filter(
                   (s) => s.week === assignmentForm.weekNumber
                 ).map((s) => (
                   <option key={s.id} value={s.id}>

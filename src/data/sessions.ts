@@ -11,9 +11,8 @@ export const SESSIONS: Session[] = [
     week: 1,
     topic: "Kick Off & Intro to AI Agents",
     description:
-      "Welcome to AI DevCamp 2026 — Build with AI! We open with two inspiring talks, including Salih's session on building and deploying a Multi-Agent AI Game Master with TypeScript, and a behind-the-scenes look at how Skyscanner is approaching AI agents internally. We'll also walk through the programme structure, what to expect over the coming weeks, assignment and certification details, and distribute cloud credits.",
-    speaker: "Salih + Guests",
-    speakerTitle: "Lead Organiser & Industry Speakers",
+      "Welcome to AI DevCamp 2026 — Build with AI! We open with Salih Guler (AWS) on building and deploying a Multi-Agent AI Game Master with TypeScript, Michael Tweed (Skyscanner) on how Skyscanner approaches AI agents internally, Sumith Damodaran (Sitecore), and Renuka Kelkar (Arnagen Solutions). We'll walk through the programme structure, what to expect over the coming weeks, assignment and certification details, and distribute cloud credits.",
+    speakerIds: ["salih-guler", "michael-tweed", "sumith-damodaran", "renuka-kelkar"],
     isKickoff: true,
     tags: ["Kickoff", "AI Agents", "TypeScript", "Multi-Agent", "Community", "Cloud Credits"],
     whatYouWillLearn: [
@@ -49,8 +48,7 @@ export const SESSIONS: Session[] = [
     topic: "Intro to Agents & Codelabs",
     description:
       "Renuka leads a focused 2-hour hands-on workshop introducing AI agents — how they think, plan, and act. You'll work through 14 guided codelabs that take you from agent fundamentals to practical implementations. By the end of the day you'll have a working understanding of agent loops, tool use, and how to wire them together.",
-    speaker: "Renuka",
-    speakerTitle: "AI Engineer & Workshop Lead",
+    speakerIds: ["renuka-kelkar"],
     tags: ["AI Agents", "Codelabs", "Hands-on", "Workshop", "Tool Use", "Agent Loop"],
     whatYouWillLearn: [
       "What an AI agent is and how the agent loop works",
@@ -86,8 +84,7 @@ export const SESSIONS: Session[] = [
     topic: "MCP · Advanced Agents · Deployment",
     description:
       "Renuka returns for a focused 1-hour session diving into the Model Context Protocol (MCP), advanced agent patterns, and how to deploy your agent to the cloud. We then open the floor for codelab questions and live troubleshooting — bring your blockers!",
-    speaker: "Renuka",
-    speakerTitle: "AI Engineer & Workshop Lead",
+    speakerIds: ["renuka-kelkar"],
     tags: ["MCP", "Model Context Protocol", "Deployment", "Advanced Agents", "Q&A", "Codelabs"],
     whatYouWillLearn: [
       "What the Model Context Protocol (MCP) is and why it matters",
@@ -121,9 +118,8 @@ export const SESSIONS: Session[] = [
     week: 2,
     topic: "Google ADK & Vertex AI",
     description:
-      "A surprise guest speaker joins us for a deep 2-hour build session: Build a Full-Stack Multi-Agent App with Google ADK & Vertex AI. You'll go from zero to a deployed multi-agent application backed by Google's Agent Development Kit and powered by Vertex AI — the same stack used in production at scale.",
-    speaker: "Surprise Speaker",
-    speakerTitle: "Industry Expert",
+      "Saoussen Chaabnia leads a deep 2-hour build session: Full-Stack Multi-Agent App with Google ADK & Vertex AI. You'll go from zero to a deployed multi-agent application backed by Google's Agent Development Kit and powered by Vertex AI — the same stack used in production at scale.",
+    speakerIds: ["saoussen-chaabnia"],
     tags: ["Google ADK", "Vertex AI", "Multi-Agent", "Full-Stack", "Build", "Google Cloud"],
     whatYouWillLearn: [
       "How Google's Agent Development Kit (ADK) works",
@@ -158,6 +154,7 @@ export const SESSIONS: Session[] = [
     topic: "Assignment Completion & Project Showcase",
     description:
       "The final stretch before the closing ceremony. We review assignment completion, go through codelab 3, and participants showcase their projects to the group. Get feedback, celebrate your work, and prepare for the in-person closing.",
+    speakerIds: [],
     tags: ["Project Showcase", "Assignments", "Codelabs", "Demo", "Feedback"],
     whatYouWillLearn: [
       "How to present and demo an AI agent project clearly",
@@ -175,8 +172,50 @@ export const SESSIONS: Session[] = [
     ],
   },
   {
-    id: "session-6",
+    id: "session-7",
     number: 6,
+    title: "Deep Dive: Agent-to-Agent Protocol",
+    date: "9 May 2026",
+    time: "6:00 PM",
+    duration: "1 hour + Q&A",
+    week: 3,
+    topic: "Deep dive into Agent-to-Agent protocol",
+    description:
+      "Agent-to-Agent (A2A) protocols define how independent AI agents discover each other, exchange structured messages, and collaborate on tasks across system and organizational boundaries.\n\nIn this talk, we'll go beyond the basics and explore how agents communicate using standardized primitives like Agent Cards, tasks, messages, and artifacts. We'll look at how agents delegate work, negotiate capabilities, and coordinate execution.\n\nWe'll also cover real-world design patterns for building interoperable, multi-agent systems where agents built on different frameworks can seamlessly work together using a common protocol layer.",
+    speakerIds: ["nishi-ajmera"],
+    tags: [
+      "A2A",
+      "Agent-to-Agent",
+      "Interoperability",
+      "Multi-Agent",
+      "Agent Cards",
+      "Protocols",
+    ],
+    whatYouWillLearn: [
+      "How A2A protocols let agents discover peers and collaborate across organizational boundaries",
+      "Agent Cards, tasks, messages, and artifacts as standardized communication primitives",
+      "How agents delegate work, negotiate capabilities, and coordinate execution",
+      "Design patterns for interoperable multi-agent systems across frameworks",
+    ],
+    buildIdeas: [
+      "Agents that expose or consume an A2A-compatible Agent Card",
+      "Multi-agent workflows coordinated through a shared protocol layer",
+      "Interoperable agents built on different frameworks working together",
+    ],
+    resources: [
+      {
+        title: "A2A Protocol — Specification",
+        url: "https://a2aproject.github.io/A2A/latest/specification/",
+      },
+      {
+        title: "A2A — GitHub",
+        url: "https://github.com/google/A2A",
+      },
+    ],
+  },
+  {
+    id: "session-6",
+    number: 7,
     title: "Closing & Certificate Ceremony",
     date: "19 May 2026",
     time: "6:00 PM",
@@ -185,6 +224,7 @@ export const SESSIONS: Session[] = [
     topic: "In-Person Closing & Certification",
     description:
       "The grand finale of AI DevCamp 2026 — Build with AI! We come together in person (venue TBC) to celebrate everything built over the programme. Certificates are awarded to participants who completed the assignments and project. A night of demos, community, and well-earned recognition.",
+    speakerIds: [],
     isClosing: true,
     tags: ["Closing", "Certificate", "In-Person", "Demo Day", "Community", "Celebration"],
     whatYouWillLearn: [
@@ -255,11 +295,15 @@ export const CURRICULUM_WEEKS = [
     color: "from-green-500 to-green-700",
     learn: [
       "Complete codelabs 3",
+      "Agent-to-Agent (A2A) protocols, Agent Cards, and cross-framework interoperability",
       "Finalise your project",
       "Present and demo your work",
       "Give and receive technical feedback",
     ],
-    build: ["Your final AI agent project"],
+    build: [
+      "Your final AI agent project",
+      "Interoperable multi-agent flows using a common A2A-style protocol layer",
+    ],
     timePerDay: "2+ hrs/day",
     resources: [
       {

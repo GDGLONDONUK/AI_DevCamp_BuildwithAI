@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import { SESSIONS } from "@/data/sessions";
+import { SESSIONS as STATIC_SESSIONS } from "@/data/sessions";
+import { useSessions } from "@/hooks/useSessions";
 import {
   collection,
   query,
@@ -34,6 +35,11 @@ import ProgramOptOutControl from "@/components/ProgramOptOutControl";
 
 export default function DashboardPage() {
   const { user, userProfile, loading } = useAuth();
+  const { sessions: liveSessions } = useSessions();
+  const programmeSessions = useMemo(
+    () => (liveSessions.length > 0 ? liveSessions : STATIC_SESSIONS),
+    [liveSessions]
+  );
   const router = useRouter();
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -83,9 +89,11 @@ export default function DashboardPage() {
     );
   }
 
-  const attendedSessions = SESSIONS.filter((s) => attendance[s.id] === true);
+  const attendedSessions = programmeSessions.filter((s) => attendance[s.id] === true);
   const completedWeeks = [...new Set(assignments.map((a) => a.weekNumber))];
-  const progress = Math.round((attendedSessions.length / SESSIONS.length) * 100);
+  const progress = Math.round(
+    (attendedSessions.length / Math.max(1, programmeSessions.length)) * 100
+  );
 
   return (
     <div className="min-h-screen bg-gray-950 py-10 px-4">
@@ -138,7 +146,7 @@ export default function DashboardPage() {
             {
               label: "Sessions Attended",
               value: attendedSessions.length,
-              total: SESSIONS.length,
+              total: programmeSessions.length,
               icon: Calendar,
               color: "text-blue-400",
             },
@@ -200,7 +208,7 @@ export default function DashboardPage() {
               </div>
             ) : (
               <div className="space-y-2">
-                {SESSIONS.map((s) => {
+                {programmeSessions.map((s) => {
                   const attended = attendance[s.id] === true;
                   return (
                     <div

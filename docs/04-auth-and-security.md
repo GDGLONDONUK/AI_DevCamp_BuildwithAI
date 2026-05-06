@@ -14,11 +14,14 @@ We use **Firebase Authentication** for identity. It handles:
 ```
 User clicks "Sign In"
   └─ AuthModal opens
-       ├─ Email/password → signInWithEmailAndPassword()
-       └─ Google button  → signInWithPopup(googleProvider)
+       ├─ Email/password → trim email; reject empty email/password before Firebase (avoids auth/argument-error)
+       │                    → signInWithEmailAndPassword()
+       └─ Google button  → desktop: signInWithPopup(googleProvider)
+                         → mobile (iPhone / iPad / Android UA): signInWithRedirect — full-page flow;
+                           AuthContext calls getRedirectResult on load to finish sign-in / surface errors
             │
             ▼
-       Firebase Auth issues an ID token
+       Firebase Auth issues an ID token (or redirect flow completes on return)
             │
             ▼
        onAuthStateChanged fires in AuthContext
@@ -32,6 +35,10 @@ User clicks "Sign In"
             ▼
        userProfile state populated → UI updates
 ```
+
+**Mobile Google:** Popups are unreliable on many mobile browsers; redirect avoids **`auth/popup-blocked`** and reduces confusing failures. Ensure the deployment hostname is in Firebase **Authentication → Settings → Authorized domains** so the redirect return URL is allowed.
+
+**User-facing auth errors:** `src/lib/firebaseAuthErrors.ts` maps codes including **`auth/argument-error`** (invalid or empty credentials).
 
 ### Deep link: `/?login=1` and password reset
 

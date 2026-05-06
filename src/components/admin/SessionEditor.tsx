@@ -1,18 +1,24 @@
 "use client";
 
-import { useState, useEffect, KeyboardEvent } from "react";
+import { useState, useEffect, useMemo, KeyboardEvent } from "react";
 import toast from "react-hot-toast";
-import { Session, Resource, SessionSelfCheckInDocument, SessionSpeaker } from "@/types";
+import { Session, Resource, SessionSelfCheckInDocument, Speaker } from "@/types";
 import { X, Plus, Trash2, GripVertical, ExternalLink, KeyRound, ChevronUp, ChevronDown } from "lucide-react";
 import CopyTextButton from "@/components/ui/CopyTextButton";
 import { doc, getDoc, setDoc, deleteDoc } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
 import { SESSION_SELF_CHECKIN_COLLECTION } from "@/lib/sessionSelfCheckInConstants";
+import { upsertSpeaker } from "@/lib/speakerService";
+import { getSessionSpeakersList } from "@/lib/sessionSpeakers";
 
 interface Props {
   session: Partial<Session> | null;
   onSave: (s: Session) => Promise<void>;
   onClose: () => void;
+  /** Firestore roster — used to pick `speakerIds` and resolve names on save. */
+  speakersRoster: Speaker[];
+  /** Called after creating a new speaker so the parent can refresh the roster. */
+  onSpeakersChanged?: () => Promise<void>;
 }
 
 const BLANK: Partial<Session> = {
@@ -32,29 +38,37 @@ const BLANK: Partial<Session> = {
   buildIdeas: [],
   resources: [],
   speakers: [],
+  speakerIds: [],
   isKickoff: false,
   isClosing: false,
 };
 
-function initialSpeakersDraft(s: Partial<Session> | null | undefined): SessionSpeaker[] {
-  const raw = s?.speakers?.filter((x) => (x?.name ?? "").trim().length > 0);
-  if (raw && raw.length > 0) {
-    return raw.map((x) => ({
-      name: x.name.trim(),
-      title: x.title ?? "",
-      photo: x.photo ?? "",
-    }));
+function slugifySpeakerId(name: string): string {
+  const base = name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48);
+  return base || "speaker";
+}
+
+/** Derive ordered speaker ids from the session doc (prefers `speakerIds`, else matches legacy names to the roster). */
+function initialSpeakerIds(
+  s: Partial<Session> | null | undefined,
+  roster: Speaker[]
+): string[] {
+  if (!s) return [];
+  const direct = s.speakerIds?.filter((id) => id.trim().length > 0);
+  if (direct && direct.length > 0) return [...direct];
+  const legacy = getSessionSpeakersList(s as Session);
+  const ids: string[] = [];
+  for (const row of legacy) {
+    const hit = roster.find(
+      (r) => r.name.trim().toLowerCase() === row.name.trim().toLowerCase()
+    );
+    if (hit) ids.push(hit.id);
   }
-  if (s?.speaker?.trim()) {
-    return [
-      {
-        name: s.speaker.trim(),
-        title: s.speakerTitle ?? "",
-        photo: s.speakerPhoto ?? "",
-      },
-    ];
-  }
-  return [{ name: "", title: "", photo: "" }];
+  return ids;
 }
 
 function generateId(n: number) {
@@ -75,7 +89,13 @@ function randomSixDigitCode(): string {
   return String(a[0]! % 1_000_000).padStart(6, "0");
 }
 
-export default function SessionEditor({ session, onSave, onClose }: Props) {
+export default function SessionEditor({
+  session,
+  onSave,
+  onClose,
+  speakersRoster,
+  onSpeakersChanged,
+}: Props) {
   const [form, setForm] = useState<Partial<Session>>(session ?? BLANK);
   const [saving, setSaving] = useState(false);
   const [checkInEnabled, setCheckInEnabled] = useState(false);
@@ -89,14 +109,25 @@ export default function SessionEditor({ session, onSave, onClose }: Props) {
   const [buildInput, setBuildInput] = useState("");
   const [resTitle, setResTitle] = useState("");
   const [resUrl, setResUrl] = useState("");
-  const [speakersDraft, setSpeakersDraft] = useState<SessionSpeaker[]>([{ name: "", title: "", photo: "" }]);
+  const [speakerIdsDraft, setSpeakerIdsDraft] = useState<string[]>([]);
+  const [rosterPickNonce, setRosterPickNonce] = useState(0);
+  const [creatingSpeaker, setCreatingSpeaker] = useState(false);
+  const [newSpeakerName, setNewSpeakerName] = useState("");
+  const [newSpeakerTitle, setNewSpeakerTitle] = useState("");
+  const [newSpeakerPhoto, setNewSpeakerPhoto] = useState("");
+  const [newSpeakerId, setNewSpeakerId] = useState("");
 
   useEffect(() => {
     setForm(session ?? BLANK);
-    setSpeakersDraft(initialSpeakersDraft(session ?? null));
+    setSpeakerIdsDraft(initialSpeakerIds(session ?? null, speakersRoster));
+    setCreatingSpeaker(false);
+    setNewSpeakerName("");
+    setNewSpeakerTitle("");
+    setNewSpeakerPhoto("");
+    setNewSpeakerId("");
     setTagInput(""); setLearnInput(""); setBuildInput("");
     setResTitle(""); setResUrl("");
-  }, [session]);
+  }, [session, speakersRoster]);
 
   useEffect(() => {
     const id = form.id;
@@ -153,26 +184,70 @@ export default function SessionEditor({ session, onSave, onClose }: Props) {
     set("resources", (form.resources ?? []).filter((_, i) => i !== idx));
   }
 
-  function updateSpeaker(i: number, field: keyof SessionSpeaker, value: string) {
-    setSpeakersDraft((rows) => rows.map((r, j) => (j === i ? { ...r, [field]: value } : r)));
-  }
+  const rosterById = useMemo(() => {
+    const m = new Map<string, Speaker>();
+    for (const sp of speakersRoster) m.set(sp.id, sp);
+    return m;
+  }, [speakersRoster]);
 
-  function addSpeakerRow() {
-    setSpeakersDraft((rows) => [...rows, { name: "", title: "", photo: "" }]);
-  }
-
-  function removeSpeakerRow(i: number) {
-    setSpeakersDraft((rows) => (rows.length <= 1 ? rows : rows.filter((_, j) => j !== i)));
-  }
-
-  function moveSpeakerRow(i: number, delta: -1 | 1) {
-    setSpeakersDraft((rows) => {
+  function moveSpeakerId(i: number, delta: -1 | 1) {
+    setSpeakerIdsDraft((rows) => {
       const j = i + delta;
       if (j < 0 || j >= rows.length) return rows;
       const next = [...rows];
       [next[i], next[j]] = [next[j]!, next[i]!];
       return next;
     });
+  }
+
+  function removeSpeakerId(i: number) {
+    setSpeakerIdsDraft((rows) => rows.filter((_, j) => j !== i));
+  }
+
+  function addSpeakerFromRoster(id: string) {
+    if (!id.trim() || speakerIdsDraft.includes(id)) return;
+    setSpeakerIdsDraft((rows) => [...rows, id]);
+    setRosterPickNonce((n) => n + 1);
+  }
+
+  async function handleCreateSpeaker() {
+    const name = newSpeakerName.trim();
+    if (!name) {
+      toast.error("Add a name for the new speaker.");
+      return;
+    }
+    let id = (newSpeakerId.trim() || slugifySpeakerId(name)).replace(/\s+/g, "-");
+    if (speakersRoster.some((x) => x.id === id)) {
+      toast.error(`Speaker id "${id}" already exists — choose another id.`);
+      return;
+    }
+    const sortOrder =
+      speakersRoster.length > 0
+        ? Math.max(...speakersRoster.map((s) => s.sortOrder)) + 10
+        : 10;
+    const row: Speaker = {
+      id,
+      name,
+      title: newSpeakerTitle.trim() || undefined,
+      photo: newSpeakerPhoto.trim() || undefined,
+      sortOrder,
+      roles: ["speaker"],
+    };
+    setCreatingSpeaker(true);
+    try {
+      await upsertSpeaker(row);
+      await onSpeakersChanged?.();
+      setSpeakerIdsDraft((prev) => [...prev, id]);
+      setNewSpeakerName("");
+      setNewSpeakerTitle("");
+      setNewSpeakerPhoto("");
+      setNewSpeakerId("");
+      toast.success("Speaker added to roster");
+    } catch {
+      toast.error("Could not save speaker");
+    } finally {
+      setCreatingSpeaker(false);
+    }
   }
 
   function handleKeyAdd(
@@ -226,20 +301,15 @@ export default function SessionEditor({ session, onSave, onClose }: Props) {
     if (!form.title?.trim() || !form.date?.trim()) return;
     setSaving(true);
     const id = form.id || generateId(form.number ?? 1);
-    const cleanedSpeakers = speakersDraft
-      .map((x) => ({
-        name: x.name.trim(),
-        title: x.title?.trim() || undefined,
-        photo: x.photo?.trim() || undefined,
-      }))
-      .filter((x) => x.name.length > 0);
-    const first = cleanedSpeakers[0];
+    const cleanedIds = speakerIdsDraft.filter((sid) => rosterById.has(sid));
+    const first = cleanedIds.length > 0 ? rosterById.get(cleanedIds[0]) : undefined;
     try {
       await onSave({
         ...BLANK,
         ...form,
         id,
-        speakers: cleanedSpeakers.length > 0 ? cleanedSpeakers : [],
+        speakerIds: cleanedIds,
+        speakers: [],
         speaker: first?.name ?? "",
         speakerTitle: first?.title,
         speakerPhoto: first?.photo,
@@ -367,83 +437,122 @@ export default function SessionEditor({ session, onSave, onClose }: Props) {
             </div>
           </div>
 
-          {/* Speakers */}
+          {/* Speakers (roster ids) */}
           <div>
             <label className={labelClass}>Speakers</label>
             <p className="text-[11px] text-gray-500 mb-3 leading-snug">
-              One or more presenters. Order is shown on the session schedule. The first entry is mirrored to legacy
-              single-speaker fields for compatibility.
+              Pick people from the programme roster. Order matches the public schedule. The first speaker is mirrored to
+              legacy fields for older integrations.
             </p>
             <ul className="space-y-3">
-              {speakersDraft.map((sp, idx) => (
-                <li
-                  key={idx}
-                  className="rounded-xl border border-white/10 bg-white/[0.03] p-3 space-y-2"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[10px] font-mono text-gray-500 uppercase tracking-wide">
-                      Speaker {idx + 1}
-                    </span>
-                    <div className="flex items-center gap-0.5">
-                      <button
-                        type="button"
-                        title="Move up"
-                        onClick={() => moveSpeakerRow(idx, -1)}
-                        disabled={idx === 0}
-                        className="p-1.5 rounded-lg text-gray-500 hover:text-white hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none"
-                      >
-                        <ChevronUp size={16} />
-                      </button>
-                      <button
-                        type="button"
-                        title="Move down"
-                        onClick={() => moveSpeakerRow(idx, 1)}
-                        disabled={idx === speakersDraft.length - 1}
-                        className="p-1.5 rounded-lg text-gray-500 hover:text-white hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none"
-                      >
-                        <ChevronDown size={16} />
-                      </button>
-                      <button
-                        type="button"
-                        title="Remove"
-                        onClick={() => removeSpeakerRow(idx)}
-                        disabled={speakersDraft.length <= 1}
-                        className="p-1.5 rounded-lg text-gray-500 hover:text-red-400 hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none"
-                      >
-                        <Trash2 size={14} />
-                      </button>
+              {speakerIdsDraft.map((sid, idx) => {
+                const sp = rosterById.get(sid);
+                return (
+                  <li
+                    key={`${sid}-${idx}`}
+                    className="rounded-xl border border-white/10 bg-white/[0.03] p-3 space-y-2"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[10px] font-mono text-gray-500 uppercase tracking-wide">
+                        Speaker {idx + 1}
+                      </span>
+                      <div className="flex items-center gap-0.5">
+                        <button
+                          type="button"
+                          title="Move up"
+                          onClick={() => moveSpeakerId(idx, -1)}
+                          disabled={idx === 0}
+                          className="p-1.5 rounded-lg text-gray-500 hover:text-white hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none"
+                        >
+                          <ChevronUp size={16} />
+                        </button>
+                        <button
+                          type="button"
+                          title="Move down"
+                          onClick={() => moveSpeakerId(idx, 1)}
+                          disabled={idx === speakerIdsDraft.length - 1}
+                          className="p-1.5 rounded-lg text-gray-500 hover:text-white hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none"
+                        >
+                          <ChevronDown size={16} />
+                        </button>
+                        <button
+                          type="button"
+                          title="Remove"
+                          onClick={() => removeSpeakerId(idx)}
+                          className="p-1.5 rounded-lg text-gray-500 hover:text-red-400 hover:bg-white/10"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                  <div className="grid sm:grid-cols-2 gap-2">
-                    <input
-                      value={sp.name}
-                      onChange={(e) => updateSpeaker(idx, "name", e.target.value)}
-                      placeholder="Name"
-                      className={fieldClass}
-                    />
-                    <input
-                      value={sp.title ?? ""}
-                      onChange={(e) => updateSpeaker(idx, "title", e.target.value)}
-                      placeholder="Title / organisation"
-                      className={fieldClass}
-                    />
-                  </div>
-                  <input
-                    value={sp.photo ?? ""}
-                    onChange={(e) => updateSpeaker(idx, "photo", e.target.value)}
-                    placeholder="Photo URL (optional)"
-                    className={fieldClass}
-                  />
-                </li>
-              ))}
+                    <div className="font-mono text-sm text-white">{sp?.name ?? sid}</div>
+                    {sp?.title ? (
+                      <div className="text-xs text-gray-400">{sp.title}</div>
+                    ) : null}
+                  </li>
+                );
+              })}
             </ul>
-            <button
-              type="button"
-              onClick={addSpeakerRow}
-              className="mt-2 inline-flex items-center gap-1.5 text-xs font-mono font-semibold text-green-400 bg-green-500/15 border border-green-500/30 hover:bg-green-500/25 px-3 py-2 rounded-xl transition-colors"
-            >
-              <Plus size={14} /> Add speaker
-            </button>
+            <div className="mt-3 flex flex-col sm:flex-row gap-2">
+              <select
+                key={rosterPickNonce}
+                defaultValue=""
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v) addSpeakerFromRoster(v);
+                }}
+                className={fieldClass + " cursor-pointer"}
+              >
+                <option value="">+ Add from roster…</option>
+                {speakersRoster
+                  .filter((s) => !speakerIdsDraft.includes(s.id))
+                  .map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+              </select>
+            </div>
+
+            <div className="mt-5 rounded-xl border border-dashed border-white/15 bg-white/[0.02] p-4 space-y-3">
+              <div className="text-[11px] font-mono text-gray-500 uppercase tracking-wide">
+                New roster entry
+              </div>
+              <div className="grid sm:grid-cols-2 gap-2">
+                <input
+                  value={newSpeakerName}
+                  onChange={(e) => setNewSpeakerName(e.target.value)}
+                  placeholder="Full name *"
+                  className={fieldClass}
+                />
+                <input
+                  value={newSpeakerId}
+                  onChange={(e) => setNewSpeakerId(e.target.value)}
+                  placeholder="Custom id (optional)"
+                  className={fieldClass}
+                />
+              </div>
+              <input
+                value={newSpeakerTitle}
+                onChange={(e) => setNewSpeakerTitle(e.target.value)}
+                placeholder="Title / organisation"
+                className={fieldClass}
+              />
+              <input
+                value={newSpeakerPhoto}
+                onChange={(e) => setNewSpeakerPhoto(e.target.value)}
+                placeholder="Photo URL (optional)"
+                className={fieldClass}
+              />
+              <button
+                type="button"
+                disabled={creatingSpeaker}
+                onClick={() => void handleCreateSpeaker()}
+                className="inline-flex items-center gap-1.5 text-xs font-mono font-semibold text-green-400 bg-green-500/15 border border-green-500/30 hover:bg-green-500/25 px-3 py-2 rounded-xl transition-colors disabled:opacity-40"
+              >
+                <Plus size={14} /> Save to roster &amp; add to session
+              </button>
+            </div>
           </div>
 
           {/* Tags */}

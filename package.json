@@ -9,7 +9,9 @@
     "lint": "eslint",
     "ensure-profiles": "tsx --env-file=.env.local scripts/ensure-profiles.ts",
     "backfill-registration-map-coords": "tsx --env-file=.env.local scripts/backfill-registration-map-coords.ts",
-    "generate-favicons": "tsx scripts/generate-favicons.ts"
+    "generate-favicons": "tsx scripts/generate-favicons.ts",
+    "sync-firestore-programme": "tsx --env-file=.env.local scripts/sync-firestore-programme.ts",
+    "delete-legacy-speaker-docs": "tsx --env-file=.env.local scripts/delete-legacy-speaker-docs.ts"
   },
   "dependencies": {
     "@radix-ui/react-avatar": "^1.1.11",

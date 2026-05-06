@@ -198,12 +198,31 @@ export const LEARNING_TASK_TEMPLATES_SEED: LearningTaskTemplateSeedRow[] = [
     category: "recording",
     sortOrder: 20,
   },
-  // Session 6
+  // Session 6 (programme order — Firestore id session-7)
+  {
+    id: "bootcamp-s7-a2a-attend",
+    sessionKey: "session-7",
+    sessionLabel: "Session 6",
+    sessionOrder: 6,
+    title: "Session 6 — attend or watch the A2A deep dive (recording)",
+    category: "other",
+    sortOrder: 8,
+  },
+  {
+    id: "bootcamp-s7-watch-recording",
+    sessionKey: "session-7",
+    sessionLabel: "Session 6",
+    sessionOrder: 6,
+    title: "Session 6 — watch recording",
+    category: "recording",
+    sortOrder: 9,
+  },
+  // Session 7 (programme order — Firestore id session-6)
   {
     id: "bootcamp-s6-closing-demo-prep",
     sessionKey: "session-6",
-    sessionLabel: "Session 6",
-    sessionOrder: 6,
+    sessionLabel: "Session 7",
+    sessionOrder: 7,
     title: "Closing ceremony — prepare final project demo",
     category: "other",
     sortOrder: 10,
@@ -211,9 +230,9 @@ export const LEARNING_TASK_TEMPLATES_SEED: LearningTaskTemplateSeedRow[] = [
   {
     id: "bootcamp-s6-watch-recording",
     sessionKey: "session-6",
-    sessionLabel: "Session 6",
-    sessionOrder: 6,
-    title: "Session 6 — closing highlights / recap (if shared)",
+    sessionLabel: "Session 7",
+    sessionOrder: 7,
+    title: "Session 7 — closing highlights / recap (if shared)",
     category: "recording",
     sortOrder: 20,
   },

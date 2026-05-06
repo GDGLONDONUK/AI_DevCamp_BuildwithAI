@@ -15,12 +15,13 @@ Welcome! This folder contains everything you need to understand and contribute t
 | [07-api-routes.md](./07-api-routes.md) | REST API reference — endpoints, auth, request/response shapes |
 | [08-site-deployment-and-admin.md](./08-site-deployment-and-admin.md) | Production URL, env vars, Discord, admin features, `me` & pending-user APIs |
 | [09-learning-tasks-architecture.md](./09-learning-tasks-architecture.md) | Learning checklist (`/dashboard/tasks`), template catalogue, APIs, flows |
+| [10-customer-journey.md](./10-customer-journey.md) | Participant & organiser journeys, auth flows, sessions ↔ speakers diagrams |
 
 ## Quick orientation
 
 ```
 User visits site
-  └─ Browses sessions & curriculum (public); schedule data from Firestore
+  └─ Browses sessions, speakers & mentors roster & curriculum (public); schedule + roster from Firestore (static fallback if empty)
   └─ Registers → users/{uid} or pending users/{email} until first login merge
   └─ Admin sets userStatus → participated / certified / …
   └─ Approved user: full session content, recordings, resources
@@ -51,7 +52,7 @@ Use this as a changelog-style index; details live in the linked docs.
 | **Auth & profile** | Password reset, `OpenLoginFromQuery`, **`ensure-profile`**, pending user merge, `authProviders` sync. [04](./04-auth-and-security.md). |
 | **Project layout** | [02-project-structure.md](./02-project-structure.md) — `src/app/api/me/attendance/*`, `attendanceAudit.ts`, `sessionSelfCheckInConstants.ts`, scripts. |
 | **Session gating** | Rich content for **`participated`** / **`certified`** (see sessions page). |
-| **Multi-speaker sessions** | `sessions.speakers[]` + legacy `speaker` / `speakerTitle` / `speakerPhoto`; `getSessionSpeakersList` in `src/lib/sessionSpeakers.ts`; Session Editor + `/sessions` schedule. [03](./03-database-schema.md), [02](./02-project-structure.md). |
+| **Speakers & sessions** | **`speakers/{id}`** roster + **`sessions.speakerIds`** (order); legacy embedded `speakers[]` / `speaker*` still read in **`getSessionSpeakersList`**; home **`/`**, **`/sessions`**, Session Editor. Seed **`src/data/speakers.ts`** then **`src/data/sessions.ts`**; **`npm run sync-firestore-programme`**. Journeys & diagrams: [10](./10-customer-journey.md). [03](./03-database-schema.md), [02](./02-project-structure.md). |
 | **Shared UI / logging** | `SocialBrandIcons.tsx`; `src/lib/admin/*` domain helpers; `src/lib/logging/*` for safer client logs. [02](./02-project-structure.md). |
 | **Learning tasks** | Private checklist **`learningTasks`** + catalogue **`learningTaskTemplates`**; **`/dashboard/tasks`**; **`/admin/learning-tasks`** (seed, clear, edit). Full flows: [09](./09-learning-tasks-architecture.md); APIs [07](./07-api-routes.md); schema [03](./03-database-schema.md). |
 | **Inactive archive** | Collection **`disabledUsers/{uid}`**; **`/admin` → Inactive** (multi-select bulk archive / restore); **`verifyAuth`** + **`ensure-profile`** respect archived profiles (**`403 ACCOUNT_DISABLED`**). [03](./03-database-schema.md), [04](./04-auth-and-security.md), [07](./07-api-routes.md), [08](./08-site-deployment-and-admin.md). |

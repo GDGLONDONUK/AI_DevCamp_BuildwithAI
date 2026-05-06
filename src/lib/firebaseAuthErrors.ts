@@ -27,6 +27,8 @@ export function firebaseAuthErrorMessage(err: unknown): string {
       return "No password account found for that email. Try Google sign-in, or register with email and password.";
     case "auth/account-exists-with-different-credential":
       return "An account already exists with this email using a different sign-in method. Try email/password or the provider you used before.";
+    case "auth/argument-error":
+      return "Sign-in couldn’t start — fill in email and password, or use Continue with Google. On phones, Google sign-in uses a full-page redirect (wait for it to finish).";
     default:
       if (code) return `Sign-in failed (${code}). If this persists, check Firebase settings and browser console.`;
       return "Google sign-in failed. Please try again.";

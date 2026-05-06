@@ -36,8 +36,9 @@ export default function AuthModal({ isOpen, onClose, initialView = "signin" }: A
 
   const validateSignIn = () => {
     const e: Record<string, string> = {};
-    if (!/\S+@\S+\.\S+/.test(form.email)) e.email = "Valid email is required";
-    if (form.password.length < 6) e.password = "Password is required";
+    const email = form.email.trim();
+    if (!/\S+@\S+\.\S+/.test(email)) e.email = "Valid email is required";
+    if (!form.password.trim()) e.password = "Password is required";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -54,7 +55,7 @@ export default function AuthModal({ isOpen, onClose, initialView = "signin" }: A
     if (!validateSignIn()) return;
     setLoading(true);
     try {
-      await loginWithEmail(form.email, form.password);
+      await loginWithEmail(form.email.trim(), form.password);
       toast.success("Welcome back!");
       onClose();
     } catch (err: unknown) {
@@ -62,7 +63,7 @@ export default function AuthModal({ isOpen, onClose, initialView = "signin" }: A
       toast.error(
         error.code === "auth/user-not-found" || error.code === "auth/wrong-password" || error.code === "auth/invalid-credential"
           ? "Invalid email or password"
-          : "Sign in failed. Please try again."
+          : firebaseAuthErrorMessage(err)
       );
     } finally {
       setLoading(false);
@@ -89,9 +90,12 @@ export default function AuthModal({ isOpen, onClose, initialView = "signin" }: A
   const handleGoogle = async () => {
     setGoogleLoading(true);
     try {
-      await loginWithGoogle();
-      toast.success("Signed in with Google!");
-      onClose();
+      const cred = await loginWithGoogle();
+      if (cred) {
+        toast.success("Signed in with Google!");
+        onClose();
+      }
+      /* Mobile: signInWithRedirect — page navigates away; no toast here */
     } catch (err) {
       console.error(err);
       toast.error(firebaseAuthErrorMessage(err));

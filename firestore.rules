@@ -69,6 +69,12 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // ── Speakers / mentors roster ─────────────────────────────────────────────
+    match /speakers/{speakerId} {
+      allow read: if true;
+      allow write: if isAdminOrMod();
+    }
+
     // ── Sessions ──────────────────────────────────────────────────────────────
     // Public read; only admins/mods may write.
     match /sessions/{sessionId} {

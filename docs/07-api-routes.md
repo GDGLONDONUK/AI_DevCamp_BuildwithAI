@@ -75,7 +75,13 @@ Several mutating handlers validate JSON bodies with **Zod** before touching Fire
 | `PUT` | `/api/sessions/[id]` | Admin / Moderator | Fully replace a session (merge: true) |
 | `DELETE` | `/api/sessions/[id]` | Admin / Moderator | Delete a session |
 
-**POST / PUT body:**
+### Speakers (roster)
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/speakers` | Public | List all **`speakers`** documents (sorted by **`sortOrder`**, then name) |
+
+**POST / PUT body (sessions):**
 ```json
 {
   "id": "session-1",
@@ -87,13 +93,15 @@ Several mutating handlers validate JSON bodies with **Zod** before touching Fire
   "time": "6:00 PM – 9:00 PM",
   "duration": "3 hours",
   "week": 1,
-  "speaker": "Simon Plummer",
+  "speakerIds": ["salih-mohammed", "michael-ruspanti", "sumith-kumar"],
   "tags": ["Python", "Kickoff"],
   "whatYouWillLearn": ["..."],
   "buildIdeas": ["..."],
   "isKickoff": true
 }
 ```
+
+Legacy single-speaker fields (`speaker`, `speakerTitle`, `speakerPhoto`) and embedded **`speakers`** arrays remain accepted for older documents; prefer **`speakerIds`** for new edits (Session Editor).
 
 ---
 

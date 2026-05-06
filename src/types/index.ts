@@ -169,6 +169,25 @@ export interface SessionSpeaker {
   name: string;
   title?: string;
   photo?: string;
+  linkedinUrl?: string;
+}
+
+/** Role flags for the public speakers / mentors roster (`speakers` collection). */
+export type SpeakerRole = "speaker" | "mentor";
+
+/** One person in the programme roster — stored in Firestore `speakers/{id}`. */
+export interface Speaker {
+  id: string;
+  name: string;
+  title?: string;
+  photo?: string;
+  linkedinUrl?: string;
+  /** Shown on the home page roster; defaults to both when omitted. */
+  roles?: SpeakerRole[];
+  /** Sort order for listings (ascending). */
+  sortOrder: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Session {
@@ -181,6 +200,8 @@ export interface Session {
   week: number;
   topic: string;
   description: string;
+  /** Preferred: roster ids in speaking order (see `speakers` collection). */
+  speakerIds?: string[];
   /** Multiple speakers; when set (non-empty), takes precedence over legacy `speaker*` fields for display. */
   speakers?: SessionSpeaker[];
   /** @deprecated Prefer `speakers`; kept for backward compatibility and first-speaker mirror on save. */

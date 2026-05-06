@@ -10,6 +10,7 @@ We use **Cloud Firestore** — a NoSQL document database. Data is organised into
 Firestore
 ├── users/                 ← One document per registered user (or pending `users/{email}`)
 ├── disabledUsers/         ← Archived profiles moved from `users/{uid}` (client rules: no access)
+├── speakers/              ← Speaker / mentor roster (public read; admin/mod write)
 ├── sessions/              ← One document per DevCamp session (public read — no secrets here)
 ├── session_self_checkin/  ← Per-session live check-in: 6-digit code + time window (admin/moderator only)
 ├── attendance/            ← One document per user: session booleans + optional audit map
@@ -138,6 +139,30 @@ participated  certified    not-certified
 
 ---
 
+## `speakers/{speakerId}`
+
+Document ID = stable slug (e.g. `salih-mohammed`, `renuka-kannan`) — referenced from **`sessions.speakerIds`**.
+
+```ts
+{
+  id:             string              // Same as document id
+  name:           string
+  title?:         string              // Role / company line
+  photo?:         string              // Path under public/, e.g. "/speakers/name.jpg"
+  linkedinUrl?:   string
+  roles?:         ("speaker" | "mentor")[]   // Home page roster; both implied if omitted
+  sortOrder:      number              // Ascending order for listings
+  createdAt?:     string              // ISO
+  updatedAt?:     string              // ISO
+}
+```
+
+**Resolution:** `src/lib/sessionSpeakers.ts` **`getSessionSpeakersList(session, lookup)`** merges **`speakerIds`** (in order) with optional legacy embedded **`speakers[]`** / **`speaker*`** on the session doc.
+
+**Firestore rules:** public **read**; **admin** or **moderator** **write**.
+
+---
+
 ## `sessions/{sessionId}`
 
 Document ID = `session-1`, `session-2`, … (set by admin at creation).
@@ -154,9 +179,10 @@ Document ID = `session-1`, `session-2`, … (set by admin at creation).
   time:               string        // "6:00 PM – 9:00 PM"
   duration?:          string        // "3 hours"
 
-  // Speaker(s) — prefer `speakers`; legacy single-speaker fields mirror the first entry on save
-  speakers?:          { name: string; title?: string; photo?: string }[]
-  speaker?:           string        // Legacy: primary name (kept in sync with speakers[0])
+  // Speaker(s) — prefer `speakerIds` → `speakers/*`; optional embedded copies / legacy fields
+  speakerIds?:      string[]       // Roster ids in speaking order (preferred)
+  speakers?:          { name: string; title?: string; photo?: string; linkedinUrl?: string }[]
+  speaker?:           string        // Legacy: primary name
   speakerTitle?:      string        // Legacy: primary title
   speakerPhoto?:      string        // Legacy: primary photo URL
 

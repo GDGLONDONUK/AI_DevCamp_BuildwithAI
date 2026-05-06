@@ -77,7 +77,7 @@ After handling, the component strips `login` and `reset` from the URL with `hist
 | **Header** | **Add pending user** (opens modal) — same as pre-reg flow. Quick links: **Email**, **CSV Import**, **Users map** (`/admin/users-map`), **Learning tasks** (`/admin/learning-tasks`), **Error logs**, **Seed tags**, **Refresh**. **Bevy merge** is at `/admin/bevy` (also linked from `/admin/import`). |
 | **Users** | **Grid (cards)** and **table** view; **checkboxes** per user (with email); **select all**; bulk bar **Send email to N selected** (opens `/admin/email?source=selection` with `sessionStorage` recipients). **Download CSV** exports attendees with session attendance counts and profile fields, including **Kickoff in-person RSVP** (Yes/No) and **Joining in person** (text from `UserProfile.joiningInPerson`). Badges include **De-reg** for programme opt-out. **User Editor** can clear or set programme de-registration. |
 | **Inactive** | **Admin-only.** Left: attendees who never had **`true`** on **`session-1`…`session-6`** in **`attendance/{uid}`** (aligned with **`SESSIONS`**); **checkboxes**, header **select all**, **Archive selected** (bulk → **`disabledUsers`**). Right: **`disabledUsers`** list with **Restore selected** (bulk → **`users`**). Single-row Archive / Restore still available. APIs: **`GET /api/admin/users-no-session-attendance`**, **`GET` / `POST /api/admin/disabled-users`**. |
-| **Sessions (editor)** | **Live attendance code** — per session, admins can enable a **6-digit code** and **open/close** datetime window (`session_self_checkin/{sessionId}`). Saved with the session from **Session Editor**. Attendees use **`/sessions`** (expanded card) during the window; validation is server-side. |
+| **Sessions (editor)** | **Speakers** — pick **`speakerIds`** from the **`speakers`** roster (create new roster rows as needed). **Live attendance code** — per session, admins can enable a **6-digit code** and **open/close** datetime window (`session_self_checkin/{sessionId}`). Saved with the session from **Session Editor**. Attendees use **`/sessions`** (expanded card) during the window; validation is server-side. |
 | **Attendance** | Grid of users × sessions; **filter** rows by attended / not attended for a chosen session. **Kick Off (session-1)** supports a **join mode** (in person vs online) on `attendance/{uid}` (`kickoffJoinedAs`). Grid toggles call **`PATCH /api/attendance/[uid]`** so **`sessionAttendanceAudit`** records **createdBy / updatedBy / createdAt / updatedAt / source**. |
 | **Users map** | `/admin/users-map` — map of where users are joining from when `location` or `city`/`country` is present. After a successful lookup, **lat/lon and label** are stored on each user (`registrationMapLat`, `registrationMapLon`, `registrationMapLabel`, `registrationMapGeocodedAt`) so repeat loads skip Nominatim for unchanged places. New or changed locations still use **OpenStreetMap Nominatim** (rate-limited; small in-process cache). **Pre-fill:** `npm run backfill-registration-map-coords` (add `--force` to re-query every place). Admin-only UI; API `GET /api/admin/users-location-map` allows **admin** and **moderator**. |
 | **Pre-Registered** | Table with checkboxes, CSV upload, **Add person**, filters, detail modal. |
@@ -120,12 +120,25 @@ Requires Firebase Admin credentials in `.env.local` (same as local API routes). 
 
 ---
 
+## CLI: sync programme data (`sync-firestore-programme`)
+
+Upserts **`speakers`** and **`sessions`** from **`src/data/speakers.ts`** and **`src/data/sessions.ts`** using the Admin SDK (same defaults as **Admin → Import default sessions**, which seeds speakers first, then sessions).
+
+```bash
+npm run sync-firestore-programme
+```
+
+Use after editing seed files so production Firestore matches the repo. One-off migrations: **`scripts/migrate-sessions-speakers.ts`** (embedded speakers → roster); **`npm run delete-legacy-speaker-docs`** removes abandoned speaker document ids after renames.
+
+---
+
 ## Related docs
 
 - [04-auth-and-security.md](./04-auth-and-security.md) — proxy, CORS, layers
 - [06-getting-started.md](./06-getting-started.md) — local run, Vercel checklist, Firebase authorized domains
 - [07-api-routes.md](./07-api-routes.md) — `/api/me/*` and admin routes
 - [03-database-schema.md](./03-database-schema.md) — `users` fields and pending rows
+- [10-customer-journey.md](./10-customer-journey.md) — participant / organiser journeys and diagrams
 
 ---
 

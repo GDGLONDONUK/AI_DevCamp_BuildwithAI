@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useState } from "react";
+import { Suspense, useCallback, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -18,18 +18,17 @@ import {
   GitBranch,
   Zap,
   Cpu,
+  ExternalLink,
 } from "lucide-react";
-import { SESSIONS, CURRICULUM_WEEKS } from "@/data/sessions";
+import { SESSIONS as STATIC_SESSIONS, CURRICULUM_WEEKS } from "@/data/sessions";
+import { SPEAKERS as STATIC_SPEAKERS } from "@/data/speakers";
+import { useSessions } from "@/hooks/useSessions";
+import { useSpeakers } from "@/hooks/useSpeakers";
+import { getSessionSpeakersList, speakerRecordsToLookup } from "@/lib/sessionSpeakers";
+import type { Speaker } from "@/types";
 import AuthModal from "@/components/AuthModal";
 import OpenLoginFromQuery from "@/components/OpenLoginFromQuery";
 import { useAuth } from "@/contexts/AuthContext";
-
-const STATS = [
-  { label: "Sessions", value: "6", icon: Terminal },
-  { label: "Weeks", value: "4", icon: Clock },
-  { label: "Projects", value: "2+", icon: GitBranch },
-  { label: "Attendees", value: "50+", icon: Users },
-];
 
 const WEEK_ICONS = [Code2, Brain, BookOpen, Rocket];
 
@@ -48,8 +47,33 @@ function DiscordIcon({ className }: { className?: string }) {
   );
 }
 
+function speakerRoleLabels(s: Speaker): string[] {
+  if (s.roles?.length) return [...s.roles];
+  return ["speaker", "mentor"];
+}
+
 export default function HomePage() {
   const { user, userProfile } = useAuth();
+  const { sessions: liveSessions } = useSessions();
+  const { speakers: liveSpeakers } = useSpeakers();
+
+  const displaySessions = liveSessions.length > 0 ? liveSessions : STATIC_SESSIONS;
+  const rosterSpeakers = liveSpeakers.length > 0 ? liveSpeakers : STATIC_SPEAKERS;
+  const speakerLookup = useMemo(
+    () => speakerRecordsToLookup(rosterSpeakers),
+    [rosterSpeakers]
+  );
+
+  const statsDisplay = useMemo(
+    () => [
+      { label: "Sessions", value: String(displaySessions.length), icon: Terminal },
+      { label: "Weeks", value: "4", icon: Clock },
+      { label: "Projects", value: "40+", icon: GitBranch },
+      { label: "Active attendees", value: "150+", icon: Users },
+    ],
+    [displaySessions.length]
+  );
+
   /** Private community server — only for signed-in participants (not on the public home page for guests). */
   const showDiscordLink = Boolean(user && userProfile);
   const [loginModal, setLoginModal] = useState(false);
@@ -228,7 +252,7 @@ export default function HomePage() {
       {/* ── STATS ── */}
       <section className="py-14 border-b border-white/5 bg-gray-900/50">
         <div className="max-w-4xl mx-auto px-4 grid grid-cols-2 sm:grid-cols-4 gap-6">
-          {STATS.map(({ label, value, icon: Icon }) => (
+          {statsDisplay.map(({ label, value, icon: Icon }) => (
             <div key={label} className="text-center group cursor-default">
               <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl border-2 border-green-500/30 bg-green-500/10 mb-4 group-hover:border-green-400/60 group-hover:bg-green-500/20 transition-all">
                 <Icon size={26} className="text-green-400" />
@@ -237,6 +261,75 @@ export default function HomePage() {
               <div className="text-sm text-gray-400 font-mono mt-1 uppercase tracking-wider">{label}</div>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* ── SPEAKERS & MENTORS ── */}
+      <section className="py-20 px-4 border-t border-white/5">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center gap-2 font-mono text-sm text-green-400/70 tracking-widest mb-3">
+              <span className="text-green-500/40">// </span>PEOPLE
+            </div>
+            <h2 className="text-4xl sm:text-5xl font-extrabold text-white mb-3">
+              Speakers &amp; mentors
+            </h2>
+            <p className="text-gray-300 font-mono text-base">
+              Voices from industry and your workshop leads — same roster powers session cards.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap justify-center gap-5 max-w-6xl mx-auto">
+            {[...rosterSpeakers]
+              .sort((a, b) => a.sortOrder - b.sortOrder)
+              .map((person) => (
+                <div
+                  key={person.id}
+                  className="relative w-full max-w-[260px] sm:basis-[240px] sm:max-w-[280px] flex-shrink-0 rounded-2xl border border-white/10 bg-white/[0.03] p-5 flex flex-col items-center text-center hover:border-green-500/40 hover:bg-green-500/[0.04] transition-all"
+                >
+                  <div className="relative w-24 h-24 rounded-full overflow-hidden ring-2 ring-green-500/30 mb-4 bg-gray-800 flex items-center justify-center">
+                    {person.photo ? (
+                      <Image
+                        src={person.photo}
+                        alt={person.name}
+                        width={96}
+                        height={96}
+                        className="object-cover w-full h-full"
+                      />
+                    ) : (
+                      <span className="text-2xl font-bold text-green-400">
+                        {person.name.slice(0, 2).toUpperCase()}
+                      </span>
+                    )}
+                  </div>
+                  <h3 className="text-lg font-bold text-white mb-1">{person.name}</h3>
+                  {person.title ? (
+                    <p className="text-sm text-gray-400 mb-3 leading-snug">{person.title}</p>
+                  ) : null}
+                  {person.linkedinUrl ? (
+                    <a
+                      href={person.linkedinUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-xs font-mono text-sky-400/90 hover:text-sky-300 mb-3"
+                    >
+                      <ExternalLink size={12} className="shrink-0" />
+                      LinkedIn
+                    </a>
+                  ) : null}
+                  <div className="flex flex-wrap justify-center gap-1.5 mt-auto">
+                    {speakerRoleLabels(person).map((role) => (
+                      <span
+                        key={role}
+                        className="font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full border border-green-500/25 text-green-400/90 bg-green-500/10"
+                      >
+                        {role}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+          </div>
         </div>
       </section>
 
@@ -251,13 +344,13 @@ export default function HomePage() {
               Session Schedule
             </h2>
             <p className="text-gray-300 font-mono text-base">
-              <span className="text-green-400">6</span> sessions ·{" "}
+              <span className="text-green-400">{displaySessions.length}</span> sessions ·{" "}
               <span className="text-green-400">4</span> weeks · Thu / Sat / Tue @ 18:00
             </p>
           </div>
 
           <div className="grid gap-4">
-            {SESSIONS.map((session) => (
+            {displaySessions.map((session) => (
               <div
                 key={session.id}
                 className={`relative flex items-start gap-5 p-6 rounded-xl border transition-all group hover:border-green-500/50 hover:bg-green-500/[0.04] ${
@@ -297,6 +390,15 @@ export default function HomePage() {
                     </span>
                   </div>
                   <p className="font-mono text-sm text-green-400/80 mb-2"># {session.topic}</p>
+                  {(() => {
+                    const sp = getSessionSpeakersList(session, speakerLookup);
+                    return sp.length > 0 ? (
+                      <p className="text-gray-400 text-xs font-mono mb-2 flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <Users size={14} className="text-green-500/60 shrink-0" />
+                        <span>{sp.map((x) => x.name).join(" · ")}</span>
+                      </p>
+                    ) : null;
+                  })()}
                   <p className="text-gray-300 text-sm mb-3">{session.description}</p>
                   <div className="flex flex-wrap gap-4 font-mono text-sm text-gray-500">
                     <span className="flex items-center gap-1.5">
