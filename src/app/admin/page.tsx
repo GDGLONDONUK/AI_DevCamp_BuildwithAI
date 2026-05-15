@@ -13,6 +13,7 @@ import {
   setUserStatus, setUserRole, setAssignmentStatus, setProjectStatus, deleteUserFromServer,
   updateProjectFields,
   toggleAttendance as toggleAttendanceSvc,
+  setAttendanceForSession,
   updateUserFields,
   approveAllPendingUsersFromServer,
   setKickoffAttendanceNote,
@@ -151,6 +152,7 @@ export default function AdminPage() {
   /** Multi-select on Inactive tab — disabledUsers list (restore). */
   const [inactiveSelArchived, setInactiveSelArchived] = useState<Set<string>>(new Set());
   const [inactiveBulkBusy, setInactiveBulkBusy] = useState(false);
+  const [attendanceBulkBusy, setAttendanceBulkBusy] = useState(false);
 
   const [projectsQuery, setProjectsQuery] = useState("");
   const [projectsStatusFilter, setProjectsStatusFilter] = useState<"all" | Project["status"]>("all");
@@ -623,10 +625,11 @@ export default function AdminPage() {
   );
 
   /** Programme sessions marked attended (Y) — same as Attendance tab Total column. */
-  const attendanceCount = (uid: string | undefined) =>
-    uid
-      ? sessions.filter((s) => attendance[uid]?.[s.id] === true).length
-      : 0;
+  const attendanceCount = useCallback(
+    (uid: string | undefined) =>
+      uid ? sessions.filter((s) => attendance[uid]?.[s.id] === true).length : 0,
+    [sessions, attendance]
+  );
 
   const usersAdminTableFiltered = useMemo(() => {
     const list = usersKickoffFiltered;
@@ -644,7 +647,7 @@ export default function AdminPage() {
       }
     }
     return list;
-  }, [usersKickoffFiltered, sessionsAttendedFilter, sessions, attendance]);
+  }, [usersKickoffFiltered, sessionsAttendedFilter, sessions, attendanceCount]);
 
   const usersTotalPages = Math.max(1, Math.ceil(usersAdminTableFiltered.length / USERS_PER_PAGE));
   const paginatedUsers = useMemo(
@@ -755,7 +758,7 @@ export default function AdminPage() {
       }
     }
     return list;
-  }, [attendanceUsers, attendance, attendanceSessionFilter, sessionsAttendedFilter, sessions]);
+  }, [attendanceUsers, attendance, attendanceSessionFilter, sessionsAttendedFilter, sessions, attendanceCount]);
 
   /** Kick Off join mode — counts all eligible users so numbers match imports (not search/status). */
   const kickoffJoinNoteStats = useMemo(() => {
@@ -776,13 +779,228 @@ export default function AdminPage() {
     };
   }, [attendanceEligibleUsers, attendance]);
 
+  const closingSessionId = useMemo(
+    () => sessions.find((s) => s.isClosing)?.id ?? "session-6",
+    [sessions]
+  );
+
+  const normalizeUserStatus = (raw: string | undefined): UserStatus => {
+    const s = raw || "pending";
+    return (ALL_STATUSES as readonly string[]).includes(s) ? (s as UserStatus) : "pending";
+  };
+
+  const bulkMarkClosingForAnyoneWithSession = async () => {
+    if (!closingSessionId) {
+      toast.error("No closing session is configured");
+      return;
+    }
+    const targets = attendanceEligibleUsers.filter((u) => {
+      const n = attendanceCount(u.uid);
+      if (n < 1) return false;
+      return attendance[u.uid]?.[closingSessionId] !== true;
+    });
+    if (
+      !window.confirm(
+        `Set closing session (${closingSessionId}) to attended for ${targets.length} people who already have at least one session marked? Skips anyone already marked for closing.`
+      )
+    ) {
+      return;
+    }
+    setAttendanceBulkBusy(true);
+    let okCount = 0;
+    const chunk = 6;
+    try {
+      for (let i = 0; i < targets.length; i += chunk) {
+        const slice = targets.slice(i, i + chunk);
+        await Promise.all(
+          slice.map(async (u) => {
+            try {
+              await setAttendanceForSession(u.uid, closingSessionId, true);
+              okCount++;
+              setAttendance((prev) => ({
+                ...prev,
+                [u.uid]: { ...(prev[u.uid] ?? {}), [closingSessionId]: true },
+              }));
+            } catch {
+              /* counted below */
+            }
+          })
+        );
+      }
+      toast.success(`Closing attendance set for ${okCount} of ${targets.length} target row(s).`);
+      if (okCount < targets.length) {
+        toast.error("Some rows failed — refresh and retry failed users.");
+      }
+    } finally {
+      setAttendanceBulkBusy(false);
+    }
+  };
+
+  const bulkCertifySeventyPercentAttendance = async () => {
+    const n = sessions.length;
+    if (n <= 0) {
+      toast.error("No sessions loaded");
+      return;
+    }
+    const minSessions = Math.ceil(n * 0.7);
+    const targets = attendanceEligibleUsers.filter(
+      (u) => u.role === "attendee" && attendanceCount(u.uid) >= minSessions
+    );
+    if (
+      !window.confirm(
+        `Set status to Certified for ${targets.length} attendee(s) with at least ${minSessions} of ${n} sessions (≥70%)?`
+      )
+    ) {
+      return;
+    }
+    setAttendanceBulkBusy(true);
+    let okCount = 0;
+    try {
+      for (const u of targets) {
+        try {
+          await setUserStatus(userDocKey(u), "certified");
+          okCount++;
+          setUsers((prev) =>
+            prev.map((x) => (userDocKey(x) === userDocKey(u) ? { ...x, userStatus: "certified" } : x))
+          );
+        } catch {
+          /* ignore */
+        }
+      }
+      toast.success(`Certified ${okCount} of ${targets.length}.`);
+    } finally {
+      setAttendanceBulkBusy(false);
+    }
+  };
+
+  const bulkMarkFailedLowAttendance = async () => {
+    const targets = attendanceEligibleUsers.filter(
+      (u) => u.role === "attendee" && attendanceCount(u.uid) <= 1
+    );
+    if (
+      !window.confirm(
+        `Set status to Failed for ${targets.length} attendee(s) with 0 or 1 programme session(s) marked attended?`
+      )
+    ) {
+      return;
+    }
+    setAttendanceBulkBusy(true);
+    let okCount = 0;
+    try {
+      for (const u of targets) {
+        try {
+          await setUserStatus(userDocKey(u), "failed");
+          okCount++;
+          setUsers((prev) =>
+            prev.map((x) => (userDocKey(x) === userDocKey(u) ? { ...x, userStatus: "failed" } : x))
+          );
+        } catch {
+          /* ignore */
+        }
+      }
+      toast.success(`Marked failed for ${okCount} of ${targets.length}.`);
+    } finally {
+      setAttendanceBulkBusy(false);
+    }
+  };
+
   const pendingUsers = users.filter((u) => (u.userStatus || "pending") === "pending");
 
-  const filteredAssignments = assignments.filter(
-    (a) =>
-      a.userName?.toLowerCase().includes(search.toLowerCase()) ||
-      a.title?.toLowerCase().includes(search.toLowerCase())
-  );
+  const submissionsReviewByUser = useMemo(() => {
+    const q = search.toLowerCase().trim();
+    const hit = (name: string, email?: string, title?: string) => {
+      if (!q) return true;
+      return (
+        name.toLowerCase().includes(q) ||
+        (email && email.toLowerCase().includes(q)) ||
+        (title && title.toLowerCase().includes(q))
+      );
+    };
+    const assignFiltered = assignments.filter((a) =>
+      hit(a.userName || "", a.userEmail, a.title)
+    );
+    const projFiltered = projects.filter((p) =>
+      hit(p.userName || "", p.userEmail, p.title)
+    );
+
+    type Row = {
+      userId: string;
+      userName: string;
+      userEmail?: string;
+      assignments: Assignment[];
+      projects: Project[];
+    };
+    const groupMap = new Map<string, Row>();
+
+    const touch = (userId: string, name: string, email?: string) => {
+      let row = groupMap.get(userId);
+      if (!row) {
+        row = { userId, userName: name, userEmail: email, assignments: [], projects: [] };
+        groupMap.set(userId, row);
+      }
+      return row;
+    };
+
+    for (const a of assignFiltered) {
+      touch(a.userId, a.userName, a.userEmail).assignments.push(a);
+    }
+    for (const p of projFiltered) {
+      touch(p.userId, p.userName, p.userEmail).projects.push(p);
+    }
+
+    const rows = Array.from(groupMap.values()).map((row) => ({
+      ...row,
+      assignments: [...row.assignments].sort((a, b) => a.weekNumber - b.weekNumber),
+      projects: [...row.projects].sort(
+        (a, b) =>
+          new Date(String(b.submittedAt)).getTime() - new Date(String(a.submittedAt)).getTime()
+      ),
+    }));
+    rows.sort((a, b) => a.userName.localeCompare(b.userName));
+    return rows;
+  }, [assignments, projects, search]);
+
+  /** Certified attendees only — who has assignment / project rows in Firestore. */
+  const certifiedSubmissionsAudit = useMemo(() => {
+    const assignmentCountByUid = new Map<string, number>();
+    for (const a of assignments) {
+      if (!a.userId) continue;
+      assignmentCountByUid.set(a.userId, (assignmentCountByUid.get(a.userId) ?? 0) + 1);
+    }
+    const projectCountByUid = new Map<string, number>();
+    for (const p of projects) {
+      if (!p.userId) continue;
+      projectCountByUid.set(p.userId, (projectCountByUid.get(p.userId) ?? 0) + 1);
+    }
+    const certifiedAttendees = users.filter(
+      (u) => u.role === "attendee" && Boolean(u.uid) && (u.userStatus || "pending") === "certified"
+    );
+    const rows = certifiedAttendees
+      .map((u) => {
+        const assignmentCount = assignmentCountByUid.get(u.uid) ?? 0;
+        const projectCount = projectCountByUid.get(u.uid) ?? 0;
+        return {
+          uid: u.uid,
+          displayName: u.displayName || "—",
+          email: u.email || "",
+          assignmentCount,
+          projectCount,
+        };
+      })
+      .sort((a, b) => a.displayName.localeCompare(b.displayName));
+
+    const withAssignment = rows.filter((r) => r.assignmentCount > 0).length;
+    const withProject = rows.filter((r) => r.projectCount > 0).length;
+    return {
+      rows,
+      total: rows.length,
+      withAssignment,
+      withProject,
+      missingAssignment: rows.length - withAssignment,
+      missingProject: rows.length - withProject,
+      missingBoth: rows.filter((r) => r.assignmentCount === 0 && r.projectCount === 0).length,
+    };
+  }, [users, assignments, projects]);
 
   const filteredProjectsBase = useMemo(() => {
     const q = projectsQuery.toLowerCase().trim();
@@ -1079,6 +1297,42 @@ export default function AdminPage() {
                     </span>
                   )}
                 </div>
+                <div className="mb-4 p-3 rounded-xl border border-white/10 bg-gray-900/50 flex flex-wrap items-center gap-2">
+                  <span className="text-[11px] font-mono text-gray-500 w-full sm:w-auto shrink-0">
+                    Bulk (uses full cohort, not table filters):
+                  </span>
+                  <button
+                    type="button"
+                    disabled={attendanceBulkBusy || sessions.length === 0}
+                    onClick={() => void bulkMarkClosingForAnyoneWithSession()}
+                    className="text-xs font-mono font-semibold px-3 py-2 rounded-lg border border-cyan-500/40 bg-cyan-500/15 text-cyan-200 hover:bg-cyan-500/25 disabled:opacity-40 transition-colors"
+                    title={`Marks ${closingSessionId} (closing ceremony) attended for anyone with ≥1 session already marked`}
+                  >
+                    Closing session → Y if ≥1 session
+                  </button>
+                  <button
+                    type="button"
+                    disabled={attendanceBulkBusy || sessions.length === 0}
+                    onClick={() => void bulkCertifySeventyPercentAttendance()}
+                    className="text-xs font-mono font-semibold px-3 py-2 rounded-lg border border-green-500/40 bg-green-500/15 text-green-200 hover:bg-green-500/25 disabled:opacity-40 transition-colors"
+                  >
+                    Certify attendees (≥70% sessions)
+                  </button>
+                  <button
+                    type="button"
+                    disabled={attendanceBulkBusy}
+                    onClick={() => void bulkMarkFailedLowAttendance()}
+                    className="text-xs font-mono font-semibold px-3 py-2 rounded-lg border border-red-500/40 bg-red-500/12 text-red-200 hover:bg-red-500/22 disabled:opacity-40 transition-colors"
+                  >
+                    Failed — 0–1 sessions only
+                  </button>
+                  {attendanceBulkBusy ? (
+                    <span className="text-[11px] font-mono text-amber-300/90 flex items-center gap-1">
+                      <RefreshCw size={12} className="animate-spin shrink-0" aria-hidden />
+                      Working…
+                    </span>
+                  ) : null}
+                </div>
                 <div className="overflow-x-auto rounded-xl border border-white/8">
                 <table className="w-full text-sm">
                   <thead>
@@ -1130,8 +1384,7 @@ export default function AdminPage() {
                       </tr>
                     )}
                     {attendanceTableUsers.map((u, idx) => {
-                      const status = u.userStatus || "pending";
-                      const sc = STATUS_CONFIG[status];
+                      const status = normalizeUserStatus(u.userStatus);
                       const country = u.country || "";
                       const city = u.city || "";
                       const location = [city, country].filter(Boolean).join(", ");
@@ -1318,6 +1571,88 @@ export default function AdminPage() {
                     {approveAllBusy ? <RefreshCw size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
                     Approve all (bulk)
                   </button>
+                </div>
+
+                {/* Certified — who submitted assignments / projects */}
+                <div className="mb-5 rounded-xl border border-emerald-500/30 bg-emerald-500/[0.07] p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
+                    <div>
+                      <h3 className="text-sm font-semibold text-emerald-100 font-mono tracking-tight">
+                        Certified attendees — submissions
+                      </h3>
+                      <p className="text-[11px] text-gray-500 font-mono mt-1 max-w-2xl leading-relaxed">
+                        Only <strong className="text-gray-400">userStatus = certified</strong> and{" "}
+                        <strong className="text-gray-400">role = attendee</strong>. Counts are documents in{" "}
+                        <code className="text-cyan-400/90">assignments</code> /{" "}
+                        <code className="text-cyan-400/90">projects</code> for that Firebase{" "}
+                        <code className="text-gray-400">userId</code>.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2 text-[11px] font-mono mb-3">
+                    <span className="rounded-lg border border-white/10 bg-gray-950/50 px-2.5 py-1 text-gray-300">
+                      Certified total: <strong className="text-white">{certifiedSubmissionsAudit.total}</strong>
+                    </span>
+                    <span className="rounded-lg border border-green-500/25 bg-green-500/10 px-2.5 py-1 text-green-200/95">
+                      ≥1 assignment:{" "}
+                      <strong className="text-green-100">{certifiedSubmissionsAudit.withAssignment}</strong>
+                      <span className="text-green-500/70">
+                        {" "}
+                        · missing:{" "}
+                        <strong>{certifiedSubmissionsAudit.missingAssignment}</strong>
+                      </span>
+                    </span>
+                    <span className="rounded-lg border border-sky-500/25 bg-sky-500/10 px-2.5 py-1 text-sky-200/95">
+                      ≥1 project: <strong className="text-sky-100">{certifiedSubmissionsAudit.withProject}</strong>
+                      <span className="text-sky-500/70">
+                        {" "}
+                        · missing: <strong>{certifiedSubmissionsAudit.missingProject}</strong>
+                      </span>
+                    </span>
+                    <span className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-amber-100/95">
+                      Missing both: <strong>{certifiedSubmissionsAudit.missingBoth}</strong>
+                    </span>
+                  </div>
+                  {certifiedSubmissionsAudit.total === 0 ? (
+                    <p className="text-xs text-gray-500 font-mono py-2">No certified attendees in the loaded list.</p>
+                  ) : (
+                    <div className="max-h-[min(360px,50vh)] overflow-auto rounded-lg border border-white/10">
+                      <table className="w-full text-xs font-mono">
+                        <thead className="sticky top-0 bg-gray-950/95 border-b border-white/10 z-[1]">
+                          <tr className="text-left text-gray-500 uppercase tracking-wide">
+                            <th className="px-3 py-2">Name</th>
+                            <th className="px-3 py-2">Email</th>
+                            <th className="px-3 py-2 text-center whitespace-nowrap">Assignments</th>
+                            <th className="px-3 py-2 text-center whitespace-nowrap">Project</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {certifiedSubmissionsAudit.rows.map((r) => (
+                            <tr key={r.uid} className="border-b border-white/5 hover:bg-white/[0.03]">
+                              <td className="px-3 py-2 text-white align-top">{r.displayName}</td>
+                              <td className="px-3 py-2 text-gray-500 break-all align-top">{r.email || "—"}</td>
+                              <td className="px-3 py-2 text-center align-top whitespace-nowrap">
+                                {r.assignmentCount > 0 ? (
+                                  <span className="text-green-400 font-semibold">{r.assignmentCount}</span>
+                                ) : (
+                                  <span className="text-red-400/90">None</span>
+                                )}
+                              </td>
+                              <td className="px-3 py-2 text-center align-top whitespace-nowrap">
+                                {r.projectCount > 0 ? (
+                                  <span className="text-green-400 font-semibold">
+                                    Yes{r.projectCount > 1 ? ` (${r.projectCount})` : ""}
+                                  </span>
+                                ) : (
+                                  <span className="text-red-400/90">No</span>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
 
                 {/* ── Pending quick-approve strip ── */}
@@ -1556,8 +1891,7 @@ export default function AdminPage() {
                       )}
                     </div>
                     {paginatedUsers.map((u) => {
-                      const status = u.userStatus || "pending";
-                      const sc = STATUS_CONFIG[status];
+                      const status = normalizeUserStatus(u.userStatus);
                       const country = u.country || "";
                       const city = u.city || "";
                       const location = [city, country].filter(Boolean).join(", ");
@@ -1809,7 +2143,7 @@ export default function AdminPage() {
                           </tr>
                         )}
                         {paginatedUsers.map((u, idx) => {
-                          const status = u.userStatus || "pending";
+                          const status = normalizeUserStatus(u.userStatus);
                           const sc = STATUS_CONFIG[status];
                           const country = u.country || "";
                           const city = u.city || "";
@@ -2307,49 +2641,177 @@ export default function AdminPage() {
 
             {/* ── ASSIGNMENTS TAB ── */}
             {activeTab === "assignments" && (
-              <div className="space-y-3">
-                {filteredAssignments.length === 0 && (
-                  <p className="text-center text-gray-500 py-10 font-mono">No assignments submitted yet</p>
+              <div className="space-y-4">
+                <p className="text-xs font-mono text-gray-500 border border-white/10 rounded-lg px-3 py-2 bg-gray-900/40">
+                  Grouped by person: weekly assignment rows and final project for the same attendee appear together.
+                  Uses the header search (name, email, assignment or project title).
+                </p>
+                {submissionsReviewByUser.length === 0 && (
+                  <p className="text-center text-gray-500 py-10 font-mono">
+                    No matching assignments or projects — adjust search or wait for submissions
+                  </p>
                 )}
-                {filteredAssignments.map((a) => (
-                  <div key={a.id} className="bg-gray-900/50 border border-white/8 rounded-xl p-4 hover:border-white/15 transition-all">
-                    <div className="flex flex-wrap items-start gap-4">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex flex-wrap items-center gap-2 mb-1">
-                          <span className="font-semibold text-white">{a.title}</span>
-                          <span className="font-mono text-xs bg-white/8 text-gray-400 border border-white/10 px-2 py-0.5 rounded-full">
-                            Week {a.weekNumber}
-                          </span>
-                        </div>
-                        <p className="text-sm text-gray-400">
-                          {a.userName}
-                          {a.userEmail ? ` · ${a.userEmail}` : ""}
-                        </p>
-                        <p className="text-sm text-gray-500 mt-1 line-clamp-2">{a.description}</p>
-                        <div className="flex gap-3 mt-2">
-                          {a.githubUrl && (
-                            <a href={a.githubUrl} target="_blank" rel="noopener noreferrer"
-                              className="text-xs text-blue-400 hover:underline font-mono">GitHub →</a>
-                          )}
-                          {a.notebookUrl && (
-                            <a href={a.notebookUrl} target="_blank" rel="noopener noreferrer"
-                              className="text-xs text-blue-400 hover:underline font-mono">Notebook →</a>
-                          )}
-                          {a.demoUrl && (
-                            <a href={a.demoUrl} target="_blank" rel="noopener noreferrer"
-                              className="text-xs text-blue-400 hover:underline font-mono">Demo →</a>
-                          )}
-                        </div>
+                {submissionsReviewByUser.map((row) => (
+                  <div
+                    key={row.userId}
+                    className="bg-gray-900/50 border border-white/8 rounded-xl overflow-hidden hover:border-white/15 transition-all"
+                  >
+                    <div className="px-4 py-3 border-b border-white/10 bg-white/[0.03] flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <div className="font-semibold text-white">{row.userName}</div>
+                        <div className="text-xs text-gray-500 font-mono">{row.userEmail || row.userId}</div>
                       </div>
-                      <select
-                        value={a.status}
-                        onChange={(e) => updateAssignmentStatus(a.id!, e.target.value as Assignment["status"])}
-                        className="bg-gray-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:ring-1 focus:ring-green-500 flex-shrink-0"
-                      >
-                        <option value="submitted">Submitted</option>
-                        <option value="reviewed">Reviewed</option>
-                        <option value="approved">Approved ✓</option>
-                      </select>
+                      <span className="text-[10px] font-mono text-gray-500">
+                        {row.assignments.length} assignment{row.assignments.length === 1 ? "" : "s"}
+                        {row.projects.length > 0
+                          ? ` · ${row.projects.length} project${row.projects.length === 1 ? "" : "s"}`
+                          : ""}
+                      </span>
+                    </div>
+                    <div className="p-4 space-y-4">
+                      {row.assignments.length > 0 ? (
+                        <div>
+                          <div className="text-[10px] font-mono uppercase tracking-wider text-gray-500 mb-2">
+                            Weekly assignments
+                          </div>
+                          <div className="space-y-2">
+                            {row.assignments.map((a) => (
+                              <div
+                                key={a.id}
+                                className="flex flex-wrap items-start gap-3 rounded-lg border border-white/8 bg-gray-950/40 p-3"
+                              >
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex flex-wrap items-center gap-2 mb-0.5">
+                                    <span className="font-semibold text-white text-sm">{a.title}</span>
+                                    <span className="font-mono text-[10px] bg-white/8 text-gray-400 border border-white/10 px-2 py-0.5 rounded-full">
+                                      Week {a.weekNumber}
+                                    </span>
+                                  </div>
+                                  <p className="text-xs text-gray-500 line-clamp-2">{a.description}</p>
+                                  <div className="flex flex-wrap gap-3 mt-1.5">
+                                    {a.githubUrl && (
+                                      <a
+                                        href={a.githubUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-[11px] text-blue-400 hover:underline font-mono"
+                                      >
+                                        GitHub →
+                                      </a>
+                                    )}
+                                    {a.notebookUrl && (
+                                      <a
+                                        href={a.notebookUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-[11px] text-blue-400 hover:underline font-mono"
+                                      >
+                                        Notebook →
+                                      </a>
+                                    )}
+                                    {a.demoUrl && (
+                                      <a
+                                        href={a.demoUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-[11px] text-blue-400 hover:underline font-mono"
+                                      >
+                                        Demo →
+                                      </a>
+                                    )}
+                                  </div>
+                                </div>
+                                <select
+                                  value={a.status}
+                                  onChange={(e) =>
+                                    updateAssignmentStatus(a.id!, e.target.value as Assignment["status"])
+                                  }
+                                  className="bg-gray-800 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white font-mono focus:outline-none focus:ring-1 focus:ring-green-500 flex-shrink-0"
+                                >
+                                  <option value="submitted">Submitted</option>
+                                  <option value="reviewed">Reviewed</option>
+                                  <option value="approved">Approved ✓</option>
+                                </select>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
+
+                      {row.projects.length > 0 ? (
+                        <div>
+                          <div className="text-[10px] font-mono uppercase tracking-wider text-gray-500 mb-2">
+                            Project submission
+                          </div>
+                          <div className="space-y-2">
+                            {row.projects.map((p) => (
+                              <div
+                                key={p.id}
+                                className="flex flex-wrap items-start gap-3 rounded-lg border border-emerald-500/20 bg-emerald-500/[0.06] p-3"
+                              >
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex flex-wrap items-center gap-2 mb-0.5">
+                                    <span className="font-semibold text-white text-sm">{p.title}</span>
+                                    <span className="font-mono text-[10px] bg-white/8 text-gray-400 border border-white/10 px-2 py-0.5 rounded-full">
+                                      Week {p.weekCompleted}
+                                    </span>
+                                    <span className="text-[10px] font-mono uppercase text-emerald-300/90 border border-emerald-500/25 px-1.5 py-0.5 rounded">
+                                      {p.status}
+                                    </span>
+                                  </div>
+                                  <p className="text-xs text-gray-500 line-clamp-2">{p.description}</p>
+                                  <div className="flex flex-wrap gap-3 mt-1.5 items-center">
+                                    {p.githubUrl && (
+                                      <a
+                                        href={p.githubUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-[11px] text-blue-400 hover:underline font-mono"
+                                      >
+                                        GitHub →
+                                      </a>
+                                    )}
+                                    {p.demoUrl && (
+                                      <a
+                                        href={p.demoUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-[11px] text-blue-400 hover:underline font-mono"
+                                      >
+                                        Demo →
+                                      </a>
+                                    )}
+                                    <button
+                                      type="button"
+                                      onClick={() => setViewingProject(p)}
+                                      className="text-[11px] text-emerald-400 hover:text-emerald-300 font-mono font-semibold border border-emerald-500/30 px-2 py-0.5 rounded transition-all"
+                                    >
+                                      Details &amp; feedback
+                                    </button>
+                                  </div>
+                                </div>
+                                <select
+                                  value={p.status}
+                                  onChange={(e) =>
+                                    updateProjectStatus(p.id!, e.target.value as Project["status"])
+                                  }
+                                  className="bg-gray-800 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white font-mono focus:outline-none focus:ring-1 focus:ring-green-500 flex-shrink-0"
+                                >
+                                  <option value="submitted">Submitted</option>
+                                  <option value="reviewed">Reviewed</option>
+                                  <option value="shortlisted">Shortlisted</option>
+                                  <option value="winner">Winner</option>
+                                  <option value="passed">Passed</option>
+                                </select>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
+
+                      {row.assignments.length === 0 && row.projects.length === 0 ? (
+                        <p className="text-xs text-gray-600 font-mono">No rows in this group.</p>
+                      ) : null}
                     </div>
                   </div>
                 ))}

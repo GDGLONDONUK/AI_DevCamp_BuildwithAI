@@ -136,6 +136,29 @@ export async function toggleAttendance(
   return next;
 }
 
+/** Admin: set a programme session to attended or not (no toggle). */
+export async function setAttendanceForSession(
+  userId: string,
+  sessionId: string,
+  attended: boolean
+): Promise<void> {
+  const user = auth.currentUser;
+  if (!user) throw new Error("Not signed in");
+  const token = await user.getIdToken();
+  const res = await fetch(`/api/attendance/${userId}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ sessionId, attended }),
+  });
+  const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+  if (!res.ok || !json.ok) {
+    throw new Error(json.error || `Attendance update failed (${res.status})`);
+  }
+}
+
 /** Admin: set a boolean on `attendance/{userId}` (e.g. in-person check-in, not a `session-*` id). */
 export async function setAttendanceField(
   userId: string,

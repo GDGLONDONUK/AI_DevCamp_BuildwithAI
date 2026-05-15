@@ -11,12 +11,13 @@ export const STATUS_CONFIG: Record<
   pending:          { label: "Pending",       bg: "bg-gray-500/20",   text: "text-gray-400",   dot: "bg-gray-400"   },
   participated:     { label: "Participated",  bg: "bg-blue-500/20",   text: "text-blue-400",   dot: "bg-blue-400"   },
   certified:        { label: "Certified ✓",  bg: "bg-green-500/20",  text: "text-green-400",  dot: "bg-green-400"  },
+  outstanding:      { label: "Outstanding ★", bg: "bg-violet-500/20", text: "text-violet-300", dot: "bg-violet-400" },
   "not-certified":  { label: "Not Certified", bg: "bg-yellow-500/20", text: "text-yellow-400", dot: "bg-yellow-400" },
   failed:           { label: "Failed",        bg: "bg-red-500/20",    text: "text-red-400",    dot: "bg-red-400"    },
 };
 
 export const ALL_STATUSES: UserStatus[] = [
-  "pending", "participated", "certified", "not-certified", "failed",
+  "pending", "participated", "certified", "outstanding", "not-certified", "failed",
 ];
 
 interface Props {

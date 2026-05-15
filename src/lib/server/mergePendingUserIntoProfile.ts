@@ -41,6 +41,7 @@ const VALID_STATUS: UserStatus[] = [
   "pending",
   "participated",
   "certified",
+  "outstanding",
   "not-certified",
   "failed",
 ];

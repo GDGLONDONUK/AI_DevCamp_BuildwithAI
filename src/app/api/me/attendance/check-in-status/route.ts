@@ -16,6 +16,7 @@ function canSelfCheckInStatus(userStatus: unknown): boolean {
   return (
     userStatus === "participated" ||
     userStatus === "certified" ||
+    userStatus === "outstanding" ||
     userStatus === "not-certified"
   );
 }

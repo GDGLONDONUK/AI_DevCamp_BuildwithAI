@@ -2,7 +2,7 @@
  * GET /api/users — list all users (admin/moderator only)
  *
  * Query params:
- *   ?status=pending|participated|certified|not-certified|failed
+ *   ?status=pending|participated|certified|outstanding|not-certified|failed
  *   ?search=string   (matches displayName or email)
  */
 

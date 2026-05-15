@@ -1,5 +1,11 @@
 export type UserRole = "admin" | "moderator" | "attendee";
-export type UserStatus = "pending" | "participated" | "certified" | "not-certified" | "failed";
+export type UserStatus =
+  | "pending"
+  | "participated"
+  | "certified"
+  | "outstanding"
+  | "not-certified"
+  | "failed";
 
 export type AttendanceMarkSource = "admin" | "self_check_in";
 

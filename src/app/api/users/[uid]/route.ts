@@ -3,7 +3,7 @@
  * PATCH /api/users/[uid]  — update user status or role
  *
  * PATCH body (admin/moderator):
- *   { userStatus: "pending" | "participated" | "certified" | "not-certified" | "failed" }
+ *   { userStatus: "pending" | "participated" | "certified" | "outstanding" | "not-certified" | "failed" }
  *   { role: "attendee" | "moderator" | "admin" }
  *
  * PATCH body (own profile — non-privileged fields only):
