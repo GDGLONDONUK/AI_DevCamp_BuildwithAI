@@ -316,7 +316,7 @@ Valid statuses: `submitted` → `reviewed` → `approved`
 }
 ```
 
-Valid statuses: `submitted` → `reviewed` → `shortlisted` → `winner`; admins may also set `passed` (e.g. programme completion without a competition win).
+Valid statuses: `submitted` → `reviewed` → `shortlisted` → `winner`; admins may also set `passed` (programme completion without a competition win) or `failed` (final project did not meet requirements). Project `failed` is independent of `users.userStatus === "failed"`.
 
 ---
 

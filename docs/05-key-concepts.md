@@ -148,7 +148,7 @@ The project is split into layers. Each layer has one job:
 └─────────────────────────────────┘
 ```
 
-**Admin example:** Firestore mutations stay in `adminService.ts`. CSV parsing, attendee export, and shared date formatting for the admin UI live in `src/lib/admin/` so they can be reused from `/admin` and `/admin/import` without duplicating logic. Larger admin-only UI (for example the pre-registered detail drawer) lives under `src/features/admin/components/`.
+**Admin example:** Firestore mutations stay in `adminService.ts`. CSV parsing, **general attendee export** (`exportAttendeesCsv.ts`), **certified completion export** (`exportCertifiedCompletionCsv.ts` + `certifiedCompletion.ts`), and shared date formatting for the admin UI live in `src/lib/admin/` so they can be reused from `/admin` and `/admin/import` without duplicating logic. Larger admin-only UI (for example the pre-registered detail drawer) lives under `src/features/admin/components/`.
 
 ---
 

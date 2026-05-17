@@ -75,7 +75,9 @@ After handling, the component strips `login` and `reset` from the URL with `hist
 | Area | Features |
 |------|----------|
 | **Header** | **Add pending user** (opens modal) — same as pre-reg flow. Quick links: **Email**, **CSV Import**, **Users map** (`/admin/users-map`), **Learning tasks** (`/admin/learning-tasks`), **Error logs**, **Seed tags**, **Refresh**. **Bevy merge** is at `/admin/bevy` (also linked from `/admin/import`). |
-| **Users** | **Grid (cards)** and **table** view; **checkboxes** per user (with email); **select all**; bulk bar **Send email to N selected** (opens `/admin/email?source=selection` with `sessionStorage` recipients). **Download CSV** exports attendees with session attendance counts and profile fields, including **Kickoff in-person RSVP** (Yes/No) and **Joining in person** (text from `UserProfile.joiningInPerson`). Badges include **De-reg** for programme opt-out. **User Editor** can clear or set programme de-registration. |
+| **Users** | **Grid (cards)** and **table** view; **checkboxes** per user (with email); **select all**; bulk bar **Send email to N selected** (opens `/admin/email?source=selection` with `sessionStorage` recipients). **Download CSV** exports the **current filter** (attendees with session counts, kick-off RSVP, profile fields). **Certified completion — export ready** panel lists certified attendees and who meets **≥1 approved assignment** + **project passed**; **Export CSV** downloads only that ready cohort (`src/lib/admin/exportCertifiedCompletionCsv.ts`). Toggle **Ready only** to hide incomplete rows. Badges include **De-reg** for programme opt-out. **User Editor** can clear or set programme de-registration. |
+| **Assignments** | List grouped by submitter; per-row status **Submitted → Reviewed → Approved** (`PATCH /api/assignments/[id]`). |
+| **Projects** | List with status filter; per-row or modal status **Submitted → Reviewed → Shortlisted → Winner**, plus **Passed** (programme completion) and **Failed** (did not meet requirements). `PATCH /api/projects/[id]`. |
 | **Inactive** | **Admin-only.** Left: attendees who never had **`true`** on **`session-1`…`session-6`** in **`attendance/{uid}`** (aligned with **`SESSIONS`**); **checkboxes**, header **select all**, **Archive selected** (bulk → **`disabledUsers`**). Right: **`disabledUsers`** list with **Restore selected** (bulk → **`users`**). Single-row Archive / Restore still available. APIs: **`GET /api/admin/users-no-session-attendance`**, **`GET` / `POST /api/admin/disabled-users`**. |
 | **Sessions (editor)** | **Speakers** — pick **`speakerIds`** from the **`speakers`** roster (create new roster rows as needed). **Live attendance code** — per session, admins can enable a **6-digit code** and **open/close** datetime window (`session_self_checkin/{sessionId}`). Saved with the session from **Session Editor**. Attendees use **`/sessions`** (expanded card) during the window; validation is server-side. |
 | **Attendance** | Grid of users × sessions; **filter** rows by attended / not attended for a chosen session. **Kick Off (session-1)** supports a **join mode** (in person vs online) on `attendance/{uid}` (`kickoffJoinedAs`). Grid toggles call **`PATCH /api/attendance/[uid]`** so **`sessionAttendanceAudit`** records **createdBy / updatedBy / createdAt / updatedAt / source**. |
@@ -85,6 +87,19 @@ After handling, the component strips `login` and `reset` from the URL with `hist
 | **User list** | Badges for **Google** / **email** sign-in from `authProviders` (or legacy `registrationSource`). |
 
 **Roles:** `requireAdmin` in API routes allows **admin** and **moderator** unless a route is admin-only (check each handler — e.g. **`DELETE /api/admin/learning-task-templates`** without an id is **admin-only**; **`/api/admin/disabled-users`** and **`/api/admin/users-no-session-attendance`** are **admin-only**).
+
+### Certified completion export (operator checklist)
+
+Use this when preparing a certificate or completion list:
+
+1. **Attendance tab** — mark session attendance; optionally **Certify attendees (≥70% sessions)** to set `userStatus` to `certified`, or set status manually in **Users**.
+2. **Assignments tab** — set each reviewed submission to **Approved** where appropriate.
+3. **Projects tab** — set final projects to **Passed** or **Failed** (competition track: Shortlisted / Winner as needed).
+4. **Users tab** — open **Certified completion — export ready**; confirm the **Export ready** count; click **Export CSV**.
+
+Logic lives in `src/lib/admin/certifiedCompletion.ts`. Criteria are documented in [03-database-schema.md](./03-database-schema.md#certification-completion-export-cohort).
+
+**Note:** `userStatus: "failed"` (programme track, e.g. bulk **Failed — 0–1 sessions**) is unrelated to **project** `status: "failed"`.
 
 ---
 

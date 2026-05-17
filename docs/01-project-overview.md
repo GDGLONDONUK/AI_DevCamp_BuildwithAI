@@ -18,11 +18,11 @@
 | **Registration** | Multi-step signup; pending `users/{email}` merged on first sign-in via `POST /api/me/ensure-profile`. |
 | **Sessions & roster** | Schedule from Firestore; each session lists people via **`speakerIds`** ( **`speakers`** collection) or legacy embedded **`speakers[]` / `speaker*`**; **home page** shows schedule + **Speakers & mentors**; **recordings & rich content** on **`/sessions`** gated to approved statuses (`participated`, `certified`). |
 | **Attendance** | Admin grid + per-session filters; Kick Off **in-person vs online** note (`kickoffJoinedAs`); **live self check-in** (6-digit code + admin-defined time window) on `/sessions`; **Attended** badge on schedule + dashboard when marked. |
-| **Assignments & projects** | Submit, review, statuses; gallery-style project visibility where configured. |
+| **Assignments & projects** | Submit, review, statuses (`assignments`: through `approved`; `projects`: through `winner` / `passed` / `failed`); gallery-style project visibility where configured. |
 | **Dashboard** | Progress, programme communications opt-out / leave programme, session list with attendance labels. |
 | **Learning tasks** | **`/dashboard/tasks`** — private per-user checklist (table / cards / timeline), filters & paging, optional auto-import from **`learningTaskTemplates`** when empty. Organisers maintain templates at **`/admin/learning-tasks`**. See [09-learning-tasks-architecture.md](./09-learning-tasks-architecture.md). |
 | **Programme lifecycle** | **Leave programme** sets `programOptOut` → no API/session until admin clears; cohort email uses `receivesProgramCommunications()`. |
-| **Admin** | Users (grid/table, CSV export, bulk email, User Editor), **Inactive** (`disabledUsers` archive / restore, multi-select), Attendance, Sessions (CRUD, **multi-speaker** editor, **live check-in config**), Pre-registered, Assignments, Projects, **Learning task templates** (`/admin/learning-tasks`), sub-routes: email, import, Bevy, errors, users map. |
+| **Admin** | Users (grid/table, CSV export, **certified completion** panel + export, bulk email, User Editor), **Inactive** (`disabledUsers` archive / restore, multi-select), Attendance, Sessions (CRUD, **multi-speaker** editor, **live check-in config**), Pre-registered, Assignments, Projects (`passed` / `failed` review), **Learning task templates** (`/admin/learning-tasks`), sub-routes: email, import, Bevy, errors, users map. |
 | **Observability** | Client/server errors to `error_logs`; `/admin/errors`. |
 | **Branding** | Navbar uses `public/logo.png`; **favicons** are generated square PNGs from the logo (`npm run generate-favicons`) — see [08-site-deployment-and-admin.md](./08-site-deployment-and-admin.md). |
 

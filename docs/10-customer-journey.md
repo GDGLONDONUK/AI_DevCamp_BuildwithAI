@@ -28,11 +28,28 @@ flowchart LR
     H --> I[Dashboard + learning tasks]
   end
   subgraph close["Close"]
-    I --> J[Closing / certification event]
+    I --> J[Admin reviews assignment + project]
+    J --> K{Completion criteria met?}
+    K -->|Yes| L[Included in certified completion export]
+    K -->|No| M[Organiser follows up]
   end
 ```
 
-**Content gating (sessions):** Rich materials and recordings on **`/sessions`** are limited to users whose **`userStatus`** is in the approved set (e.g. `participated` / `certified`) — see the sessions page implementation. The **public home page** shows the high-level **schedule** and **Speakers & mentors** roster (from Firestore, with static fallback if the DB is empty).
+**Content gating (sessions):** Rich materials and recordings on **`/sessions`** are limited to users whose **`userStatus`** is in the approved set (e.g. `participated` / `certified`) — see the sessions page implementation. Users with **`userStatus: "failed"`** (programme track) see a reduced experience on **`/sessions`** (no rich content). The **public home page** shows the high-level **schedule** and **Speakers & mentors** roster (from Firestore, with static fallback if the DB is empty).
+
+### Completion criteria (organiser view)
+
+A participant appears in the **export-ready** cohort when **all** of the following are true:
+
+| Criterion | Where it is set |
+|-----------|-----------------|
+| Certified for attendance | `users.userStatus = "certified"` (bulk ≥70% sessions on **Attendance**, or manual status in **Users**) |
+| At least one approved assignment | **Assignments** tab → status **Approved** |
+| Final project passed | **Projects** tab → status **Passed** |
+
+**Export:** **Admin → Users** → **Certified completion — export ready** → **Export CSV**. See [08-site-deployment-and-admin.md](./08-site-deployment-and-admin.md#certified-completion-export-operator-checklist).
+
+**Distinction:** **Project `failed`** means the final submission did not meet requirements; **`userStatus: "failed"`** means the participant did not complete the programme (e.g. very low attendance). They are independent fields.
 
 ---
 
@@ -107,8 +124,20 @@ flowchart TB
     A2 --> A3[Assignments & projects review]
   end
   subgraph wrap["Wrap-up"]
-    A3 --> W1[Inactive / archive if needed]
-    W1 --> W2[Communications & exports]
+    A3 --> W1[Set assignment Approved + project Passed/Failed]
+    W1 --> W2[Certify attendees userStatus]
+    W2 --> W3[Certified completion CSV export]
+    W3 --> W4[Inactive / archive if needed]
+    W4 --> W5[Communications & general attendee CSV]
+  end
+```
+
+```mermaid
+flowchart LR
+  subgraph criteria["Export-ready user"]
+    C1[userStatus certified] --> C2[≥1 assignment approved]
+    C2 --> C3[≥1 project passed]
+    C3 --> C4[Export CSV on Users tab]
   end
 ```
 
@@ -122,6 +151,8 @@ flowchart TB
 | Sign-in / register | `AuthModal`, `/register`, `src/lib/auth.ts` (`loginWithGoogle`, `preferGoogleRedirect`) |
 | Session detail & gating | `/sessions`, `getSessionSpeakersList` + speaker lookup |
 | Admin sessions & roster | `/admin` → Sessions, `SessionEditor`, `speakerService` / `sessionService` |
+| Assignment / project review | `/admin` → Assignments, Projects; `PATCH /api/assignments/[id]`, `PATCH /api/projects/[id]` |
+| Certified completion export | `/admin` → Users panel; `buildCertifiedCompletionAudit`, `exportCertifiedCompletionCsv` |
 | Self check-in | `/sessions` expanded card, `POST /api/me/attendance/self-check-in` |
 
 ---
