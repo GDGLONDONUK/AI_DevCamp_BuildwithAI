@@ -3,7 +3,7 @@
  * PATCH /api/projects/[id]  — update status or feedback (admin/moderator only)
  *
  * PATCH body:
- *   { status: "submitted" | "reviewed" | "shortlisted" | "winner" | "passed", feedback?: string }
+ *   { status: "submitted" | "reviewed" | "shortlisted" | "winner" | "passed" | "failed", feedback?: string }
  */
 
 import { NextRequest } from "next/server";
@@ -16,7 +16,7 @@ import { projectAdminPatchSchema } from "@/lib/api/schemas/requestBodies";
 
 type Params = { params: Promise<{ id: string }> };
 
-const VALID_STATUSES = ["submitted", "reviewed", "shortlisted", "winner", "passed"];
+const VALID_STATUSES = ["submitted", "reviewed", "shortlisted", "winner", "passed", "failed"];
 
 export async function GET(request: NextRequest, { params }: Params) {
   const { id } = await params;

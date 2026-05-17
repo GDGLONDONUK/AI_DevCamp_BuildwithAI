@@ -27,6 +27,11 @@ import { userAuthShowsGoogle, userAuthShowsPassword } from "@/lib/auth";
 import { formatAdminDateTime } from "@/lib/admin/format";
 import { exportAttendeesCsv } from "@/lib/admin/exportAttendeesCsv";
 import {
+  buildCertifiedCompletionAudit,
+  certifiedCompletionToExportRows,
+} from "@/lib/admin/certifiedCompletion";
+import { exportCertifiedCompletionCsv } from "@/lib/admin/exportCertifiedCompletionCsv";
+import {
   IN_PERSON_MAY23_2026_FIELD,
   KICKOFF_JOINED_AS_FIELD,
   KICKOFF_SESSION_ID,
@@ -143,6 +148,7 @@ export default function AdminPage() {
   const [usersAuthFilter, setUsersAuthFilter] = useState<"all" | "google" | "password">("all");
   const [usersKickoffFilter, setUsersKickoffFilter] = useState<KickoffRsvpFilter>("all");
   const [approveAllBusy, setApproveAllBusy] = useState(false);
+  const [certifiedCompletionShowReadyOnly, setCertifiedCompletionShowReadyOnly] = useState(true);
 
   const [inactiveNeverAttended, setInactiveNeverAttended] = useState<NeverAttendedUserSummary[]>([]);
   const [inactiveArchived, setInactiveArchived] = useState<UserProfile[]>([]);
@@ -960,47 +966,18 @@ export default function AdminPage() {
     return rows;
   }, [assignments, projects, search]);
 
-  /** Certified attendees only — who has assignment / project rows in Firestore. */
-  const certifiedSubmissionsAudit = useMemo(() => {
-    const assignmentCountByUid = new Map<string, number>();
-    for (const a of assignments) {
-      if (!a.userId) continue;
-      assignmentCountByUid.set(a.userId, (assignmentCountByUid.get(a.userId) ?? 0) + 1);
-    }
-    const projectCountByUid = new Map<string, number>();
-    for (const p of projects) {
-      if (!p.userId) continue;
-      projectCountByUid.set(p.userId, (projectCountByUid.get(p.userId) ?? 0) + 1);
-    }
-    const certifiedAttendees = users.filter(
-      (u) => u.role === "attendee" && Boolean(u.uid) && (u.userStatus || "pending") === "certified"
-    );
-    const rows = certifiedAttendees
-      .map((u) => {
-        const assignmentCount = assignmentCountByUid.get(u.uid) ?? 0;
-        const projectCount = projectCountByUid.get(u.uid) ?? 0;
-        return {
-          uid: u.uid,
-          displayName: u.displayName || "—",
-          email: u.email || "",
-          assignmentCount,
-          projectCount,
-        };
-      })
-      .sort((a, b) => a.displayName.localeCompare(b.displayName));
+  /** Certified attendees — approved assignments + passed project completion criteria. */
+  const certifiedCompletionAudit = useMemo(
+    () => buildCertifiedCompletionAudit(users, assignments, projects),
+    [users, assignments, projects]
+  );
 
-    const withAssignment = rows.filter((r) => r.assignmentCount > 0).length;
-    const withProject = rows.filter((r) => r.projectCount > 0).length;
-    return {
-      rows,
-      total: rows.length,
-      withAssignment,
-      withProject,
-      missingAssignment: rows.length - withAssignment,
-      missingProject: rows.length - withProject,
-      missingBoth: rows.filter((r) => r.assignmentCount === 0 && r.projectCount === 0).length,
-    };
-  }, [users, assignments, projects]);
+  const certifiedCompletionDisplayRows = useMemo(() => {
+    const list = certifiedCompletionAudit.rows;
+    return certifiedCompletionShowReadyOnly
+      ? list.filter((r) => r.meetsCriteria)
+      : list;
+  }, [certifiedCompletionAudit.rows, certifiedCompletionShowReadyOnly]);
 
   const filteredProjectsBase = useMemo(() => {
     const q = projectsQuery.toLowerCase().trim();
@@ -1573,78 +1550,125 @@ export default function AdminPage() {
                   </button>
                 </div>
 
-                {/* Certified — who submitted assignments / projects */}
+                {/* Certified completion — ready for certificate export */}
                 <div className="mb-5 rounded-xl border border-emerald-500/30 bg-emerald-500/[0.07] p-4">
                   <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
                     <div>
                       <h3 className="text-sm font-semibold text-emerald-100 font-mono tracking-tight">
-                        Certified attendees — submissions
+                        Certified completion — export ready
                       </h3>
                       <p className="text-[11px] text-gray-500 font-mono mt-1 max-w-2xl leading-relaxed">
-                        Only <strong className="text-gray-400">userStatus = certified</strong> and{" "}
-                        <strong className="text-gray-400">role = attendee</strong>. Counts are documents in{" "}
-                        <code className="text-cyan-400/90">assignments</code> /{" "}
-                        <code className="text-cyan-400/90">projects</code> for that Firebase{" "}
-                        <code className="text-gray-400">userId</code>.
+                        <strong className="text-gray-400">userStatus = certified</strong>,{" "}
+                        <strong className="text-gray-400">≥1 assignment approved</strong>, and{" "}
+                        <strong className="text-gray-400">project status = passed</strong>. Use{" "}
+                        <strong className="text-gray-400">Export CSV</strong> for the ready cohort only.
                       </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <label className="flex items-center gap-2 text-[11px] font-mono text-gray-400 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={certifiedCompletionShowReadyOnly}
+                          onChange={(e) => setCertifiedCompletionShowReadyOnly(e.target.checked)}
+                          className="rounded border-white/20 bg-gray-900 text-emerald-500 focus:ring-emerald-500"
+                        />
+                        Ready only
+                      </label>
+                      <button
+                        type="button"
+                        disabled={certifiedCompletionAudit.ready.length === 0}
+                        onClick={() =>
+                          exportCertifiedCompletionCsv(
+                            certifiedCompletionToExportRows(
+                              certifiedCompletionAudit.ready,
+                              users,
+                              sessions,
+                              attendance
+                            )
+                          )
+                        }
+                        className="inline-flex items-center gap-1.5 text-xs font-mono font-bold text-gray-950 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 disabled:cursor-not-allowed px-3 py-1.5 rounded-lg"
+                        title="Download CSV for certified users with ≥1 approved assignment and a passed project"
+                      >
+                        <Download size={12} />
+                        Export CSV ({certifiedCompletionAudit.ready.length})
+                      </button>
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2 text-[11px] font-mono mb-3">
                     <span className="rounded-lg border border-white/10 bg-gray-950/50 px-2.5 py-1 text-gray-300">
-                      Certified total: <strong className="text-white">{certifiedSubmissionsAudit.total}</strong>
+                      Certified total:{" "}
+                      <strong className="text-white">{certifiedCompletionAudit.rows.length}</strong>
+                    </span>
+                    <span className="rounded-lg border border-emerald-500/30 bg-emerald-500/15 px-2.5 py-1 text-emerald-100">
+                      Export ready:{" "}
+                      <strong className="text-emerald-50">{certifiedCompletionAudit.ready.length}</strong>
                     </span>
                     <span className="rounded-lg border border-green-500/25 bg-green-500/10 px-2.5 py-1 text-green-200/95">
-                      ≥1 assignment:{" "}
-                      <strong className="text-green-100">{certifiedSubmissionsAudit.withAssignment}</strong>
-                      <span className="text-green-500/70">
-                        {" "}
-                        · missing:{" "}
-                        <strong>{certifiedSubmissionsAudit.missingAssignment}</strong>
-                      </span>
+                      ≥1 approved assignment:{" "}
+                      <strong className="text-green-100">
+                        {certifiedCompletionAudit.rows.filter((r) => r.approvedAssignmentCount > 0).length}
+                      </strong>
                     </span>
                     <span className="rounded-lg border border-sky-500/25 bg-sky-500/10 px-2.5 py-1 text-sky-200/95">
-                      ≥1 project: <strong className="text-sky-100">{certifiedSubmissionsAudit.withProject}</strong>
-                      <span className="text-sky-500/70">
-                        {" "}
-                        · missing: <strong>{certifiedSubmissionsAudit.missingProject}</strong>
-                      </span>
+                      Project passed:{" "}
+                      <strong className="text-sky-100">
+                        {certifiedCompletionAudit.rows.filter((r) => r.passedProjectCount > 0).length}
+                      </strong>
                     </span>
                     <span className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-amber-100/95">
-                      Missing both: <strong>{certifiedSubmissionsAudit.missingBoth}</strong>
+                      Incomplete:{" "}
+                      <strong>
+                        {certifiedCompletionAudit.rows.length - certifiedCompletionAudit.ready.length}
+                      </strong>
                     </span>
                   </div>
-                  {certifiedSubmissionsAudit.total === 0 ? (
+                  {certifiedCompletionAudit.rows.length === 0 ? (
                     <p className="text-xs text-gray-500 font-mono py-2">No certified attendees in the loaded list.</p>
+                  ) : certifiedCompletionDisplayRows.length === 0 ? (
+                    <p className="text-xs text-gray-500 font-mono py-2">
+                      No users meet all completion criteria yet. Uncheck &quot;Ready only&quot; to review gaps.
+                    </p>
                   ) : (
-                    <div className="max-h-[min(360px,50vh)] overflow-auto rounded-lg border border-white/10">
+                    <div className="max-h-[min(420px,55vh)] overflow-auto rounded-lg border border-white/10">
                       <table className="w-full text-xs font-mono">
                         <thead className="sticky top-0 bg-gray-950/95 border-b border-white/10 z-[1]">
                           <tr className="text-left text-gray-500 uppercase tracking-wide">
                             <th className="px-3 py-2">Name</th>
                             <th className="px-3 py-2">Email</th>
-                            <th className="px-3 py-2 text-center whitespace-nowrap">Assignments</th>
+                            <th className="px-3 py-2 text-center whitespace-nowrap">Approved</th>
                             <th className="px-3 py-2 text-center whitespace-nowrap">Project</th>
+                            <th className="px-3 py-2 text-center whitespace-nowrap">Ready</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {certifiedSubmissionsAudit.rows.map((r) => (
+                          {certifiedCompletionDisplayRows.map((r) => (
                             <tr key={r.uid} className="border-b border-white/5 hover:bg-white/[0.03]">
                               <td className="px-3 py-2 text-white align-top">{r.displayName}</td>
                               <td className="px-3 py-2 text-gray-500 break-all align-top">{r.email || "—"}</td>
                               <td className="px-3 py-2 text-center align-top whitespace-nowrap">
-                                {r.assignmentCount > 0 ? (
-                                  <span className="text-green-400 font-semibold">{r.assignmentCount}</span>
+                                {r.approvedAssignmentCount > 0 ? (
+                                  <span className="text-green-400 font-semibold">{r.approvedAssignmentCount}</span>
                                 ) : (
-                                  <span className="text-red-400/90">None</span>
+                                  <span className="text-red-400/90">0</span>
                                 )}
                               </td>
                               <td className="px-3 py-2 text-center align-top whitespace-nowrap">
-                                {r.projectCount > 0 ? (
-                                  <span className="text-green-400 font-semibold">
-                                    Yes{r.projectCount > 1 ? ` (${r.projectCount})` : ""}
+                                {r.passedProjectCount > 0 ? (
+                                  <span className="text-emerald-400 font-semibold" title={r.bestProjectTitle ?? undefined}>
+                                    passed
                                   </span>
+                                ) : r.bestProjectStatus ? (
+                                  <span className="text-amber-400/90">{r.bestProjectStatus}</span>
                                 ) : (
-                                  <span className="text-red-400/90">No</span>
+                                  <span className="text-red-400/90">none</span>
+                                )}
+                              </td>
+                              <td className="px-3 py-2 text-center align-top whitespace-nowrap">
+                                {r.meetsCriteria ? (
+                                  <span className="text-emerald-400 font-semibold">✓</span>
+                                ) : (
+                                  <span className="text-gray-600">—</span>
                                 )}
                               </td>
                             </tr>
@@ -2802,6 +2826,7 @@ export default function AdminPage() {
                                   <option value="shortlisted">Shortlisted</option>
                                   <option value="winner">Winner</option>
                                   <option value="passed">Passed</option>
+                                  <option value="failed">Failed</option>
                                 </select>
                               </div>
                             ))}
@@ -2844,6 +2869,7 @@ export default function AdminPage() {
                     <option value="shortlisted">Shortlisted</option>
                     <option value="winner">Winner</option>
                     <option value="passed">Passed</option>
+                    <option value="failed">Failed</option>
                   </select>
                   <span className="text-xs text-gray-600 font-mono">
                     {filteredProjects.length} project{filteredProjects.length === 1 ? "" : "s"}
@@ -2867,9 +2893,11 @@ export default function AdminPage() {
                             className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded ${
                               p.status === "passed"
                                 ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                                : p.status === "winner"
-                                  ? "bg-amber-500/15 text-amber-300 border border-amber-500/30"
-                                  : "bg-white/5 text-gray-500 border border-white/10"
+                                : p.status === "failed"
+                                  ? "bg-red-500/15 text-red-300 border border-red-500/30"
+                                  : p.status === "winner"
+                                    ? "bg-amber-500/15 text-amber-300 border border-amber-500/30"
+                                    : "bg-white/5 text-gray-500 border border-white/10"
                             }`}
                           >
                             {p.status}
@@ -2918,6 +2946,7 @@ export default function AdminPage() {
                         <option value="shortlisted">Shortlisted ⭐</option>
                         <option value="winner">Winner 🏆</option>
                         <option value="passed">Passed</option>
+                        <option value="failed">Failed</option>
                       </select>
                     </div>
                   </div>

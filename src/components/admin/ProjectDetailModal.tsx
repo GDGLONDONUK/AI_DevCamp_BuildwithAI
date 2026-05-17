@@ -11,6 +11,7 @@ const STATUS_OPTIONS: { value: Project["status"]; label: string }[] = [
   { value: "shortlisted", label: "Shortlisted" },
   { value: "winner", label: "Winner" },
   { value: "passed", label: "Passed" },
+  { value: "failed", label: "Failed" },
 ];
 
 interface ProjectDetailModalProps {

@@ -96,7 +96,7 @@ export const projectCreateSchema = z.object({
 
 export const projectAdminPatchSchema = z
   .object({
-    status: z.enum(["submitted", "reviewed", "shortlisted", "winner", "passed"]).optional(),
+    status: z.enum(["submitted", "reviewed", "shortlisted", "winner", "passed", "failed"]).optional(),
     feedback: z.string().max(20000).optional(),
   })
   .strict()
