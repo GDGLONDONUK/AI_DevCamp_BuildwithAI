@@ -21,6 +21,8 @@ npm run lint         # Run ESLint; auto-fix: npm run lint -- --fix
 npm run ensure-profiles              # Sync users with Firestore (requires Firebase env in .env.local)
 npm run generate-favicons            # Generate square favicon PNGs from public/logo.png
 npm run sync-firestore-programme     # Sync sessions & speakers from src/data/ to Firestore
+npm run upload-speaker-photos        # Upload public/speakers/* to Storage + set Firestore photo URLs
+npm run open-september-2026-cohort   # Upsert cohorts + Sept agenda; tag spring users
 npm run delete-legacy-speaker-docs   # Clean up old speaker data structures
 npm run backfill-registration-map-coords  # Populate location data for users
 ```
@@ -144,6 +146,17 @@ Scripts use `tsx` for TypeScript execution and require `.env.local` with Firebas
 - Shared templates: `learningTaskTemplates/{templateId}` (editable by admins)
 - Auto-import: POST `/api/learning-task-templates/import/` copies templates for the signed-in user
 - Admin CRUD: `/admin/learning-tasks` page; API routes in `src/app/api/admin/learning-task-templates/`
+
+### Cohorts (September 2026+)
+- Active id: `NEXT_PUBLIC_ACTIVE_COHORT_ID` / `src/lib/cohorts.ts`
+- Sessions: flat `sessions/{id}` with **`cohortId`** — attendee UI via `useSessions()` (active only)
+- Enrolment: register / ensure-profile / **`POST /api/me/join-cohort`** (do not auto-enrol past cohorts)
+- Ops: `npm run open-september-2026-cohort`; skill `.claude/skills/cohorts/SKILL.md`
+- API routes for cohorts **must** use `adminDb()` (never bare `initializeApp()`)
+
+### Do's / Don'ts (agents)
+- **Do** use `adminDb()`, tag `cohortId`, keep new session ids per cohort, deploy rules after changes
+- **Don't** put secrets in `NEXT_PUBLIC_*`, let clients edit `cohortIds`, or overwrite spring sessions for a new programme
 
 ---
 

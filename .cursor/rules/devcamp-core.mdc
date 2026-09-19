@@ -23,3 +23,10 @@ This repo uses **Next.js with breaking changes** vs common training knowledge. B
 ## Verification
 
 - After substantive changes, run **`npm run lint`** and **`npm run build`** (from the project root) and fix failures you introduce.
+
+## Cohorts (quick)
+
+- Active programme: `NEXT_PUBLIC_ACTIVE_COHORT_ID` (default September 2026).
+- Flat `sessions` + `cohortId`; users have `cohortIds` / `activeCohortId` (server-maintained).
+- Open/re-seed: `npm run open-september-2026-cohort`. Details: `.claude/skills/cohorts/SKILL.md`, `docs/11-cohort-architecture.md`.
+- `/api/cohorts*` → always `adminDb()`, never bare `initializeApp()`.

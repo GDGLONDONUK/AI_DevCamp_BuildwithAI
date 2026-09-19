@@ -3,10 +3,19 @@ import type { Speaker } from "@/types";
 /** Default roster — seeded into Firestore `speakers/{id}` via Admin import or `npm run sync-firestore-programme`. */
 export const SPEAKERS: Speaker[] = [
   {
+    id: "daniela-petruzalek",
+    name: "Daniela Petruzalek",
+    title: "Speaker",
+    photo: "/speakers/daniela-petruzalek.jpg",
+    sortOrder: 4,
+    roles: ["speaker"],
+    linkedinUrl: "https://www.linkedin.com/in/petruzalek/",
+  },
+  {
     id: "sonika-janagill",
     name: "Sonika Janagill",
     title: "AI DevCamp Lead · Build & Scale",
-    photo: "/speakers/sonika-janagill.png",
+    photo: "/speakers/sonika-janagill.jpg",
     sortOrder: 5,
     roles: ["speaker", "mentor"],
     linkedinUrl: "https://www.linkedin.com/in/sonikaj/",

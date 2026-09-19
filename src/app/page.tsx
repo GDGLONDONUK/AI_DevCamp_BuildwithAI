@@ -581,40 +581,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── FOOTER ── */}
-      <footer className="border-t border-green-500/15 py-8 px-4 bg-[#060a06]">
-        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <Image src="/logo.png" alt="Logo" width={40} height={40} className="rounded-xl" />
-            <div className="font-mono">
-              <span className="text-green-400 text-base font-bold">AI_DEVCAMP</span>
-              <span className="text-gray-600 text-sm ml-2">// 2026</span>
-            </div>
-          </div>
-          <div className="font-mono text-sm text-gray-500 flex flex-wrap items-center justify-center gap-x-3 gap-y-2">
-            <span className="text-green-500/60">GDG London</span>
-            <span className="text-gray-700">×</span>
-            <span className="text-green-500/60">Build with AI</span>
-            <span className="text-gray-700">×</span>
-            <span className="text-green-500/60">Skyscanner</span>
-            {showDiscordLink ? (
-              <>
-                <span className="text-gray-700 hidden sm:inline">·</span>
-                <a
-                  href={DISCORD_INVITE_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 text-indigo-400/90 hover:text-indigo-300 transition-colors"
-                >
-                  <DiscordIcon className="w-3.5 h-3.5" />
-                  Discord
-                </a>
-              </>
-            ) : null}
-          </div>
-        </div>
-      </footer>
-
       <AuthModal
         isOpen={loginModal}
         onClose={closeLogin}

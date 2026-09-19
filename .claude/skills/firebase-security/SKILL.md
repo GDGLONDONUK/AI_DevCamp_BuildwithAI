@@ -29,7 +29,9 @@ The client is **untrusted**. UI checks (hiding a button, gating a route) are UX,
 
 - **Needs a secret, cross-user/cross-doc logic, audit metadata, email, or must bypass rules?** → Server (`/api/*` + Admin SDK).
 - **Simple owner-scoped read/write the rules can express?** → Client (Web SDK), guarded by rules.
-- **Privileged fields** (`role`, `userStatus`, `accountDisabled`, `programOptOut`, buddy/certifier fields) → **server only**. Never writable by the account it describes.
+- **Privileged / server-maintained user fields** → **server only** (Admin SDK or admin PATCH). Never let the account self-set:
+  - Privileged: `role`, `userStatus`, `accountDisabled`, `accountDisabledReason`, `programOptOut`, `programOptOutAt`, `kickoffInPersonAdminConfirmed`
+  - Server-maintained (rules `touchesServerMaintainedUserFields`): `buddyCount`, certifier ids, **`cohortIds`**, **`activeCohortId`**, **`cohortParticipation`**
 
 ## 2. Client path (Web SDK) — rules checklist
 
@@ -44,6 +46,8 @@ Edit `firestore.rules` / `storage.rules`:
 
 **Server-only collections/prefixes (keep `if false`):** `error_logs`, `activity_events`, `buddyRequests`, `buddyPairs`, `disabledUsers`, `cohorts`, `speakerCallSubmissions`, `session_self_checkin` (mod/admin), Storage `speakers/` and `speaker-submissions/`.
 
+**Cohorts:** metadata is server-only. Attendee UI never reads `cohorts/` via the Web SDK — use **`GET /api/cohorts`**. Session docs stay public-read on `sessions/{id}` (include `cohortId`; no secrets).
+
 ## 3. Server path (`/api/*` + Admin SDK) — auth checklist
 
 At the **top** of the handler, before any privileged read/write:
@@ -52,7 +56,8 @@ At the **top** of the handler, before any privileged read/write:
 - [ ] `requireAdmin(req)` for admin/moderator-only actions; `requireAdminOrSelf(req, uid)` for "own resource or admin".
 - [ ] `verifyAuth` already blocks `accountDisabled` and `programOptOut` users — rely on it, don't reinvent.
 - [ ] Validate **all** input with Zod (shape, enums, string length). Never trust `req.json()` / `req.formData()`.
-- [ ] Deliberately public endpoint (no caller identity, e.g. `/api/speaker-call*`)? Then input validation IS the only guard: bound **type, size, and length** of every field, and treat writes as untrusted. Document why it's public.
+- [ ] Deliberately public endpoint (no caller identity, e.g. `/api/speaker-call*`, `/api/cohorts`)? Then input validation IS the only guard: bound **type, size, and length** of every field, and treat writes as untrusted. Document why it's public.
+- [ ] **Always** import `adminDb()` from `@/lib/firebase-admin` — never bare `initializeApp()` without `FIREBASE_ADMIN_*` (breaks on Vercel; broke `/past-cohorts`).
 - [ ] Never echo internal errors/stack/token values to the client beyond a safe message.
 
 ## 4. Files → Storage

@@ -269,8 +269,8 @@ export const SEPTEMBER_2026_SESSIONS: Session[] = [
     cohortId: SEPTEMBER_2026_COHORT_ID,
     topic: "Series overview + agent trends",
     description:
-      "Hybrid kickoff at Skyscanner + online. Google DevRel keynote; series introduction by Renuka and Sumith (why the series exists, the four-pillar lifecycle, what you will ship, requirements, support channels, buddy groups and certificate criteria); tech talk by Sonika on Build foundations (agents & ADK, MCP & Agent Skills, Antigravity, use-case architecture demo); short agent-trend speaker teasers; networking in person and on Discord.\n\nRunning use case for the cohort: an agent that turns a moment into a LinkedIn/X post with a human always in the loop.",
-    speakerIds: ["renuka-kelkar", "sumith-damodaran", "sonika-janagill"],
+      "Hybrid kickoff at Skyscanner + online. Speakers: Daniela Petruzalek, Sonika Janagill, Sumith Damodaran, and Renuka Kelkar. Series introduction (why the series exists, the four-pillar lifecycle, what you will ship, requirements, support channels, buddy groups and certificate criteria); tech talk on Build foundations (agents & ADK, MCP & Agent Skills, Antigravity, use-case architecture demo); short agent-trend speaker teasers; networking in person and on Discord.\n\nRunning use case for the cohort: an agent that turns a moment into a LinkedIn/X post with a human always in the loop.",
+    speakerIds: ["daniela-petruzalek", "sonika-janagill", "sumith-damodaran", "renuka-kelkar"],
     isKickoff: true,
     tags: [
       "Kickoff",

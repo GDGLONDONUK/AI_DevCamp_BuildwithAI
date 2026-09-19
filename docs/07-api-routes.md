@@ -165,10 +165,20 @@ Cross-user profile data is **not** read from client Firestore (rules only allow 
 |--------|------|--------------|
 | `POST` | `/api/me/ensure-profile` | Create **`users/{uid}`** if missing; merge and delete **`users/{email}`** when present. Returns **`403`** + **`ACCOUNT_DISABLED`** if **`disabledUsers/{uid}`** exists or **`accountDisabled`** is set on **`users`** / pending row. Returns **`403`** + **`PROGRAM_OPT_OUT`** if the user document or pending row is programme-opted-out. |
 | `POST` | `/api/me/leave-program` | **Bearer required.** Sets `programOptOut: true`, `programOptOutAt`, `keepUpdated: false` on `users/{uid}`. Caller must not already be blocked (same token checks as other routes). Client should sign out after success. |
+| `POST` | `/api/me/join-cohort` | **Bearer required.** Body optional `{ cohortId }` (defaults to active). Adds cohort to `cohortIds`, sets `activeCohortId` + `cohortParticipation`. Requires **`NEXT_PUBLIC_REGISTRATION_OPEN`**. Does **not** auto-enrol; spring alumni use this (or the Join banner). |
+| `GET` | `/api/me/certificate` | **Bearer required.** Certified users: Certifier credential link (Credsverse URL). |
+| `POST` | `/api/me/activity` | **Bearer required.** Log activity events (`session_view`, resource clicks, submissions). |
 | `GET` | `/api/me/attendance/check-in-status` | **Bearer required.** Query `?sessionId=`. Returns `{ eligible, active, opensAt, closesAt }` — **no code** exposed. |
 | `POST` | `/api/me/attendance/self-check-in` | **Bearer required.** Body `{ sessionId, code }`. Validates window + code against `session_self_checkin`; sets `attendance/{uid}` and **`sessionAttendanceAudit`**. Idempotent if already marked. **`429`** if rate-limited. |
 | `GET` | `/api/me/preregistered` | Returns pending `users/{email}` row for the signed-in user’s email (for registration UI). |
 | `POST` | `/api/me/link-preregister` | Idempotently clean up after linking (removes email doc if still pending). |
+
+### Cohorts (public read via API)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/cohorts` | List `cohorts/*` (optional `?status=`). Uses **Admin SDK** (`adminDb`). Powers `/past-cohorts`. |
+| `GET` | `/api/cohorts/[cohortId]` | Cohort metadata + flat `sessions` filtered by `cohortId` + speakers roster. |
 
 Merge logic and field list: `src/lib/server/mergePendingUserIntoProfile.ts`.
 
