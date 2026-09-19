@@ -56,6 +56,7 @@ import toast from "react-hot-toast";
 import { firebaseAuthErrorMessage } from "@/lib/firebaseAuthErrors";
 import { isRegistrationOpen } from "@/lib/registrationOpen";
 import RegistrationClosed from "@/components/RegistrationClosed";
+import { getActiveCohortId } from "@/lib/cohorts";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -358,6 +359,15 @@ export default function RegisterPage() {
         registeredSessions: [],
         signedIn: true,
         registered: true,
+        cohortIds: [getActiveCohortId()],
+        activeCohortId: getActiveCohortId(),
+        cohortParticipation: {
+          [getActiveCohortId()]: {
+            status: "participated",
+            joinedAt: new Date().toISOString(),
+            role: "attendee",
+          },
+        },
         ...(preReg && {
           formRole: preReg.formRole,
           yearsOfExperience: preReg.yearsOfExperience,

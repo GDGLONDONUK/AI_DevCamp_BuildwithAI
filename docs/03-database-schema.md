@@ -76,6 +76,12 @@ Document ID = Firebase Auth UID (same for every user across the whole system).
   programOptOut?:   boolean
   /** ISO time when `programOptOut` was set true. */
   programOptOutAt?: string
+  /** Cohorts this person joined (e.g. cohort-june-2026, cohort-september-2026). Server-maintained. */
+  cohortIds?:       string[]
+  /** Programme UI / admin default cohort. Server-maintained. */
+  activeCohortId?:  string
+  /** Per-cohort join metadata / status snapshot. Server-maintained. */
+  cohortParticipation?: Record<string, { status: string; joinedAt: string; role?: string }>
   createdAt:        Timestamp       // Set once at registration via serverTimestamp()
   updatedAt:        Timestamp       // Updated on every profile save
 
@@ -171,18 +177,19 @@ Document ID = stable slug (e.g. `salih-mohammed`, `renuka-kannan`) — reference
 
 ## `sessions/{sessionId}`
 
-Document ID = `session-1`, `session-2`, … (set by admin at creation).
+Document ID = programme session id (e.g. spring `session-1`, September `sept-2026-kickoff`).
 
 ```ts
 {
-  id:                 string        // e.g. "session-1"
-  number:             number        // Display order (1, 2, 3…)
+  id:                 string        // e.g. "sept-2026-kickoff"
+  cohortId?:          string        // e.g. "cohort-september-2026" (untagged legacy → treat as spring)
+  number:             number        // Display order within cohort (1, 2, 3…)
   title:              string        // e.g. "Kick Off"
   topic:              string        // Theme/topic line
   description:        string        // Full summary paragraph
-  week:               number        // Programme week (1–4)
-  date:               string        // Human-readable: "23 April 2026"
-  time:               string        // "6:00 PM – 9:00 PM"
+  week:               number        // Programme week (0 = kickoff, 1–4 pillars)
+  date:               string        // Human-readable: "23 September 2026"
+  time:               string        // "6:00 PM"
   duration?:          string        // "3 hours"
 
   // Speaker(s) — prefer `speakerIds` → `speakers/*`; optional embedded copies / legacy fields

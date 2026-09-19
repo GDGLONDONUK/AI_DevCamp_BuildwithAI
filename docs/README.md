@@ -25,9 +25,9 @@ Then read: [01-project-overview.md](./01-project-overview.md) + [CLAUDE.md](../C
 | [08-site-deployment-and-admin.md](./08-site-deployment-and-admin.md) | Production deployment, environment variables, admin features, Vercel setup |
 | [09-learning-tasks-architecture.md](./09-learning-tasks-architecture.md) | Learning checklist (`/dashboard/tasks`), templates, APIs, user flows |
 | [10-customer-journey.md](./10-customer-journey.md) | User and organiser journeys, auth flows, visual diagrams |
-| [11-cohort-architecture.md](./11-cohort-architecture.md) | Current cohort-scoped data structure (cohorts metadata, browsing pages) |
-| [12-multi-cohort-design.md](./12-multi-cohort-design.md) | **Design proposal** for a fully cohort-scoped DB + migration runbook (aspirational — see banner) |
-| [13-firebase-operations.md](./13-firebase-operations.md) | Current-state Firebase ops runbook: June→September reset, admin workflows, certification, CLI |
+| [11-cohort-architecture.md](./11-cohort-architecture.md) | **Shipped** cohort model (`sessions.cohortId`, user `cohortIds`) + browsing; see banner at top |
+| [12-multi-cohort-design.md](./12-multi-cohort-design.md) | **Design proposal** for fully nested cohort collections (aspirational — see banner) |
+| [13-firebase-operations.md](./13-firebase-operations.md) | Firebase ops: open September, sync programme, admin workflows, certification, CLI |
 
 ---
 
@@ -37,6 +37,8 @@ Then read: [01-project-overview.md](./01-project-overview.md) + [CLAUDE.md](../C
 - **Add a new page?** → See `CLAUDE.md` “Adding a Page” + `02-project-structure.md`
 - **Add an API endpoint?** → See `CLAUDE.md` “Adding an API Route” + `07-api-routes.md`
 - **Add a React component?** → See `CLAUDE.md` “Adding a Component” + look at `src/components/`
+- **Open a new cohort / registration?** → [11](./11-cohort-architecture.md), skill `.claude/skills/cohorts/SKILL.md`, `npm run open-september-2026-cohort`
+- **Add speakers / sessions?** → `src/data/speakers.ts` + `src/data/sessions.ts` → `sync-firestore-programme` + `upload-speaker-photos`
 - **Deploy to production?** → See `08-site-deployment-and-admin.md`
 - **Understand the database?** → See `03-database-schema.md`
 - **Make my first change?** → See `00-quick-start.md` section 7
@@ -85,5 +87,6 @@ Use this as a changelog-style index; details live in the linked docs.
 | **Learning tasks** | Private checklist **`learningTasks`** + catalogue **`learningTaskTemplates`**; **`/dashboard/tasks`**; **`/admin/learning-tasks`** (seed, clear, edit). Full flows: [09](./09-learning-tasks-architecture.md); APIs [07](./07-api-routes.md); schema [03](./03-database-schema.md). |
 | **Inactive archive** | Collection **`disabledUsers/{uid}`**; **`/admin` → Inactive** (multi-select bulk archive / restore); **`verifyAuth`** + **`ensure-profile`** respect archived profiles (**`403 ACCOUNT_DISABLED`**). [03](./03-database-schema.md), [04](./04-auth-and-security.md), [07](./07-api-routes.md), [08](./08-site-deployment-and-admin.md). |
 | **Certified completion export** | **Admin → Users** panel: exports certified users with columns for **Certified**, approved assignment, project passed, and export-ready; **Ready only** exports users where **`userStatus = certified`**, ≥1 assignment **`approved`**, and ≥1 project **`passed`**. Project review also supports **`failed`** (distinct from **`userStatus: failed`**). `certifiedCompletion.ts`, `exportCertifiedCompletionCsv.ts`. [03](./03-database-schema.md#certification-completion-export-cohort), [08](./08-site-deployment-and-admin.md#certified-completion-export-operator-checklist), [10](./10-customer-journey.md). |
+| **September 2026 cohort** | Active cohort **`cohort-september-2026`** (Build → Scale → Govern → Optimise). Flat **`sessions.cohortId`**; users **`cohortIds` / `activeCohortId`**; **`POST /api/me/join-cohort`**; **`npm run open-september-2026-cohort`**. Registration: **`NEXT_PUBLIC_REGISTRATION_OPEN`**. Credsverse certificate URLs. [11](./11-cohort-architecture.md), [13](./13-firebase-operations.md), `.claude/skills/cohorts/SKILL.md`. |
 
 Start with [01-project-overview.md](./01-project-overview.md) →

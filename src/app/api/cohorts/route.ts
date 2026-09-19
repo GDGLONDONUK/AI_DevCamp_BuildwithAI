@@ -1,84 +1,67 @@
 /**
  * GET /api/cohorts
  *
- * Public API to fetch all cohorts (with optional status filter)
- * Used by /past-cohorts page and cohort selector
- *
- * Query params:
- * - status: filter by status (e.g., "completed", "active", "planning")
- * - sortBy: sort order (default: "startDate" desc)
- *
- * Response: { cohorts: Cohort[] }
+ * Public API to fetch all cohorts (with optional status filter).
+ * Used by /past-cohorts page and cohort selector.
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { getFirestore, Query } from "firebase-admin/firestore";
-import { initializeApp, getApps } from "firebase-admin/app";
+import { adminDb } from "@/lib/firebase-admin";
+import { logServerRouteException } from "@/lib/server/appErrorLog";
 
-if (!getApps().length) {
-  initializeApp();
-}
-
-const db = getFirestore();
-
-interface CohortDoc {
-  cohortId: string;
-  name: string;
-  displayName: string;
-  status: string;
-  startDate: any;
-  endDate: any;
-  numberOfSessions: number;
-  description?: string;
-  stats?: {
-    totalRegistered?: number;
-    totalApproved?: number;
-    totalCertified?: number;
-  };
+function toIso(value: unknown): string | null {
+  if (!value) return null;
+  if (typeof value === "string") return value;
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === "object" && value !== null && "toDate" in value) {
+    try {
+      return (value as { toDate: () => Date }).toDate().toISOString();
+    } catch {
+      return null;
+    }
+  }
+  return null;
 }
 
 export async function GET(req: NextRequest) {
   try {
-    console.log("[GET /api/cohorts] Request received");
     const { searchParams } = new URL(req.url);
-    const statusFilter = searchParams.get("status");
+    const statusFilter = searchParams.get("status")?.trim() || null;
 
-    console.log(`[GET /api/cohorts] Fetching cohorts${statusFilter ? ` with status=${statusFilter}` : ""}`);
+    const snapshot = await adminDb().collection("cohorts").get();
 
-    // Build query
-    let query: Query = db.collection("cohorts");
-
-    // Apply status filter if provided
-    if (statusFilter) {
-      query = query.where("status", "==", statusFilter);
-    }
-
-    // Sort by startDate descending (newest first)
-    query = query.orderBy("startDate", "desc");
-
-    console.log("[GET /api/cohorts] Executing query...");
-    const snapshot = await query.get();
-    console.log(`[GET /api/cohorts] Found ${snapshot.size} cohorts`);
-
-    const cohorts: CohortDoc[] = [];
-
-    snapshot.forEach((doc) => {
+    let cohorts = snapshot.docs.map((doc) => {
       const data = doc.data();
-      console.log(`[GET /api/cohorts] Processing cohort: ${doc.id}`);
-      cohorts.push({
+      return {
         cohortId: doc.id,
-        name: data.name || doc.id,
-        displayName: data.displayName || data.name || doc.id,
-        status: data.status || "active",
-        startDate: data.startDate ? data.startDate.toDate?.() || data.startDate : null,
-        endDate: data.endDate ? data.endDate.toDate?.() || data.endDate : null,
-        numberOfSessions: data.numberOfSessions || 0,
-        description: data.description,
-        stats: data.stats,
-      });
+        name: (data.name as string) || doc.id,
+        displayName: (data.displayName as string) || (data.name as string) || doc.id,
+        status: (data.status as string) || "active",
+        startDate: toIso(data.startDate),
+        endDate: toIso(data.endDate),
+        numberOfSessions: Number(data.numberOfSessions) || 0,
+        description: data.description as string | undefined,
+        stats: data.stats as
+          | {
+              totalRegistered?: number;
+              totalApproved?: number;
+              totalCertified?: number;
+            }
+          | undefined,
+        theme: data.theme as string | undefined,
+      };
     });
 
-    console.log(`[GET /api/cohorts] Returning ${cohorts.length} cohorts`);
+    if (statusFilter) {
+      cohorts = cohorts.filter((c) => c.status === statusFilter);
+    }
+
+    cohorts.sort((a, b) => {
+      const ta = a.startDate ? Date.parse(a.startDate) : 0;
+      const tb = b.startDate ? Date.parse(b.startDate) : 0;
+      return tb - ta;
+    });
+
     return NextResponse.json(
       {
         success: true,
@@ -88,12 +71,12 @@ export async function GET(req: NextRequest) {
       {
         status: 200,
         headers: {
-          "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400",
+          "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
         },
       }
     );
   } catch (error) {
-    console.error("[GET /api/cohorts] Error:", error);
+    logServerRouteException("GET /api/cohorts", error);
     return NextResponse.json(
       {
         success: false,

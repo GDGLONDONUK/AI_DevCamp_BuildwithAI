@@ -1,10 +1,87 @@
-# Cohort-Scoped Architecture
+# Cohort Architecture
 
-This document explains the multi-cohort data structure supporting multiple programmes over time.
+> **Shipped model (read this first).** The live app does **not** use nested
+> `cohortSessions/` / `cohortAttendance/` collections for day-to-day traffic.
+> Those appear later in this file and in [12-multi-cohort-design.md](./12-multi-cohort-design.md)
+> as a **design proposal**. What is live:
+>
+> | Piece | Behaviour |
+> |-------|-----------|
+> | `cohorts/{id}` | Metadata; **Admin SDK / `/api/cohorts` only** (rules deny client) |
+> | `sessions/{id}` | Flat programme schedule with **`cohortId`** |
+> | `speakers/{id}` | Global roster |
+> | `users/{uid}` | `cohortIds[]`, `activeCohortId`, `cohortParticipation` |
+> | Active cohort | `NEXT_PUBLIC_ACTIVE_COHORT_ID` (default `cohort-september-2026`) |
+> | Registration | `NEXT_PUBLIC_REGISTRATION_OPEN`; join existing account via `POST /api/me/join-cohort` |
+>
+> **Ops:** `npm run open-september-2026-cohort`, skill `.claude/skills/cohorts/SKILL.md`,
+> [13-firebase-operations.md](./13-firebase-operations.md).
 
-## Collections Structure
+## Current IDs
 
-All data is now organized by cohort. Here's the complete structure:
+| Cohort ID | Status | Notes |
+|-----------|--------|--------|
+| `cohort-june-2026` | completed | Spring 2026 (April–May agenda; legacy session ids `session-*`) |
+| `cohort-september-2026` | registration / active | Build → Scale → Govern → Optimise; session ids `sept-2026-*` |
+
+## Do's and don'ts
+
+**Do**
+
+- Give every session a `cohortId`; use **new document ids** for a new programme
+- Filter attendee session lists by active cohort (`src/lib/cohorts.ts`, `useSessions`)
+- Enrol users only via register / ensure-profile / join-cohort / admin
+- Use `adminDb()` in `/api/cohorts*`
+
+**Don't**
+
+- Auto-enrol previous-cohort users into the new cohort
+- Reuse spring `session-1`… ids for September content
+- Read `cohorts/` from the browser SDK
+- Assume [12-multi-cohort-design.md](./12-multi-cohort-design.md) is already migrated
+
+## Collections Structure (proposal + metadata)
+
+The nested structure below is the **target redesign**. Metadata `cohorts/` and flat
+`sessions` + `cohortId` are what the app uses today.
+
+```
+cohorts/                                    # Global: cohort metadata (LIVE — API only)
+├── cohort-june-2026/
+│   ├── name: "Spring 2026 Cohort"
+│   ├── displayName: "AI DevCamp Spring 2026"
+│   ├── status: "completed"
+│   ├── startDate / endDate
+│   ├── numberOfSessions
+│   └── description, theme, stats?
+│
+├── cohort-september-2026/
+│   └── status: "registration" | "active"
+└── ...
+
+speakers/                                  # Global: shared across all cohorts (LIVE)
+sessions/                                  # LIVE: flat docs with cohortId
+users/                                     # LIVE: cohortIds + activeCohortId + cohortParticipation
+```
+
+### Proposed nested collections (not required for September open)
+
+```
+cohortSessions/                           # Proposal — not primary path
+├── cohort-june-2026/
+│   └── sessions/
+│       ├── session-1/
+│       └── ...
+└── cohort-september-2026/
+    └── sessions/
+        └── ...
+
+cohortAttendance/                         # Proposal
+cohortAssignments/                        # Proposal
+cohortProjects/                           # Proposal
+```
+
+The remainder of this document describes the **full nested redesign** (and older seed/migrate scripts). Prefer the **Shipped model** banner and `.claude/skills/cohorts/SKILL.md` for day-to-day work.
 
 ```
 cohorts/                                    # Global: cohort metadata
@@ -118,7 +195,25 @@ cohortProjects/{cohortId}/projects/{projectId}
 
 ## Setting Up Cohorts
 
-### 1. Seed Initial Data (First Time)
+### 1. Seed / open a cohort (current)
+
+```bash
+# Upsert cohort metadata, September sessions, speakers; tag untagged users as spring
+npm run open-september-2026-cohort
+
+# Or upsert data files only:
+npm run sync-firestore-programme
+npm run upload-speaker-photos
+```
+
+Env (`.env.local` + Vercel):
+
+```bash
+NEXT_PUBLIC_REGISTRATION_OPEN=true
+NEXT_PUBLIC_ACTIVE_COHORT_ID=cohort-september-2026
+```
+
+### 1b. Seed Initial Data (legacy test script)
 
 Creates two test cohorts with sample sessions and speakers:
 
@@ -131,6 +226,9 @@ This creates:
 - `cohort-september-2026` (status: planning)
 - Sample speakers
 - Sample sessions for each cohort
+```
+
+**Prefer `open-september-2026-cohort` for production opens** — it matches `src/data/sessions.ts` / `speakers.ts`.
 
 ### 2. Migrate Existing Data (If Upgrading)
 

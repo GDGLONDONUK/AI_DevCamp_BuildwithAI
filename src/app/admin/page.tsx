@@ -23,6 +23,13 @@ import {
   postArchiveUserProfile,
   type NeverAttendedUserSummary,
 } from "@/lib/adminService";
+import {
+  getActiveCohortId,
+  SPRING_2026_COHORT_ID,
+  SEPTEMBER_2026_COHORT_ID,
+  sessionsForCohort,
+  userInCohort,
+} from "@/lib/cohorts";
 import { auth } from "@/lib/firebase";
 import { userAuthShowsGoogle, userAuthShowsPassword } from "@/lib/auth";
 import { formatAdminDateTime } from "@/lib/admin/format";
@@ -127,6 +134,7 @@ export default function AdminPage() {
   const [editingSession, setEditingSession] = useState<Partial<Session> | null | false>(false); // false=closed, null=new
   const [usersView, setUsersView] = useState<"grid" | "table">("grid");
   const [statusFilter, setStatusFilter] = useState<"all" | UserStatus>("all");
+  const [cohortFilter, setCohortFilter] = useState<string>(getActiveCohortId());
   const [preRegistered, setPreRegistered] = useState<UserProfile[]>([]);
   const [preRegLoading, setPreRegLoading] = useState(false);
   const [preRegSearch, setPreRegSearch] = useState("");
@@ -606,12 +614,30 @@ export default function AdminPage() {
   );
 
   // ── Filtered data ─────────────────────────────────────────────────────────
-  const filteredUsers = users.filter(
-    (u) =>
+  const cohortSessions = useMemo(
+    () =>
+      cohortFilter === "all"
+        ? sessions
+        : sessionsForCohort(sessions, cohortFilter).sort((a, b) => a.number - b.number),
+    [sessions, cohortFilter]
+  );
+
+  const filteredUsers = users.filter((u) => {
+    const matchesSearch =
       u.displayName?.toLowerCase().includes(search.toLowerCase()) ||
       u.email?.toLowerCase().includes(search.toLowerCase()) ||
-      u.handle?.toLowerCase().includes(search.toLowerCase())
-  );
+      u.handle?.toLowerCase().includes(search.toLowerCase());
+    if (!matchesSearch) return false;
+    if (cohortFilter === "all") return true;
+    // Legacy spring users may lack cohortIds — treat as spring cohort.
+    if (cohortFilter === SPRING_2026_COHORT_ID) {
+      return (
+        userInCohort(u.cohortIds, SPRING_2026_COHORT_ID) ||
+        !u.cohortIds?.length
+      );
+    }
+    return userInCohort(u.cohortIds, cohortFilter);
+  });
 
   const statusFilteredUsers = statusFilter === "all"
     ? filteredUsers
@@ -639,14 +665,14 @@ export default function AdminPage() {
   /** Programme sessions marked attended (Y) — same as Attendance tab Total column. */
   const attendanceCount = useCallback(
     (uid: string | undefined) =>
-      uid ? sessions.filter((s) => attendance[uid]?.[s.id] === true).length : 0,
-    [sessions, attendance]
+      uid ? cohortSessions.filter((s) => attendance[uid]?.[s.id] === true).length : 0,
+    [cohortSessions, attendance]
   );
 
   const usersAdminTableFiltered = useMemo(() => {
     const list = usersKickoffFiltered;
     if (!sessionsAttendedFilter) return list;
-    const n = sessions.length;
+    const n = cohortSessions.length;
     if (sessionsAttendedFilter === "pass70") {
       if (n <= 0) return list;
       const minSessions = Math.ceil(n * 0.7);
@@ -659,7 +685,7 @@ export default function AdminPage() {
       }
     }
     return list;
-  }, [usersKickoffFiltered, sessionsAttendedFilter, sessions, attendanceCount]);
+  }, [usersKickoffFiltered, sessionsAttendedFilter, cohortSessions, attendanceCount]);
 
   const usersTotalPages = Math.max(1, Math.ceil(usersAdminTableFiltered.length / USERS_PER_PAGE));
   const paginatedUsers = useMemo(
@@ -673,7 +699,7 @@ export default function AdminPage() {
 
   useEffect(() => {
     setUsersPage(1);
-  }, [statusFilter, usersRoleFilter, usersAuthFilter, usersKickoffFilter, sessionsAttendedFilter, search]);
+  }, [statusFilter, usersRoleFilter, usersAuthFilter, usersKickoffFilter, sessionsAttendedFilter, search, cohortFilter]);
 
   useEffect(() => {
     const max = Math.max(1, Math.ceil(usersAdminTableFiltered.length / USERS_PER_PAGE));
@@ -756,7 +782,7 @@ export default function AdminPage() {
       }
     }
     if (sessionsAttendedFilter) {
-      const n = sessions.length;
+      const n = cohortSessions.length;
       if (sessionsAttendedFilter === "pass70") {
         if (n > 0) {
           const minSessions = Math.ceil(n * 0.7);
@@ -770,7 +796,7 @@ export default function AdminPage() {
       }
     }
     return list;
-  }, [attendanceUsers, attendance, attendanceSessionFilter, sessionsAttendedFilter, sessions, attendanceCount]);
+  }, [attendanceUsers, attendance, attendanceSessionFilter, sessionsAttendedFilter, cohortSessions, attendanceCount]);
 
   /** Kick Off join mode — counts all eligible users so numbers match imports (not search/status). */
   const kickoffJoinNoteStats = useMemo(() => {
@@ -792,8 +818,8 @@ export default function AdminPage() {
   }, [attendanceEligibleUsers, attendance]);
 
   const closingSessionId = useMemo(
-    () => sessions.find((s) => s.isClosing)?.id ?? "session-6",
-    [sessions]
+    () => cohortSessions.find((s) => s.isClosing)?.id ?? "session-6",
+    [cohortSessions]
   );
 
   const normalizeUserStatus = (raw: string | undefined): UserStatus => {
@@ -849,7 +875,7 @@ export default function AdminPage() {
   };
 
   const bulkCertifySeventyPercentAttendance = async () => {
-    const n = sessions.length;
+    const n = cohortSessions.length;
     if (n <= 0) {
       toast.error("No sessions loaded");
       return;
@@ -1100,7 +1126,7 @@ export default function AdminPage() {
       count: inactiveNeverAttended.length + inactiveArchived.length,
     },
     { id: "preregistered" as AdminConsoleTab, label: "Pre-Registered", icon: FileText, count: preRegistered.length },
-    { id: "sessions" as AdminConsoleTab, label: "Sessions", icon: Calendar, count: sessions.length },
+    { id: "sessions" as AdminConsoleTab, label: "Sessions", icon: Calendar, count: cohortSessions.length },
     { id: "assignments" as AdminConsoleTab, label: "Assignments", icon: BookOpen, count: assignments.length },
     { id: "projects" as AdminConsoleTab, label: "Projects", icon: Code2, count: projects.length },
   ];
@@ -1224,11 +1250,11 @@ export default function AdminPage() {
                     Attended Y/N = joined the session; <strong className="text-amber-200/90">Joined as</strong> = venue
                     vs stream. Headline counts use everyone with an account (search/status filters do not apply).
                   </span>
-                  {sessions.length > 0 && (
+                  {cohortSessions.length > 0 && (
                     <span className="block mt-3 pt-3 border-t border-amber-500/25 text-xs text-amber-100/95 leading-relaxed">
                       <strong className="text-amber-300/95">70% passing threshold:</strong> at least{" "}
-                      <strong className="text-white">{Math.ceil(sessions.length * 0.7)}</strong> of{" "}
-                      <strong className="text-white">{sessions.length}</strong> programme sessions marked attended (use
+                      <strong className="text-white">{Math.ceil(cohortSessions.length * 0.7)}</strong> of{" "}
+                      <strong className="text-white">{cohortSessions.length}</strong> programme sessions marked attended (use
                       &quot;Sessions joined&quot; below).
                     </span>
                   )}
@@ -1244,7 +1270,7 @@ export default function AdminPage() {
                       aria-label="Filter attendance table by session attended yes or no"
                     >
                       <option value="">All (no session filter)</option>
-                      {sessions.map((s) => (
+                      {cohortSessions.map((s) => (
                         <optgroup key={s.id} label={`S${s.number} · ${s.title}`}>
                           <option value={`${s.id}:yes`}>Attended (Y)</option>
                           <option value={`${s.id}:no`}>Not attended (N)</option>
@@ -1262,12 +1288,12 @@ export default function AdminPage() {
                       aria-label="Filter by number of programme sessions attended"
                     >
                       <option value="">Any count</option>
-                      {sessions.length > 0 ? (
+                      {cohortSessions.length > 0 ? (
                         <option value="pass70">
-                          ≥{Math.ceil(sessions.length * 0.7)} of {sessions.length} (70% passing)
+                          ≥{Math.ceil(cohortSessions.length * 0.7)} of {cohortSessions.length} (70% passing)
                         </option>
                       ) : null}
-                      {Array.from({ length: sessions.length + 1 }, (_, k) => (
+                      {Array.from({ length: cohortSessions.length + 1 }, (_, k) => (
                         <option key={k} value={`exact:${k}`}>
                           Exactly {k} session{k === 1 ? "" : "s"}
                         </option>
@@ -1286,7 +1312,7 @@ export default function AdminPage() {
                   </span>
                   <button
                     type="button"
-                    disabled={attendanceBulkBusy || sessions.length === 0}
+                    disabled={attendanceBulkBusy || cohortSessions.length === 0}
                     onClick={() => void bulkMarkClosingForAnyoneWithSession()}
                     className="text-xs font-mono font-semibold px-3 py-2 rounded-lg border border-cyan-500/40 bg-cyan-500/15 text-cyan-200 hover:bg-cyan-500/25 disabled:opacity-40 transition-colors"
                     title={`Marks ${closingSessionId} (closing ceremony) attended for anyone with ≥1 session already marked`}
@@ -1295,7 +1321,7 @@ export default function AdminPage() {
                   </button>
                   <button
                     type="button"
-                    disabled={attendanceBulkBusy || sessions.length === 0}
+                    disabled={attendanceBulkBusy || cohortSessions.length === 0}
                     onClick={() => void bulkCertifySeventyPercentAttendance()}
                     className="text-xs font-mono font-semibold px-3 py-2 rounded-lg border border-green-500/40 bg-green-500/15 text-green-200 hover:bg-green-500/25 disabled:opacity-40 transition-colors"
                   >
@@ -1326,7 +1352,7 @@ export default function AdminPage() {
                       <th className="text-center px-3 py-3 font-mono text-xs text-gray-400 uppercase tracking-wider">
                         Flag
                       </th>
-                      {sessions.map((s) => (
+                      {cohortSessions.map((s) => (
                         <th
                           key={s.id}
                           className={`text-center px-2 py-3 font-mono text-xs uppercase tracking-wider whitespace-nowrap min-w-[90px] ${
@@ -1359,7 +1385,7 @@ export default function AdminPage() {
                   <tbody>
                     {attendanceTableUsers.length === 0 && (
                       <tr>
-                        <td colSpan={sessions.length + 4} className="text-center py-10 text-gray-500 font-mono">
+                        <td colSpan={cohortSessions.length + 4} className="text-center py-10 text-gray-500 font-mono">
                           {attendanceUsers.length === 0
                             ? "No users in current search/status view"
                             : "No rows match the current filters — adjust Session attendance / Sessions joined or clear filters"}
@@ -1398,7 +1424,7 @@ export default function AdminPage() {
                           </td>
 
                           {/* Session attendance (programme — can include online) */}
-                          {sessions.map((s) => {
+                          {cohortSessions.map((s) => {
                             const attended = attendance[u.uid]?.[s.id] === true;
                             const cellKey = `${u.uid}_${s.id}`;
                             const isToggling = togglingCell === cellKey;
@@ -1483,7 +1509,7 @@ export default function AdminPage() {
                               attendanceCount(u.uid) >= 2 ? "text-yellow-400" :
                               "text-gray-500"
                             }`}>
-                              {attendanceCount(u.uid)}/{sessions.length}
+                              {attendanceCount(u.uid)}/{cohortSessions.length}
                             </span>
                           </td>
 
@@ -1588,7 +1614,7 @@ export default function AdminPage() {
                             certifiedCompletionToExportRows(
                               certifiedCompletionAudit.rows,
                               users,
-                              sessions,
+                              cohortSessions,
                               attendance
                             )
                           )
@@ -1607,7 +1633,7 @@ export default function AdminPage() {
                             certifiedCompletionToExportRows(
                               certifiedCompletionAudit.ready,
                               users,
-                              sessions,
+                              cohortSessions,
                               attendance
                             )
                           )
@@ -1859,6 +1885,18 @@ export default function AdminPage() {
 
                 {/* ── Toolbar ── */}
                 <div className="flex flex-wrap items-center gap-2 mb-4">
+                  <label className="flex items-center gap-1.5 text-[11px] font-mono text-gray-400 bg-gray-900/60 border border-white/8 rounded-xl px-2 py-1.5">
+                    Cohort
+                    <select
+                      value={cohortFilter}
+                      onChange={(e) => setCohortFilter(e.target.value)}
+                      className="bg-gray-950 border border-white/10 rounded-lg px-2 py-1 text-xs text-white font-mono"
+                    >
+                      <option value={SEPTEMBER_2026_COHORT_ID}>September 2026</option>
+                      <option value={SPRING_2026_COHORT_ID}>Spring 2026</option>
+                      <option value="all">All cohorts</option>
+                    </select>
+                  </label>
                   <button
                     type="button"
                     onClick={() => setAddPendingOpen(true)}
@@ -1945,12 +1983,12 @@ export default function AdminPage() {
                       title="Filter by programme sessions attended (same as Attendance tab)"
                     >
                       <option value="">Sessions joined: any</option>
-                      {sessions.length > 0 ? (
+                      {cohortSessions.length > 0 ? (
                         <option value="pass70">
-                          ≥{Math.ceil(sessions.length * 0.7)} / {sessions.length} (70%)
+                          ≥{Math.ceil(cohortSessions.length * 0.7)} / {cohortSessions.length} (70%)
                         </option>
                       ) : null}
-                      {Array.from({ length: sessions.length + 1 }, (_, k) => (
+                      {Array.from({ length: cohortSessions.length + 1 }, (_, k) => (
                         <option key={k} value={`exact:${k}`}>
                           Exactly {k} session{k === 1 ? "" : "s"}
                         </option>
@@ -1989,7 +2027,7 @@ export default function AdminPage() {
 
                     {/* CSV export */}
                     <button
-                      onClick={() => exportAttendeesCsv(usersAdminTableFiltered, attendance, sessions)}
+                      onClick={() => exportAttendeesCsv(usersAdminTableFiltered, attendance, cohortSessions)}
                       className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-white border border-white/10 hover:border-white/20 px-3 py-2 rounded-xl font-mono transition-all"
                       title="Export current filter results"
                     >
@@ -2141,7 +2179,7 @@ export default function AdminPage() {
                             {location && <div className="text-xs text-gray-600 font-mono">{location}</div>}
                             <div className="flex flex-wrap gap-2 mt-1.5">
                               <span className="text-xs bg-white/5 text-gray-400 px-2 py-0.5 rounded-full font-mono">
-                                {attendanceCount(u.uid)}/{sessions.length} sessions
+                                {attendanceCount(u.uid)}/{cohortSessions.length} sessions
                               </span>
                               {u.experienceLevel && (
                                 <span className="text-xs bg-white/5 text-gray-400 px-2 py-0.5 rounded-full capitalize font-mono">
@@ -2447,7 +2485,7 @@ export default function AdminPage() {
                                   attendanceCount(u.uid) >= 2 ? "text-yellow-400" :
                                   "text-gray-500"
                                 }>
-                                  {attendanceCount(u.uid)}/{sessions.length}
+                                  {attendanceCount(u.uid)}/{cohortSessions.length}
                                 </span>
                               </td>
                               {/* Skills */}
@@ -2521,7 +2559,7 @@ export default function AdminPage() {
                           : ""}
                       </span>
                       <button
-                        onClick={() => exportAttendeesCsv(usersAdminTableFiltered, attendance, sessions)}
+                        onClick={() => exportAttendeesCsv(usersAdminTableFiltered, attendance, cohortSessions)}
                         className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-white font-mono transition-colors"
                       >
                         <Download size={12} /> Download CSV
@@ -3142,7 +3180,7 @@ export default function AdminPage() {
                   >
                     <Download size={14} /> Import Default Sessions
                   </button>
-                  {sessions.length > 0 && (
+                  {cohortSessions.length > 0 && (
                     <button
                       onClick={() => {
                         if (confirm("This will overwrite ALL sessions with the default data. Continue?")) {
@@ -3155,11 +3193,11 @@ export default function AdminPage() {
                     </button>
                   )}
                   <span className="text-xs text-gray-500 font-mono ml-auto">
-                    {sessions.length} session{sessions.length !== 1 ? "s" : ""} total
+                    {cohortSessions.length} session{cohortSessions.length !== 1 ? "s" : ""} total
                   </span>
                 </div>
 
-                {sessions.length === 0 ? (
+                {cohortSessions.length === 0 ? (
                   <div className="text-center py-20 border border-dashed border-white/10 rounded-2xl">
                     <Calendar size={40} className="mx-auto text-gray-700 mb-4" />
                     <p className="text-gray-500 font-mono mb-2">No sessions yet</p>
@@ -3167,7 +3205,7 @@ export default function AdminPage() {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {sessions.map((s) => {
+                    {cohortSessions.map((s) => {
                       const sessionSpeakers = getSessionSpeakersList(s, speakerLookup);
                       return (
                       <div key={s.id} className="bg-gray-900/50 border border-white/8 rounded-xl p-5 hover:border-white/15 transition-all">

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import { SESSIONS as STATIC_SESSIONS } from "@/data/sessions";
+import { getActiveCohortSessions } from "@/data/sessions";
 import { useSessions } from "@/hooks/useSessions";
 import {
   collection,
@@ -16,6 +16,8 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Assignment, Project } from "@/types";
+
+const STATIC_SESSIONS = getActiveCohortSessions();
 import Link from "next/link";
 import Image from "next/image";
 import {

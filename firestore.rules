@@ -43,7 +43,10 @@ service cloud.firestore {
         'certifierCredentialId',
         'certifierCredentialPublicId',
         'certifierCredentialStatus',
-        'certifierSyncedAt'
+        'certifierSyncedAt',
+        'cohortIds',
+        'activeCohortId',
+        'cohortParticipation'
       ]);
     }
 

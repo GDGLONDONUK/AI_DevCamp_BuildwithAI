@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { SESSIONS as STATIC_SESSIONS, CURRICULUM_WEEKS } from "@/data/sessions";
+import { getActiveCohortSessions, CURRICULUM_WEEKS } from "@/data/sessions";
 import { useSessions } from "@/hooks/useSessions";
 import { BookOpen, Code2, Link2, FileText, Globe } from "lucide-react";
+
+const STATIC_SESSIONS = getActiveCohortSessions();
 
 const GithubIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">

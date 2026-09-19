@@ -185,6 +185,18 @@ export interface UserProfile {
   certifierCredentialStatus?: string;
   /** ISO time when credential ids were last synced from Certifier. */
   certifierSyncedAt?: string;
+  /**
+   * Cohorts this person has joined (e.g. `cohort-june-2026`, `cohort-september-2026`).
+   * Maintained by register / join-cohort APIs — not self-editable.
+   */
+  cohortIds?: string[];
+  /** Cohort the user is currently participating in (programme UI / admin default). */
+  activeCohortId?: string;
+  /** Per-cohort status / join metadata. */
+  cohortParticipation?: Record<
+    string,
+    { status: string; joinedAt: string; role?: string }
+  >;
 }
 
 export type ActivityEventType =
@@ -247,6 +259,12 @@ export interface Session {
   week: number;
   topic: string;
   description: string;
+  /**
+   * Programme cohort this session belongs to
+   * (e.g. `cohort-june-2026`, `cohort-september-2026`).
+   * Untagged legacy rows are treated as the spring 2026 cohort.
+   */
+  cohortId?: string;
   /** Preferred: roster ids in speaking order (see `speakers` collection). */
   speakerIds?: string[];
   /** Multiple speakers; when set (non-empty), takes precedence over legacy `speaker*` fields for display. */

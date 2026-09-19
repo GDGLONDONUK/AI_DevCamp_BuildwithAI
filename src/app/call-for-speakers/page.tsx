@@ -31,7 +31,7 @@ interface FormData {
 }
 
 const INITIAL_FORM: FormData = {
-  cohortId: "cohort-sept-2026",
+  cohortId: "cohort-september-2026",
   speakerName: "",
   speakerEmail: "",
   speakerBio: "",

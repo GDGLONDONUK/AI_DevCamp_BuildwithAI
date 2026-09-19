@@ -68,14 +68,36 @@ npm run dev              # Verify locally
 
 ## Common Tasks
 
-| Task | How to find it |
-|------|---|
-| How do I add a new page? | See CLAUDE.md "Adding a Page" + `docs/02-project-structure.md` |
-| How do I add an API route? | See CLAUDE.md "Adding an API Route" + `docs/07-api-routes.md` |
-| How do I add a component? | See CLAUDE.md "Adding a Component" + look at similar components in `src/components/` |
-| What's the database schema? | `docs/03-database-schema.md` |
-| How does auth work? | `docs/04-auth-and-security.md` |
-| How do I understand the codebase? | Start with `docs/01-project-overview.md` |
+| Task | How |
+|------|-----|
+| Add a page | `CLAUDE.md` “Adding a Page” + `docs/02-project-structure.md` |
+| Add an API route | `verifyAuth`/`requireAdmin` + `adminDb()`; `docs/07-api-routes.md` |
+| Open / re-seed a cohort | `npm run open-september-2026-cohort` + env; skill **cohorts** / `docs/11-cohort-architecture.md` |
+| Add speakers / sessions | `src/data/speakers.ts`, `src/data/sessions.ts` → sync + `upload-speaker-photos` |
+| Open/close registration | `NEXT_PUBLIC_REGISTRATION_OPEN`; join via `POST /api/me/join-cohort` |
+| Certifier links | `CERTIFIER_API_TOKEN`; public URL via `src/lib/certifierLinks.ts` (Credsverse) |
+| Database schema | `docs/03-database-schema.md` |
+| Auth / security | `docs/04-auth-and-security.md` + skill **firebase-security** |
+
+---
+
+## Do's and Don'ts
+
+### Do
+- Use **`adminDb()`** from `@/lib/firebase-admin` in every API route that touches Firestore
+- Tag **`sessions.cohortId`**; filter attendee UI with `getActiveCohortId()` / `useSessions()`
+- Keep **new cohort session IDs** separate from past cohorts
+- Treat **`cohortIds` / `activeCohortId` / `cohortParticipation`** as server-maintained
+- Run **`npm run lint`** and **`npm run build`** after substantive changes
+- Deploy **`firestore.rules`** after rule edits (`firebase deploy --only firestore:rules,storage`)
+
+### Don't
+- Don't call bare **`initializeApp()`** without Admin credentials (breaks Vercel — e.g. past-cohorts)
+- Don't auto-enrol spring users into September; they must **Join** or register
+- Don't put secrets in **`NEXT_PUBLIC_*`**
+- Don't let clients patch privileged / server-maintained user fields
+- Don't overwrite spring programme docs when seeding a new cohort
+- Don't edit **`docs/`** unless the user asks (this request is an exception)
 
 ---
 
@@ -87,11 +109,14 @@ npm run dev              # Verify locally
 | `src/lib/api-helpers.ts` | `verifyAuth()`, `requireAdmin()`, response helpers |
 | `src/lib/firebase.ts` | Firebase client SDK initialization |
 | `src/lib/firebase-admin.ts` | Firebase Admin SDK (server-side only) |
+| `src/lib/cohorts.ts` | Active cohort ID + session/user helpers |
 | `src/contexts/AuthContext.tsx` | Global user + profile state |
 | `src/types/index.ts` | Shared TypeScript shapes for users, sessions, etc. |
 | `src/proxy.ts` | Route protection (PROTECTED_ROUTES, ADMIN_ROUTES) |
 | `.cursor/rules/devcamp-core.mdc` | Development standards |
 | `.cursor/rules/typescript-firebase.mdc` | TypeScript/React/Firebase patterns |
+| `.claude/skills/cohorts/SKILL.md` | Cohort open/seed/join checklist |
+| `.claude/skills/firebase-security/SKILL.md` | Firebase security checklist |
 
 ---
 
@@ -102,6 +127,7 @@ npm run dev              # Verify locally
 - **Roles determine access:** `users/{uid}.role` = `attendee` | `moderator` | `admin`; use `requireAdmin(req)` for admin-only routes.
 - **Status gates content:** `userStatus` = `pending` | `participated` | `certified` | `not-certified` | `failed`; determines what users see.
 - **Learning tasks are private:** `learningTasks/{userId}/{taskId}` scoped to owner; `/api/learning-tasks/` enforces Bearer token + userId check.
+- **Cohorts:** Active programme is `NEXT_PUBLIC_ACTIVE_COHORT_ID` (default `cohort-september-2026`). Users need that id in `cohortIds` to count as enrolled; registration gate is `NEXT_PUBLIC_REGISTRATION_OPEN`.
 
 ---
 
@@ -111,4 +137,5 @@ npm run dev              # Verify locally
 - **Firebase project:** `buildwithai-gdglondon`
 - **Deployment:** Vercel (GitHub-linked)
 - **Environment variables:** Set on Vercel dashboard (Settings → Environment Variables) — same as `.env.local`
+- **Cohort-related env:** `NEXT_PUBLIC_REGISTRATION_OPEN`, `NEXT_PUBLIC_ACTIVE_COHORT_ID`, `CERTIFIER_API_TOKEN`, `NEXT_PUBLIC_CERTIFIER_CREDENTIAL_BASE_URL`
 - **See:** `docs/08-site-deployment-and-admin.md` for full checklist

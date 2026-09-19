@@ -33,6 +33,9 @@ const PRIVILEGED_FIELDS = [
   "accountDisabledReason",
   "programOptOut",
   "programOptOutAt",
+  "cohortIds",
+  "activeCohortId",
+  "cohortParticipation",
 ];
 
 // Fields a user may update on their own document

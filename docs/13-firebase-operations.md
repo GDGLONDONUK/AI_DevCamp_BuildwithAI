@@ -21,21 +21,44 @@
 
 ```
 Firestore Database
-├── users/                    ← User profiles (attendees, admins, mods)
+├── users/                    ← User profiles (+ cohortIds / activeCohortId)
 ├── disabledUsers/            ← Archived user profiles
+├── cohorts/                  ← Cohort metadata (API / Admin SDK only)
 ├── speakers/                 ← Speaker & mentor roster
-├── sessions/                 ← 4-week programme schedule
+├── sessions/                 ← Programme schedule (flat; field cohortId)
 ├── session_self_checkin/     ← Live attendance codes (admin only)
 ├── attendance/               ← Session attendance marks per user
-├── assignments/              ← Weekly work submissions (Week 1-4)
+├── assignments/              ← Weekly work submissions
 ├── projects/                 ← Final project submissions
 ├── learningTasks/            ← Private user checklists
 ├── learningTaskTemplates/    ← Organizer-maintained checklist catalogue
+├── activity_events/          ← Post-programme engagement (API only)
 ├── buddyRequests/            ← Networking requests (API only)
 ├── buddyPairs/               ← Accepted buddy pairs (API only)
 ├── tags/                     ← Tag categories for forms
 └── error_logs/               ← Application errors (API only)
 ```
+
+---
+
+## Opening September 2026 (current)
+
+```bash
+npm run open-september-2026-cohort
+# Sets cohorts metadata, upserts src/data sessions+speakers fields,
+# tags users without cohortIds as cohort-june-2026 (does NOT enrol them in September)
+
+npm run sync-firestore-programme
+npm run upload-speaker-photos
+
+# Env (.env.local + Vercel):
+# NEXT_PUBLIC_REGISTRATION_OPEN=true
+# NEXT_PUBLIC_ACTIVE_COHORT_ID=cohort-september-2026
+```
+
+Spring alumni sign in and use **Join September 2026** (`POST /api/me/join-cohort`). New registrants get the active cohort on create.
+
+See [11-cohort-architecture.md](./11-cohort-architecture.md) and `.claude/skills/cohorts/SKILL.md`.
 
 ---
 

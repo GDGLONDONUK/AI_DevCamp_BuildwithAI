@@ -22,14 +22,30 @@ Configure DNS in your domain provider per Vercel’s instructions, then set envi
 | `NEXT_PUBLIC_APP_URL` | **Password reset** action link (`src/lib/auth.ts`) and **admin email** templates / merge fields (`src/app/admin/email/page.tsx`). Should match the public site, e.g. `https://aidevcamp.gdg.london`. |
 | `NEXT_PUBLIC_FIREBASE_*` | Same as local — Firebase web app config. |
 | `FIREBASE_ADMIN_*` | Server-only — Admin SDK for API routes. |
+| `NEXT_PUBLIC_REGISTRATION_OPEN` | `true` to allow new sign-ups and `POST /api/me/join-cohort`. Default **closed** if unset. |
+| `NEXT_PUBLIC_ACTIVE_COHORT_ID` | Active programme id (default `cohort-september-2026`). |
+| `CERTIFIER_API_TOKEN` | Server-only Certifier API token (never `NEXT_PUBLIC_`). |
+| `CERTIFIER_API_VERSION` | Optional Certifier API version header (default `2022-10-26`). |
+| `NEXT_PUBLIC_CERTIFIER_CREDENTIAL_BASE_URL` | Optional; default `https://credsverse.com/credentials`. |
 
 Vercel also sets `VERCEL_URL` (the default `*.vercel.app` host). The proxy includes `https://${VERCEL_URL}` for previews, but **`NEXT_PUBLIC_SITE_URL` must be your custom domain** when users browse `aidevcamp.gdg.london`.
+
+### Opening September 2026 (ops)
+
+```bash
+npm run open-september-2026-cohort
+npm run sync-firestore-programme
+npm run upload-speaker-photos
+firebase deploy --only firestore:rules   # if rules changed
+```
+
+See [11-cohort-architecture.md](./11-cohort-architecture.md) and `.claude/skills/cohorts/SKILL.md`.
 
 ---
 
 ## Community (Discord)
 
-The [home page](/) (`src/app/page.tsx`) links to the **GDG London Discord** invite: [https://discord.gg/asrXvYeA](https://discord.gg/asrXvYeA) (hero CTA and footer). Update the constant `DISCORD_INVITE_URL` in that file if the invite changes.
+The [home page](/) (`src/app/page.tsx`) links to the **GDG London Discord** invite for signed-in participants (`DISCORD_INVITE_URL`). Update that constant if the invite changes.
 
 ---
 
