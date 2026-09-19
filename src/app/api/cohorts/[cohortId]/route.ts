@@ -1,71 +1,47 @@
 /**
  * GET /api/cohorts/[cohortId]
  *
- * Fetch a specific cohort with its sessions and related data
- *
- * Response: {
- *   cohort: CohortDoc,
- *   sessions: Session[],
- *   speakers: Speaker[]
- * }
+ * Fetch a specific cohort with its sessions (flat `sessions` filtered by cohortId)
+ * and the global speakers roster.
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { getFirestore } from "firebase-admin/firestore";
-import { initializeApp, getApps } from "firebase-admin/app";
-
-if (!getApps().length) {
-  initializeApp();
-}
-
-const db = getFirestore();
+import { adminDb } from "@/lib/firebase-admin";
+import { SPRING_2026_COHORT_ID } from "@/lib/cohorts";
 
 export async function GET(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: Promise<{ cohortId: string }> }
 ) {
   try {
     const { cohortId } = await params;
 
     if (!cohortId) {
-      return NextResponse.json(
-        { error: "Cohort ID is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Cohort ID is required" }, { status: 400 });
     }
 
-    // Fetch cohort document
+    const db = adminDb();
     const cohortDoc = await db.collection("cohorts").doc(cohortId).get();
 
     if (!cohortDoc.exists) {
-      return NextResponse.json(
-        { error: "Cohort not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Cohort not found" }, { status: 404 });
     }
 
     const cohortData = cohortDoc.data() || {};
 
-    // Fetch sessions for this cohort
-    const sessionsSnapshot = await db
-      .collection("cohortSessions")
-      .doc(cohortId)
-      .collection("sessions")
-      .orderBy("number", "asc")
-      .get();
+    const sessionsSnapshot = await db.collection("sessions").orderBy("number", "asc").get();
+    const sessions = sessionsSnapshot.docs
+      .map((doc) => {
+        const data = doc.data();
+        return {
+          ...data,
+          id: doc.id,
+          cohortId: data.cohortId || SPRING_2026_COHORT_ID,
+        };
+      })
+      .filter((s) => s.cohortId === cohortId);
 
-    const sessions = sessionsSnapshot.docs.map((doc) => ({
-      ...doc.data(),
-      id: doc.id,
-      cohortId,
-    }));
-
-    // Fetch all speakers (global collection)
-    const speakersSnapshot = await db
-      .collection("speakers")
-      .orderBy("sortOrder", "asc")
-      .get();
-
+    const speakersSnapshot = await db.collection("speakers").orderBy("sortOrder", "asc").get();
     const speakers = speakersSnapshot.docs.map((doc) => ({
       ...doc.data(),
       id: doc.id,

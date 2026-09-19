@@ -12,10 +12,10 @@ import type { DocumentSnapshot } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase-admin";
 import { verifyAuth, ok, err, isErrorResponse } from "@/lib/api-helpers";
 import { logServerRouteException } from "@/lib/server/appErrorLog";
-import { SESSIONS } from "@/data/sessions";
+import { getActiveCohortSessions } from "@/data/sessions";
 import { hasAttendedAnyProgramSession } from "@/lib/server/programSessionAttendance";
 
-const SESSION_IDS = SESSIONS.map((s) => s.id);
+const SESSION_IDS = getActiveCohortSessions().map((s) => s.id);
 const ATT_READ_CHUNK = 10;
 
 export async function GET(request: NextRequest) {

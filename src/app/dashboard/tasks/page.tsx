@@ -28,7 +28,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { SESSIONS as STATIC_SESSIONS } from "@/data/sessions";
+import { getActiveCohortSessions } from "@/data/sessions";
 import { useSessions } from "@/hooks/useSessions";
 import type { LearningTask, LearningTaskPriority, LearningTaskProgress, Session } from "@/types";
 import {
@@ -49,6 +49,8 @@ import {
   type LearningTaskListFilters,
 } from "@/features/learning-tasks/domain/taskList";
 import { TaskCategoryGlyph } from "@/features/learning-tasks/components/taskDisplayIcons";
+
+const STATIC_SESSIONS = getActiveCohortSessions();
 
 function pct(done: number, total: number): number {
   if (total <= 0) return 0;

@@ -6,6 +6,7 @@ import { findPendingUserByEmail } from "@/lib/server/userImportLookup";
 import { applyPendingRowToEnsureProfileData } from "@/lib/server/mergePendingUserIntoProfile";
 import type { UserProfile } from "@/types";
 import { isRegistrationOpen } from "@/lib/registrationOpen";
+import { getActiveCohortId } from "@/lib/cohorts";
 
 export type EnsureUserProfileResult = {
   profileExists: boolean;
@@ -83,6 +84,9 @@ export async function ensureUserProfileForUid(uid: string): Promise<EnsureUserPr
   const isGoogle = record.providerData?.some((p) => p.providerId === "google.com") ?? false;
   const authProviderIds = record.providerData?.map((p) => p.providerId) ?? [];
 
+  const activeCohortId = getActiveCohortId();
+  const nowIso = new Date().toISOString();
+
   const userData: Record<string, unknown> = {
     uid,
     email: record.email || email,
@@ -99,6 +103,15 @@ export async function ensureUserProfileForUid(uid: string): Promise<EnsureUserPr
     signedIn: true,
     registered: true,
     preRegistered: Boolean(pre),
+    cohortIds: [activeCohortId],
+    activeCohortId,
+    cohortParticipation: {
+      [activeCohortId]: {
+        status: "participated",
+        joinedAt: nowIso,
+        role: "attendee",
+      },
+    },
   };
 
   if (pre && preDocId) {

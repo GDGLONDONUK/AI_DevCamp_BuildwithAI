@@ -1,6 +1,13 @@
 import { Session } from "@/types";
+import {
+  SPRING_2026_COHORT_ID,
+  SEPTEMBER_2026_COHORT_ID,
+  getActiveCohortId,
+  sessionsForCohort,
+} from "@/lib/cohorts";
 
-export const SESSIONS: Session[] = [
+/** Spring 2026 (April–May) — completed cohort. */
+export const SPRING_2026_SESSIONS: Session[] = [
   {
     id: "session-1",
     number: 1,
@@ -9,6 +16,7 @@ export const SESSIONS: Session[] = [
     time: "6:00 PM",
     duration: "Evening",
     week: 1,
+    cohortId: SPRING_2026_COHORT_ID,
     topic: "Kick Off & Intro to AI Agents",
     description:
       "Welcome to AI DevCamp 2026 — Build with AI! We open with Salih Guler (AWS) on building and deploying a Multi-Agent AI Game Master with TypeScript, Michael Tweed (Skyscanner) on how Skyscanner approaches AI agents internally, Sumith Damodaran (Sitecore), and Renuka Kelkar (Arnagen Solutions). We'll walk through the programme structure, what to expect over the coming weeks, assignment and certification details, and distribute cloud credits.",
@@ -45,6 +53,7 @@ export const SESSIONS: Session[] = [
     time: "All Day",
     duration: "2 hours",
     week: 1,
+    cohortId: SPRING_2026_COHORT_ID,
     topic: "Intro to Agents & Codelabs",
     description:
       "Renuka leads a focused 2-hour hands-on workshop introducing AI agents — how they think, plan, and act. You'll work through 14 guided codelabs that take you from agent fundamentals to practical implementations. By the end of the day you'll have a working understanding of agent loops, tool use, and how to wire them together.",
@@ -81,6 +90,7 @@ export const SESSIONS: Session[] = [
     time: "6:00 PM",
     duration: "1 hour + Q&A",
     week: 2,
+    cohortId: SPRING_2026_COHORT_ID,
     topic: "MCP · Advanced Agents · Deployment",
     description:
       "Renuka returns for a focused 1-hour session diving into the Model Context Protocol (MCP), advanced agent patterns, and how to deploy your agent to the cloud. We then open the floor for codelab questions and live troubleshooting — bring your blockers!",
@@ -116,6 +126,7 @@ export const SESSIONS: Session[] = [
     time: "All Day",
     duration: "2 hours",
     week: 2,
+    cohortId: SPRING_2026_COHORT_ID,
     topic: "Google ADK & Vertex AI",
     description:
       "Saoussen Chaabnia leads a deep 2-hour build session: Full-Stack Multi-Agent App with Google ADK & Vertex AI. You'll go from zero to a deployed multi-agent application backed by Google's Agent Development Kit and powered by Vertex AI — the same stack used in production at scale.",
@@ -151,6 +162,7 @@ export const SESSIONS: Session[] = [
     time: "6:00 PM",
     duration: "Evening",
     week: 3,
+    cohortId: SPRING_2026_COHORT_ID,
     topic: "Assignment Completion & Project Showcase",
     description:
       "The final stretch before the closing ceremony. We review assignment completion, go through codelab 3, and participants showcase their projects to the group. Get feedback, celebrate your work, and prepare for the in-person closing.",
@@ -161,9 +173,7 @@ export const SESSIONS: Session[] = [
       "How to complete codelab 3",
       "How to give and receive constructive technical feedback",
     ],
-    buildIdeas: [
-      "Your completed final project — any AI agent you've built!",
-    ],
+    buildIdeas: ["Your completed final project — any AI agent you've built!"],
     resources: [
       {
         title: "Google – How to Present a Technical Project",
@@ -179,6 +189,7 @@ export const SESSIONS: Session[] = [
     time: "6:00 PM",
     duration: "1 hour + Q&A",
     week: 3,
+    cohortId: SPRING_2026_COHORT_ID,
     topic: "Deep dive into Agent-to-Agent protocol",
     description:
       "Agent-to-Agent (A2A) protocols define how independent AI agents discover each other, exchange structured messages, and collaborate on tasks across system and organizational boundaries.\n\nIn this talk, we'll go beyond the basics and explore how agents communicate using standardized primitives like Agent Cards, tasks, messages, and artifacts. We'll look at how agents delegate work, negotiate capabilities, and coordinate execution.\n\nWe'll also cover real-world design patterns for building interoperable, multi-agent systems where agents built on different frameworks can seamlessly work together using a common protocol layer.",
@@ -221,6 +232,7 @@ export const SESSIONS: Session[] = [
     time: "6:00 PM",
     duration: "Evening",
     week: 4,
+    cohortId: SPRING_2026_COHORT_ID,
     topic: "In-Person Closing & Certification",
     description:
       "The grand finale of AI DevCamp 2026 — Build with AI! We come together in person (venue TBC) to celebrate everything built over the programme. Certificates are awarded to participants who completed the assignments and project. A night of demos, community, and well-earned recognition.",
@@ -231,9 +243,7 @@ export const SESSIONS: Session[] = [
       "How to present your final project to a live audience",
       "What pathways exist to continue building with AI",
     ],
-    buildIdeas: [
-      "Your final polished AI agent project",
-    ],
+    buildIdeas: ["Your final polished AI agent project"],
     resources: [
       {
         title: "Google Cloud Skills Boost",
@@ -243,92 +253,390 @@ export const SESSIONS: Session[] = [
   },
 ];
 
-export const CURRICULUM_WEEKS = [
+/**
+ * September 2026 — Build, Scale, Govern, Optimise (production-ready agent lifecycle).
+ * Thursday theory (1hr) + Saturday workshop (2hrs); kickoff Wed 23 Sept hybrid at Skyscanner.
+ */
+export const SEPTEMBER_2026_SESSIONS: Session[] = [
   {
-    week: 1,
-    title: "AI Agents Foundations",
-    subtitle: "Kickoff + Workshop",
-    color: "from-blue-500 to-blue-700",
-    learn: [
-      "What AI agents are and how they work",
-      "The agent loop: perceive → reason → act",
-      "Tool use and function calling",
-      "14 guided codelabs",
+    id: "sept-2026-kickoff",
+    number: 1,
+    title: "Kickoff",
+    date: "23 September 2026",
+    time: "6:00 PM",
+    duration: "3 hours",
+    week: 0,
+    cohortId: SEPTEMBER_2026_COHORT_ID,
+    topic: "Series overview + agent trends",
+    description:
+      "Hybrid kickoff at Skyscanner + online. Google DevRel keynote; series introduction by Renuka and Sumith (why the series exists, the four-pillar lifecycle, what you will ship, requirements, support channels, buddy groups and certificate criteria); tech talk by Sonika on Build foundations (agents & ADK, MCP & Agent Skills, Antigravity, use-case architecture demo); short agent-trend speaker teasers; networking in person and on Discord.\n\nRunning use case for the cohort: an agent that turns a moment into a LinkedIn/X post with a human always in the loop.",
+    speakerIds: ["renuka-kelkar", "sumith-damodaran", "sonika-janagill"],
+    isKickoff: true,
+    tags: [
+      "Kickoff",
+      "Hybrid",
+      "Skyscanner",
+      "ADK",
+      "MCP",
+      "Agent Skills",
+      "Antigravity",
+      "Lifecycle",
     ],
-    build: ["Your first working AI agent", "Tool-calling agent"],
-    timePerDay: "1–2 hrs/day",
+    whatYouWillLearn: [
+      "The four-pillar production-ready agent lifecycle: Build, Scale, Govern, Optimise",
+      "ADK core concepts: agents, tools, sessions",
+      "What MCP and Agent Skills are and why they matter",
+      "How Antigravity fits the build workflow",
+      "The running use-case architecture you will evolve across four weeks",
+    ],
+    buildIdeas: [
+      "Follow the setup guide and join Discord + buddy groups",
+      "Sketch how your use case maps to the lifecycle pillars",
+    ],
+    resources: [
+      { title: "Google ADK docs", url: "https://google.github.io/adk-docs/" },
+      { title: "Google Cloud – AI agents", url: "https://cloud.google.com/use-cases/ai-agents" },
+    ],
+  },
+  {
+    id: "sept-2026-build-thu",
+    number: 2,
+    title: "Build — Theory",
+    date: "24 September 2026",
+    time: "6:00 PM",
+    duration: "1 hour",
+    week: 1,
+    cohortId: SEPTEMBER_2026_COHORT_ID,
+    topic: "Build",
+    description:
+      "What an agent really is: model, instructions, tools, loop. ADK in one slide (agent types, adk web, six-line hello world). Tools: function tools, Google Search, MCP, Agent Skills. Choosing a model from Model Garden and pinning Flash-tier models. Multi-agent design: orchestrator plus specialists. Agent Garden, RAG Engine, AG-UI / CopilotKit. Live demo of the finished Build-stage app, then Saturday's plan.",
+    speakerIds: ["sonika-janagill"],
+    tags: ["Build", "ADK", "MCP", "Agent Skills", "Multi-Agent", "Theory"],
+    whatYouWillLearn: [
+      "Agent basics: model, instructions, tools, loop",
+      "ADK agent types and the local hello-world path",
+      "When to use MCP tools vs Agent Skills",
+      "Multi-agent orchestrator + specialists patterns",
+    ],
+    buildIdeas: ["Prepare your local ADK environment for Saturday's workshop"],
+    resources: [
+      { title: "Google ADK docs", url: "https://google.github.io/adk-docs/" },
+      { title: "Model Context Protocol", url: "https://modelcontextprotocol.io/" },
+    ],
+  },
+  {
+    id: "sept-2026-build-sat",
+    number: 3,
+    title: "Build — Workshop",
+    date: "26 September 2026",
+    time: "10:00 AM",
+    duration: "2 hours",
+    week: 1,
+    cohortId: SEPTEMBER_2026_COHORT_ID,
+    topic: "Build",
+    description:
+      "Hands-on: build the core agent with ADK. Wire MCP tools for photo and web search. Add audio and text input handling. Stretch: introduce the Flutter app shell for draft review.\n\nYou leave with a working multi-agent app running locally, with tools, Skills, MCP and a web UI — first draft LinkedIn/X post generated (console output; approval flow comes later).",
+    speakerIds: ["sonika-janagill"],
+    tags: ["Build", "Workshop", "ADK", "MCP", "Codelab", "Hands-on"],
+    whatYouWillLearn: [
+      "Build a local multi-agent app with ADK",
+      "Connect MCP tools for search and media",
+      "Handle text and audio input",
+      "Ship a first draft post from the agent",
+    ],
+    buildIdeas: [
+      "Working multi-agent app locally",
+      "MCP photo + web search tools",
+      "Stretch: Flutter draft-review shell",
+    ],
+    resources: [
+      { title: "Google ADK docs", url: "https://google.github.io/adk-docs/" },
+      { title: "Speech-to-Text", url: "https://cloud.google.com/speech-to-text" },
+    ],
+  },
+  {
+    id: "sept-2026-scale-thu",
+    number: 4,
+    title: "Scale — Theory",
+    date: "1 October 2026",
+    time: "6:00 PM",
+    duration: "1 hour",
+    week: 2,
+    cohortId: SEPTEMBER_2026_COHORT_ID,
+    topic: "Scale",
+    description:
+      "Why the local app cannot serve real users. Agent Runtime: cold starts, long-running agents, free tier. Deploy options on Agent Platform (Runtime vs Cloud Run vs GKE). Sessions vs Memory Bank. Agent Identity at deploy time. Code Execution sandboxes. Where a custom UI meets a managed runtime. Live demo on Agent Runtime, then Saturday's plan.",
+    speakerIds: ["sonika-janagill"],
+    tags: ["Scale", "Agent Runtime", "Sessions", "Memory Bank", "Identity", "Theory"],
+    whatYouWillLearn: [
+      "Limits of local agents in production",
+      "What Agent Runtime manages for you",
+      "Sessions vs persistent Memory Bank",
+      "Agent Identity and why Govern revisits it",
+    ],
+    buildIdeas: ["Plan the refactor from local app to Runtime deploy"],
     resources: [
       {
-        title: "Google – Introduction to AI Agents",
-        url: "https://cloud.google.com/use-cases/ai-agents",
+        title: "Vertex AI Agent Builder",
+        url: "https://cloud.google.com/products/agent-builder",
       },
     ],
   },
   {
+    id: "sept-2026-scale-sat",
+    number: 5,
+    title: "Scale — Workshop",
+    date: "3 October 2026",
+    time: "10:00 AM",
+    duration: "2 hours",
     week: 2,
-    title: "Advanced Agents & Full-Stack",
-    subtitle: "MCP · ADK · Vertex AI",
-    color: "from-purple-500 to-purple-700",
-    learn: [
-      "Model Context Protocol (MCP)",
-      "Advanced agent patterns and memory",
-      "Google Agent Development Kit (ADK)",
-      "Vertex AI and cloud deployment",
+    cohortId: SEPTEMBER_2026_COHORT_ID,
+    topic: "Scale",
+    description:
+      "Refactor the Week 1 agent into a multi-agent pipeline. Implement A2A delegation (orchestrator + specialists: photo-search, web-research, drafting). Deploy to Agent Platform. Test the scaled version end to end.\n\nYou leave with your agent deployed to Agent Runtime with an Agent Identity and persistent sessions.",
+    speakerIds: ["sonika-janagill"],
+    tags: ["Scale", "Workshop", "A2A", "Agent Platform", "Deploy", "Hands-on"],
+    whatYouWillLearn: [
+      "Split a monolith agent into orchestrator + specialists",
+      "Use A2A-style delegation between agents",
+      "Deploy to Agent Runtime with identity and sessions",
     ],
-    build: ["MCP agent", "Full-stack multi-agent app with Google ADK"],
-    timePerDay: "1.5–2 hrs/day",
+    buildIdeas: [
+      "Multi-agent pipeline on Agent Platform",
+      "Persistent sessions + Memory Bank",
+      "End-to-end scaled run",
+    ],
     resources: [
       {
-        title: "Anthropic – Model Context Protocol",
-        url: "https://modelcontextprotocol.io/",
+        title: "A2A Protocol",
+        url: "https://a2aproject.github.io/A2A/latest/specification/",
+      },
+    ],
+  },
+  {
+    id: "sept-2026-govern-thu",
+    number: 6,
+    title: "Govern — Theory",
+    date: "8 October 2026",
+    time: "6:00 PM",
+    duration: "1 hour",
+    week: 3,
+    cohortId: SEPTEMBER_2026_COHORT_ID,
+    topic: "Govern",
+    description:
+      "Threat model for this agent (injection, PII, off-brand drafts, posting without approval). Defence in depth: input screening, tool-call policy, output screening, human approval. Governance stack: Identity, Registry, Gateway, Policies. Model Armor in ADK, Cloud DLP, HITL as governance, Skills as policy. Compliance corner. Live demo: injection blocked, PII redacted — then Saturday's plan.",
+    speakerIds: ["renuka-kelkar"],
+    tags: ["Govern", "Model Armor", "DLP", "Policy", "HITL", "Theory"],
+    whatYouWillLearn: [
+      "Threat model for agents that take real-world actions",
+      "Defence-in-depth governance layers",
+      "Model Armor and Cloud DLP in the ADK pipeline",
+      "Human-in-the-loop as a control, not polish",
+    ],
+    buildIdeas: ["Map threats to controls for the LinkedIn/X posting agent"],
+    resources: [
+      {
+        title: "Model Armor",
+        url: "https://cloud.google.com/security/products/model-armor",
       },
       {
-        title: "Google ADK – Agent Development Kit",
-        url: "https://google.github.io/adk-docs/",
+        title: "Cloud Data Loss Prevention",
+        url: "https://cloud.google.com/sensitive-data-protection",
+      },
+    ],
+  },
+  {
+    id: "sept-2026-govern-sat",
+    number: 7,
+    title: "Govern — Workshop",
+    date: "10 October 2026",
+    time: "10:00 AM",
+    duration: "2 hours",
+    week: 3,
+    cohortId: SEPTEMBER_2026_COHORT_ID,
+    topic: "Govern",
+    description:
+      "Codelab: add Model Armor checks to the agent pipeline. Build an evaluation set for the drafting agent. Harden the WhatsApp/Discord approval step (reject, timeout, edit). Test against adversarial inputs.\n\nYou leave with a governed agent: screening, PII redaction, policy, registry — and a survived red-team round.",
+    speakerIds: ["renuka-kelkar"],
+    tags: ["Govern", "Workshop", "Model Armor", "Eval", "Red team", "Hands-on"],
+    whatYouWillLearn: [
+      "Wire Model Armor before/after model callbacks",
+      "Build a golden eval set for on-brand drafts",
+      "Harden approval flows for reject / timeout / edit",
+      "Adversarial testing before touching a real account",
+    ],
+    buildIdeas: [
+      "Model Armor in the pipeline",
+      "Drafting-agent eval set",
+      "Hardened approval step",
+    ],
+    resources: [
+      {
+        title: "Model Armor",
+        url: "https://cloud.google.com/security/products/model-armor",
+      },
+    ],
+  },
+  {
+    id: "sept-2026-optimise-thu",
+    number: 8,
+    title: "Optimise — Theory",
+    date: "15 October 2026",
+    time: "6:00 PM",
+    duration: "1 hour",
+    week: 4,
+    cohortId: SEPTEMBER_2026_COHORT_ID,
+    topic: "Optimise",
+    description:
+      "Evals as behaviour tests (trajectory vs response, rubrics, golden set). Multi-Turn AutoRaters and online evaluation. Simulation. Observability: Cloud Trace, Unified Trace Viewer, BigQuery Agent Analytics. Prompt optimisation from failure patterns. State and memory as token levers. Cost: tokens, tool calls, runtime; model right-sizing. Evals in the pipeline: push → eval gate → deploy. Live demo, Saturday plan, and graduation slots. Assignment and show-and-tell framing.",
+    speakerIds: ["nishi-ajmera"],
+    tags: ["Optimise", "Evals", "Observability", "Cost", "CI/CD", "Theory"],
+    whatYouWillLearn: [
+      "Design golden eval sets and rubric-based judging",
+      "Use traces and agent analytics for observability",
+      "Right-size models and cut token/tool cost",
+      "Put an eval gate in the deploy pipeline",
+    ],
+    buildIdeas: ["Draft your graduation demo narrative and eval checklist"],
+    resources: [
+      {
+        title: "Vertex AI Evaluation",
+        url: "https://cloud.google.com/vertex-ai/generative-ai/docs/models/evaluation-overview",
+      },
+    ],
+  },
+  {
+    id: "sept-2026-optimise-sat",
+    number: 9,
+    title: "Optimise — Workshop & Graduation",
+    date: "17 October 2026",
+    time: "10:00 AM",
+    duration: "2 hours",
+    week: 4,
+    cohortId: SEPTEMBER_2026_COHORT_ID,
+    topic: "Optimise",
+    description:
+      "Apply cost optimisation (right-size models per sub-agent). Set up a basic CI/CD pipeline with an eval gate. Deploy the final version. Live demos: full agent run end to end — audio/text input to an approved, posted LinkedIn/X post. Graduation demos.\n\nYou leave with a measured agent: golden eval set, traces, analytics, eval-gated deploy.",
+    speakerIds: ["nishi-ajmera"],
+    tags: ["Optimise", "Workshop", "CI/CD", "Graduation", "Demo", "Hands-on"],
+    isClosing: true,
+    whatYouWillLearn: [
+      "Ship eval-gated deploys for agents",
+      "Optimise cost across sub-agents",
+      "Demo a production-ready agent end to end",
+    ],
+    buildIdeas: [
+      "Final optimised multi-agent deploy",
+      "Graduation demo of the full use case",
+    ],
+    resources: [
+      {
+        title: "Cloud Build",
+        url: "https://cloud.google.com/build",
+      },
+    ],
+  },
+];
+
+/** All cohorts — used by sync / seed scripts. */
+export const SESSIONS: Session[] = [
+  ...SPRING_2026_SESSIONS,
+  ...SEPTEMBER_2026_SESSIONS,
+];
+
+/** Sessions for the currently active cohort (home, dashboard, default UI). */
+export function getActiveCohortSessions(): Session[] {
+  return sessionsForCohort(SESSIONS, getActiveCohortId());
+}
+
+export const CURRICULUM_WEEKS = [
+  {
+    week: 1,
+    title: "Build",
+    subtitle: "Thu theory · Sat workshop",
+    color: "from-blue-500 to-blue-700",
+    learn: [
+      "Agent basics and ADK core concepts",
+      "MCP and Agent Skills",
+      "Antigravity and the use-case architecture",
+      "Local multi-agent app with tools and a web UI",
+    ],
+    build: [
+      "Working multi-agent app running locally",
+      "First draft LinkedIn/X post from the agent",
+    ],
+    timePerDay: "Thu 1hr · Sat 2hrs",
+    resources: [
+      { title: "Google ADK docs", url: "https://google.github.io/adk-docs/" },
+      { title: "Model Context Protocol", url: "https://modelcontextprotocol.io/" },
+    ],
+  },
+  {
+    week: 2,
+    title: "Scale",
+    subtitle: "Agent Runtime · A2A · Identity",
+    color: "from-purple-500 to-purple-700",
+    learn: [
+      "Why local agents fail in production",
+      "Agent Runtime, sessions, and Memory Bank",
+      "Multi-agent orchestration and A2A",
+      "Agent Identity at deploy time",
+    ],
+    build: [
+      "Orchestrator + specialist agents",
+      "Deploy to Agent Runtime with persistent sessions",
+    ],
+    timePerDay: "Thu 1hr · Sat 2hrs",
+    resources: [
+      {
+        title: "A2A Protocol",
+        url: "https://a2aproject.github.io/A2A/latest/specification/",
       },
     ],
   },
   {
     week: 3,
-    title: "Projects & Showcase",
-    subtitle: "Build · Demo · Feedback",
+    title: "Govern",
+    subtitle: "Model Armor · DLP · HITL",
     color: "from-green-500 to-green-700",
     learn: [
-      "Complete codelabs 3",
-      "Agent-to-Agent (A2A) protocols, Agent Cards, and cross-framework interoperability",
-      "Finalise your project",
-      "Present and demo your work",
-      "Give and receive technical feedback",
+      "Threat model and defence in depth",
+      "Model Armor and Cloud DLP",
+      "Registry, Gateway, and policies",
+      "Approval flows and adversarial testing",
     ],
     build: [
-      "Your final AI agent project",
-      "Interoperable multi-agent flows using a common A2A-style protocol layer",
+      "Governed agent with screening and PII redaction",
+      "Hardened approval step + red-team pass",
     ],
-    timePerDay: "2+ hrs/day",
+    timePerDay: "Thu 1hr · Sat 2hrs",
     resources: [
       {
-        title: "Google Cloud Run – Deploy Apps",
-        url: "https://cloud.google.com/run/docs/quickstarts",
+        title: "Model Armor",
+        url: "https://cloud.google.com/security/products/model-armor",
       },
     ],
   },
   {
     week: 4,
-    title: "Closing & Certification",
-    subtitle: "In-Person Ceremony",
+    title: "Optimise",
+    subtitle: "Evals · Cost · Graduation",
     color: "from-orange-500 to-orange-700",
     learn: [
-      "Live project demos",
-      "Certificate award ceremony",
-      "Community celebration",
-      "Next steps in AI",
+      "Golden evals and online evaluation",
+      "Traces, analytics, and prompt optimisation",
+      "Token/cost levers and model right-sizing",
+      "Eval-gated CI/CD and graduation demos",
     ],
-    build: ["Your polished final project demo"],
-    timePerDay: "Event night",
+    build: [
+      "Measured agent with eval-gated deploy",
+      "Full end-to-end graduation demo",
+    ],
+    timePerDay: "Thu 1hr · Sat 2hrs",
     resources: [
       {
-        title: "Google Cloud Skills Boost",
-        url: "https://cloudskillsboost.google/",
+        title: "Vertex AI Evaluation",
+        url: "https://cloud.google.com/vertex-ai/generative-ai/docs/models/evaluation-overview",
       },
     ],
   },

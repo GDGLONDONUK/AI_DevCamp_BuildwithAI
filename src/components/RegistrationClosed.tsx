@@ -6,8 +6,7 @@ export default function RegistrationClosed() {
       <div className="max-w-lg w-full rounded-2xl border border-white/10 bg-gray-900/80 p-8 text-center">
         <h1 className="text-2xl font-bold text-white font-mono mb-3">Registration closed</h1>
         <p className="text-gray-400 text-sm leading-relaxed mb-6">
-          AI DevCamp 2026 registration has ended. If you already have an account, sign in to watch
-          session recordings, access resources, and submit assignments.
+          AI DevCamp September 2026 registration has not opened yet (or is temporarily closed). If you already have an account, sign in. Spring alumni can join the new cohort from the banner once registration is open.
         </p>
         <div className="flex flex-wrap justify-center gap-3">
           <Link

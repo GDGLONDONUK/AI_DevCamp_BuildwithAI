@@ -3,6 +3,15 @@ import type { Speaker } from "@/types";
 /** Default roster — seeded into Firestore `speakers/{id}` via Admin import or `npm run sync-firestore-programme`. */
 export const SPEAKERS: Speaker[] = [
   {
+    id: "sonika-janagill",
+    name: "Sonika Janagill",
+    title: "AI DevCamp Lead · Build & Scale",
+    photo: "/speakers/sonika-janagill.png",
+    sortOrder: 5,
+    roles: ["speaker", "mentor"],
+    linkedinUrl: "https://www.linkedin.com/in/sonikaj/",
+  },
+  {
     id: "sumith-damodaran",
     name: "Sumith Damodaran",
     title: "Solution Consultant, Sitecore",

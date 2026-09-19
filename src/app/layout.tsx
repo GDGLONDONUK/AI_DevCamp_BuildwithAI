@@ -7,6 +7,7 @@ import AuthenticatedMain from "@/components/AuthenticatedMain";
 import ClientErrorRoot from "@/components/ClientErrorRoot";
 import AnalyticsTracker from "@/components/AnalyticsTracker";
 import CookieConsentBanner from "@/components/CookieConsentBanner";
+import JoinCohortBanner from "@/components/JoinCohortBanner";
 import { Toaster } from "react-hot-toast";
 
 const poppins = Poppins({
@@ -18,7 +19,7 @@ const poppins = Poppins({
 export const metadata: Metadata = {
   title: "AI DevCamp – Build with AI | GDG London",
   description:
-    "A hands-on AI learning program by GDG London & Build with AI. Build multi-agent AI apps with TypeScript, Google ADK, Vertex AI, and the Model Context Protocol.",
+    "A hands-on AI learning program by GDG London. Build, Scale, Govern, Optimise — the production-ready agent lifecycle with Google ADK.",
   icons: {
     icon: [
       { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
@@ -30,7 +31,8 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "AI DevCamp – Build with AI",
-    description: "3-week hands-on AI learning program by GDG London",
+    description:
+      "4-week hands-on programme: Build, Scale, Govern, Optimise — starting 23 September 2026",
     images: ["/banner.jpeg"],
   },
 };
@@ -47,6 +49,7 @@ export default function RootLayout({
           <AnalyticsTracker />
           <ClientErrorRoot>
             <Navbar />
+            <JoinCohortBanner />
             <AuthenticatedMain>{children}</AuthenticatedMain>
           </ClientErrorRoot>
           <CookieConsentBanner />

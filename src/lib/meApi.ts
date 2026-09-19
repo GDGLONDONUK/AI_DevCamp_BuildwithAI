@@ -140,6 +140,31 @@ export async function fetchMyCertificate(): Promise<MyCertificateResult | null> 
   return json.data as MyCertificateResult;
 }
 
+export async function joinActiveCohort(cohortId?: string): Promise<{
+  alreadyJoined: boolean;
+  cohortId: string;
+  cohortIds: string[];
+}> {
+  const user = auth.currentUser;
+  if (!user) throw new Error("Not signed in");
+  const token = await user.getIdToken();
+  const res = await fetch("/api/me/join-cohort", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(cohortId ? { cohortId } : {}),
+  });
+  const json = await res.json();
+  if (!json.ok) throw new Error(json.error || "Failed to join cohort");
+  return json.data as {
+    alreadyJoined: boolean;
+    cohortId: string;
+    cohortIds: string[];
+  };
+}
+
 export async function linkPreregisterRowOnServer(): Promise<boolean> {
   const user = auth.currentUser;
   if (!user) return false;

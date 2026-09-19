@@ -21,7 +21,7 @@ import {
   ExternalLink,
   Archive,
 } from "lucide-react";
-import { SESSIONS as STATIC_SESSIONS, CURRICULUM_WEEKS } from "@/data/sessions";
+import { getActiveCohortSessions, CURRICULUM_WEEKS } from "@/data/sessions";
 import { SPEAKERS as STATIC_SPEAKERS } from "@/data/speakers";
 import { useSessions } from "@/hooks/useSessions";
 import { useSpeakers } from "@/hooks/useSpeakers";
@@ -31,6 +31,8 @@ import AuthModal from "@/components/AuthModal";
 import OpenLoginFromQuery from "@/components/OpenLoginFromQuery";
 import { isRegistrationOpen } from "@/lib/registrationOpen";
 import { useAuth } from "@/contexts/AuthContext";
+
+const STATIC_SESSIONS = getActiveCohortSessions();
 
 const WEEK_ICONS = [Code2, Brain, BookOpen, Rocket];
 
