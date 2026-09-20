@@ -194,6 +194,16 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // ── Site content (home marketing copy) — /api/site-content + admin PUT only. ──
+    match /siteContent/{docId} {
+      allow read, write: if false;
+    }
+
+    // ── Learning RAG corpus (PDFs/transcripts/concepts) — Admin SDK / learning-chat API only. ──
+    match /sessionLearningMaterials/{materialId} {
+      allow read, write: if false;
+    }
+
     // ── Speaker call submissions — written by /api/speaker-call (Admin SDK). ──
     // Public form input; never client-readable (contains submitter email).
     match /speakerCallSubmissions/{document=**} {

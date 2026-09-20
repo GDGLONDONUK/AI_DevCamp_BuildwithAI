@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { joinActiveCohort } from "@/lib/meApi";
 import { getActiveCohortId, userInCohort } from "@/lib/cohorts";
 import { isRegistrationOpen } from "@/lib/registrationOpen";
+import { useSiteContent } from "@/hooks/useSiteContent";
 import toast from "react-hot-toast";
 import { Loader2 } from "lucide-react";
 
@@ -15,8 +16,10 @@ import { Loader2 } from "lucide-react";
  */
 export default function JoinCohortBanner() {
   const { user, userProfile, refreshProfile } = useAuth();
+  const { content } = useSiteContent();
   const [busy, setBusy] = useState(false);
   const activeId = getActiveCohortId();
+  const banner = content.joinCohortBanner;
 
   if (!isRegistrationOpen()) return null;
   if (!user || !userProfile) return null;
@@ -27,13 +30,8 @@ export default function JoinCohortBanner() {
     <div className="border-b border-amber-500/30 bg-amber-500/10 px-4 py-3">
       <div className="max-w-6xl mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <p className="text-amber-200 font-mono text-sm font-semibold">
-            AI DevCamp September 2026 is open
-          </p>
-          <p className="text-amber-100/70 text-xs mt-0.5">
-            Sign in complete — join the new cohort to access September sessions, attendance,
-            assignments, and tasks. New to the programme? Use Register instead.
-          </p>
+          <p className="text-amber-200 font-mono text-sm font-semibold">{banner.title}</p>
+          <p className="text-amber-100/70 text-xs mt-0.5">{banner.body}</p>
         </div>
         <button
           type="button"
@@ -44,9 +42,7 @@ export default function JoinCohortBanner() {
               const r = await joinActiveCohort(activeId);
               await refreshProfile?.();
               toast.success(
-                r.alreadyJoined
-                  ? "Already enrolled in September 2026"
-                  : "Joined AI DevCamp September 2026"
+                r.alreadyJoined ? banner.successAlready : banner.successJoined
               );
             } catch (e) {
               toast.error(e instanceof Error ? e.message : "Could not join cohort");
@@ -57,7 +53,7 @@ export default function JoinCohortBanner() {
           className="shrink-0 inline-flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-400 text-gray-950 font-bold text-xs font-mono px-4 py-2 rounded-lg disabled:opacity-50"
         >
           {busy ? <Loader2 size={14} className="animate-spin" /> : null}
-          Join September 2026
+          {banner.buttonLabel}
         </button>
       </div>
     </div>

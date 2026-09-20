@@ -298,7 +298,7 @@ export default function HomePage() {
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12">
             <div className="inline-flex items-center gap-2 font-mono text-sm text-green-400/70 tracking-widest mb-3">
-              <span className="text-green-500/40">// </span>PEOPLE
+              <span className="text-green-500/40">{"// "}</span>PEOPLE
             </div>
             <h2 className="text-4xl sm:text-5xl font-extrabold text-white mb-3">
               Speakers &amp; mentors
@@ -367,7 +367,7 @@ export default function HomePage() {
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12">
             <div className="inline-flex items-center gap-2 font-mono text-sm text-green-400/70 tracking-widest mb-3">
-              <span className="text-green-500/40">// </span>SESSIONS
+              <span className="text-green-500/40">{"// "}</span>SESSIONS
             </div>
             <h2 className="text-4xl sm:text-5xl font-extrabold text-white mb-3">
               Session Schedule
@@ -482,7 +482,7 @@ export default function HomePage() {
                   </div>
                   <h3 className="font-bold text-white text-base mb-1">{week.title}</h3>
                   {week.subtitle && (
-                    <p className="font-mono text-xs text-gray-500 mb-4">// {week.subtitle}</p>
+                    <p className="font-mono text-xs text-gray-500 mb-4">{`// ${week.subtitle}`}</p>
                   )}
 
                   <ul className="space-y-2 mb-5">

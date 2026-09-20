@@ -455,3 +455,34 @@ export interface SpeakerCallSubmission {
   submittedAt: Date | string;
   submittedAtClient?: string;
 }
+
+/** Learning RAG corpus — Firestore `sessionLearningMaterials/{id}` (Admin SDK only). */
+export type LearningMaterialKind =
+  | "session_summary"
+  | "transcript"
+  | "pdf"
+  | "video"
+  | "slides"
+  | "concept"
+  | "notes"
+  | "resource";
+
+export interface SessionLearningMaterial {
+  id: string;
+  sessionId: string;
+  cohortId: string;
+  title: string;
+  kind: LearningMaterialKind;
+  /** Full text used for RAG retrieval (transcript extract, PDF text, concept notes). */
+  textContent: string;
+  /** Optional remote asset (PDF / video / slides). */
+  url?: string;
+  concepts?: string[];
+  /** Week number mirrored from the session for filtering. */
+  week?: number;
+  sessionTitle?: string;
+  sessionTopic?: string;
+  updatedAt?: string;
+  updatedByUid?: string;
+}
+

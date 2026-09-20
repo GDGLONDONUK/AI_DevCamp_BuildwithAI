@@ -8,6 +8,7 @@ import ClientErrorRoot from "@/components/ClientErrorRoot";
 import AnalyticsTracker from "@/components/AnalyticsTracker";
 import CookieConsentBanner from "@/components/CookieConsentBanner";
 import JoinCohortBanner from "@/components/JoinCohortBanner";
+import { FloatingLearningChat } from "@/components/LearningChatPanel";
 import { Toaster } from "react-hot-toast";
 
 const poppins = Poppins({
@@ -53,6 +54,7 @@ export default function RootLayout({
             <AuthenticatedMain>{children}</AuthenticatedMain>
           </ClientErrorRoot>
           <CookieConsentBanner />
+          <FloatingLearningChat />
           <Toaster
             position="top-right"
             gutter={12}
