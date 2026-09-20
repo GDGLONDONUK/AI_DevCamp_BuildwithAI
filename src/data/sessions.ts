@@ -517,9 +517,7 @@ export const SEPTEMBER_2026_SESSIONS: Session[] = [
     topic: "Optimise",
     description:
       "Apply cost optimisation (right-size models per sub-agent). Set up a basic CI/CD pipeline with an eval gate. Deploy the final version. Live demos: full agent run end to end — audio/text input to an approved, posted LinkedIn/X post. Graduation demos.\n\nYou leave with a measured agent: golden eval set, traces, analytics, eval-gated deploy.",
-    speakerIds: ["nishi-ajmera"],
-    tags: ["Optimise", "Workshop", "CI/CD", "Graduation", "Demo", "Hands-on"],
-    isClosing: true,
+    speakerIds: ["nishi-ajmera", "sumith-damodaran", "renuka-kelkar", "sonika-janagill"],
     whatYouWillLearn: [
       "Ship eval-gated deploys for agents",
       "Optimise cost across sub-agents",

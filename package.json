@@ -19,7 +19,8 @@
     "migrate:sept:dry": "cross-env COHORT_ID=cohort-september-2026 DRY_RUN=true npm run migrate-to-cohorts",
     "migrate:sept:confirm": "cross-env COHORT_ID=cohort-september-2026 CONFIRM=true npm run migrate-to-cohorts",
     "seed-cohorts": "tsx --env-file=.env.local scripts/seed-cohorts.ts",
-    "open-september-2026-cohort": "tsx --env-file=.env.local scripts/open-september-2026-cohort.ts"
+    "open-september-2026-cohort": "tsx --env-file=.env.local scripts/open-september-2026-cohort.ts",
+    "import-luma-guests": "tsx --env-file=.env.local scripts/import-luma-guests.ts"
   },
   "dependencies": {
     "@radix-ui/react-avatar": "^1.1.11",

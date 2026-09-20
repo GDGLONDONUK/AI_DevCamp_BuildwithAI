@@ -1,6 +1,7 @@
 import { parseLocationFields } from "@/lib/locationCleanup";
 import { formTimestampToIso, compareIso } from "@/lib/formTimestamp";
 import type { UserProfile, UserRole, UserStatus } from "@/types";
+import { getActiveCohortId } from "@/lib/cohorts";
 
 const ZW_RE = /[\u200B-\u200D\uFEFF\u2060]/g;
 
@@ -106,6 +107,26 @@ export function rowToPreRegistered(
     preRegistered: true,
     registered: false,
     signedIn: false,
+    ...cohortEnrolmentFields(typeof at === "string" ? at : undefined),
+  };
+}
+
+function cohortEnrolmentFields(joinedAt?: string): {
+  cohortIds: string[];
+  activeCohortId: string;
+  cohortParticipation: Record<
+    string,
+    { status: string; joinedAt: string; role: string }
+  >;
+} {
+  const cohortId = getActiveCohortId();
+  const at = joinedAt || new Date().toISOString();
+  return {
+    cohortIds: [cohortId],
+    activeCohortId: cohortId,
+    cohortParticipation: {
+      [cohortId]: { status: "participated", joinedAt: at, role: "attendee" },
+    },
   };
 }
 
@@ -171,18 +192,44 @@ const SKIP_TICKET_IMPORT_EMAILS = new Set(
 );
 
 export function isTicketEventExportFormat(rows: string[][]): boolean {
-  const h = rows[0] ?? [];
-  if (h.length < 5) return false;
-  return (
+  const h = (rows[0] ?? []).map((c) => c.trim());
+  if (h.length < 3) return false;
+  // Classic GDG / Luma ticket export
+  if (
     h.includes("Order number") &&
     h.includes("Ticket number") &&
     h.includes("First Name") &&
     h.includes("Email")
-  );
+  ) {
+    return true;
+  }
+  // Modern Luma guests export (email + name / first_name)
+  const lower = h.map((c) => c.toLowerCase());
+  const hasEmail = lower.includes("email") || lower.includes("email address");
+  const hasName =
+    lower.includes("name") ||
+    lower.includes("first name") ||
+    lower.includes("first_name");
+  const looksLuma =
+    lower.includes("api_id") ||
+    lower.includes("approval_status") ||
+    lower.includes("created_at") ||
+    lower.includes("check_in_qr_code") ||
+    (h.includes("First Name") && h.includes("Email") && !h.includes("Timestamp"));
+  return hasEmail && hasName && looksLuma;
 }
 
 function ticketHeaderCol(header: string[], name: string): number {
-  return header.findIndex((c) => c.trim() === name);
+  const want = name.trim().toLowerCase();
+  return header.findIndex((c) => c.trim().toLowerCase() === want);
+}
+
+function ticketHeaderColAny(header: string[], names: string[]): number {
+  for (const n of names) {
+    const i = ticketHeaderCol(header, n);
+    if (i >= 0) return i;
+  }
+  return -1;
 }
 
 /** Row shape for Luma / GDG ticket export → `POST /api/admin/preregistered`. */
@@ -214,46 +261,64 @@ export type TicketKickoffImportRow = {
   preRegistered: boolean;
   registered: boolean;
   signedIn: boolean;
-  importSource: "gdg-ticket";
+  importSource: "gdg-ticket" | "luma";
   kickoffInPersonRsvp: boolean;
+  cohortIds: string[];
+  activeCohortId: string;
+  cohortParticipation: Record<
+    string,
+    { status: string; joinedAt: string; role: string }
+  >;
 };
 
 /**
- * Luma / ticket row → same broad shape as `rowToPreRegistered` for upsert, plus `kickoffInPersonRsvp`.
- * Uses `Email`, `First Name`, `Last Name`, `Company`, `Title`, `Paid date (UTC)`.
+ * Luma / ticket row → same broad shape as `rowToPreRegistered` for upsert.
+ * Supports classic ticket headers and modern Luma guest exports.
  */
 export function rowToPreRegisteredFromTicket(
   header: string[],
   row: string[]
 ): TicketKickoffImportRow | null {
-  if (row.length < 5) return null;
-  const cEmail = ticketHeaderCol(header, "Email");
-  const cFirst = ticketHeaderCol(header, "First Name");
-  const cLast = ticketHeaderCol(header, "Last Name");
-  if (cEmail < 0 || cFirst < 0 || cLast < 0) return null;
+  if (row.length < 3) return null;
+  const cEmail = ticketHeaderColAny(header, ["Email", "email", "Email Address"]);
+  const cFirst = ticketHeaderColAny(header, ["First Name", "first_name", "First name"]);
+  const cLast = ticketHeaderColAny(header, ["Last Name", "last_name", "Last name"]);
+  const cName = ticketHeaderColAny(header, ["Name", "name", "Full Name", "full_name"]);
+  if (cEmail < 0) return null;
 
   const email = (row[cEmail] || "").toLowerCase().trim();
   if (!email?.includes("@") || SKIP_TICKET_IMPORT_EMAILS.has(email)) return null;
 
-  const first = cleanTextField(row[cFirst] || "", 200);
-  const last = cleanTextField(row[cLast] || "", 200);
-  const cCompany = ticketHeaderCol(header, "Company");
-  const cTitle = ticketHeaderCol(header, "Title");
-  const cPaid = ticketHeaderCol(header, "Paid date (UTC)");
-  const cVenue = ticketHeaderCol(header, "Ticket venue");
+  const first = cFirst >= 0 ? cleanTextField(row[cFirst] || "", 200) : "";
+  const last = cLast >= 0 ? cleanTextField(row[cLast] || "", 200) : "";
+  const fullFromName = cName >= 0 ? cleanTextField(row[cName] || "", 500) : "";
+  const cCompany = ticketHeaderColAny(header, ["Company", "company"]);
+  const cTitle = ticketHeaderColAny(header, ["Title", "title", "Job Title"]);
+  const cPaid = ticketHeaderColAny(header, [
+    "Paid date (UTC)",
+    "created_at",
+    "Created At",
+    "registered_at",
+  ]);
+  const cVenue = ticketHeaderColAny(header, ["Ticket venue", "ticket_type", "Ticket type"]);
   const company = cCompany >= 0 ? cleanTextField(row[cCompany] || "", 200) : "";
   const title = cTitle >= 0 ? cleanTextField(row[cTitle] || "", 200) : "";
   const paidRaw = cPaid >= 0 ? (row[cPaid] || "").trim() : "";
-  const venue = cVenue >= 0 ? cleanTextField(row[cVenue] || "", 200) : "In-person";
+  const venue = cVenue >= 0 ? cleanTextField(row[cVenue] || "", 200) : "";
   const paidIso =
     formTimestampToIso(paidRaw) || (paidRaw || "").trim() || new Date().toISOString();
 
   const namePart = [first, last].filter(Boolean).join(" ");
   const displayName = cleanTextField(
-    namePart || email.split("@")[0] || "Guest",
+    fullFromName || namePart || email.split("@")[0] || "Guest",
     500
   );
   const at = paidIso;
+  const isModernLuma = header.some((h) =>
+    ["api_id", "approval_status", "created_at", "check_in_qr_code"].includes(
+      h.trim().toLowerCase()
+    )
+  );
   return {
     email,
     displayName,
@@ -266,10 +331,14 @@ export function rowToPreRegisteredFromTicket(
     roleTitle: company || undefined,
     yearsOfExperience: "",
     priorAIKnowledge: "",
-    areasOfInterest: "Kickoff in-person (final ticket / registration export)",
+    areasOfInterest: isModernLuma
+      ? "Luma registration — September 2026 cohort"
+      : "Kickoff / ticket registration export",
     whyJoin: "",
     knowsProgramming: false,
-    joiningInPerson: venue ? `In person (${venue} — ticket)` : "In person (ticket)",
+    joiningInPerson: venue
+      ? `Registered (${venue})`
+      : "Registered via Luma / ticket export",
     location: "",
     city: "",
     country: "",
@@ -282,8 +351,9 @@ export function rowToPreRegisteredFromTicket(
     preRegistered: true,
     registered: false,
     signedIn: false,
-    importSource: "gdg-ticket",
+    importSource: isModernLuma ? "luma" : "gdg-ticket",
     kickoffInPersonRsvp: true,
+    ...cohortEnrolmentFields(at),
   };
 }
 

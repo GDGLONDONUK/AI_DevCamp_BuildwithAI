@@ -10,7 +10,8 @@ import { Loader2 } from "lucide-react";
 
 /**
  * Shown to signed-in users who are not enrolled in the active cohort
- * (e.g. spring alumni when September registration is open).
+ * (e.g. spring alumni). Luma-imported existing accounts are usually enrolled
+ * on CSV upload; this banner covers anyone still missing the active cohort.
  */
 export default function JoinCohortBanner() {
   const { user, userProfile, refreshProfile } = useAuth();
@@ -27,11 +28,11 @@ export default function JoinCohortBanner() {
       <div className="max-w-6xl mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <p className="text-amber-200 font-mono text-sm font-semibold">
-            AI DevCamp September 2026 registration is open
+            AI DevCamp September 2026 is open
           </p>
           <p className="text-amber-100/70 text-xs mt-0.5">
-            You have an account from a previous cohort. Join September 2026 to register for the new
-            programme (Build → Scale → Govern → Optimise).
+            Sign in complete — join the new cohort to access September sessions, attendance,
+            assignments, and tasks. New to the programme? Use Register instead.
           </p>
         </div>
         <button
