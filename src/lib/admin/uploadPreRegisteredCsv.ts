@@ -39,7 +39,11 @@ export async function uploadPreRegisteredCsv(
     throw new Error(body.error ?? `HTTP ${res.status}`);
   }
   toast.success(
-    `Uploaded ${unique.length} users${duplicateCount > 0 ? ` (${duplicateCount} duplicate${duplicateCount > 1 ? "s" : ""} removed)` : ""}`
+    `Uploaded ${unique.length} users into the active cohort${
+      duplicateCount > 0
+        ? ` (${duplicateCount} duplicate${duplicateCount > 1 ? "s" : ""} removed)`
+        : ""
+    }. Existing accounts were enrolled; new emails are pending until they register/sign in.`
   );
   await onSuccess();
 }

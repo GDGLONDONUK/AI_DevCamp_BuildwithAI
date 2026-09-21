@@ -132,19 +132,12 @@ export default function HomePage() {
 
           {/* Cohort Announcement Banner */}
           <div className="inline-flex flex-col items-center gap-3 mb-8 w-full max-w-lg">
-            {/* Next Cohort Coming Soon */}
             <div className="inline-flex items-center gap-2 font-mono text-sm bg-blue-500/15 border border-blue-500/50 rounded-full px-5 py-2 text-blue-300 animate-pulse">
               <Calendar size={16} className="text-blue-400" />
-              NEXT COHORT: 3 SEPTEMBER 2026 (Thu) · 1 HR
+              NEXT COHORT: 23 SEPTEMBER 2026 (Wed) · 3 HR
             </div>
 
-            {/* Call for Speakers & Mentors */}
             <div className="flex flex-wrap justify-center gap-3">
-              <Link href="/call-for-speakers" className="inline-flex items-center gap-2 font-mono text-sm bg-purple-500/15 border border-purple-500/50 hover:border-purple-500 hover:bg-purple-500/25 rounded-full px-5 py-2 text-purple-300 transition-all">
-                <Cpu size={16} className="text-purple-400" />
-                📢 CALL FOR SPEAKERS & MENTORS
-              </Link>
-
               <Link href="/past-cohorts" className="inline-flex items-center gap-2 font-mono text-sm bg-amber-500/15 border border-amber-500/50 hover:border-amber-500 hover:bg-amber-500/25 rounded-full px-5 py-2 text-amber-300 transition-all">
                 <Archive size={16} className="text-amber-400" />
                 📚 VIEW PAST COHORTS
@@ -305,7 +298,7 @@ export default function HomePage() {
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12">
             <div className="inline-flex items-center gap-2 font-mono text-sm text-green-400/70 tracking-widest mb-3">
-              <span className="text-green-500/40">// </span>PEOPLE
+              <span className="text-green-500/40">{"// "}</span>PEOPLE
             </div>
             <h2 className="text-4xl sm:text-5xl font-extrabold text-white mb-3">
               Speakers &amp; mentors
@@ -374,7 +367,7 @@ export default function HomePage() {
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12">
             <div className="inline-flex items-center gap-2 font-mono text-sm text-green-400/70 tracking-widest mb-3">
-              <span className="text-green-500/40">// </span>SESSIONS
+              <span className="text-green-500/40">{"// "}</span>SESSIONS
             </div>
             <h2 className="text-4xl sm:text-5xl font-extrabold text-white mb-3">
               Session Schedule
@@ -489,7 +482,7 @@ export default function HomePage() {
                   </div>
                   <h3 className="font-bold text-white text-base mb-1">{week.title}</h3>
                   {week.subtitle && (
-                    <p className="font-mono text-xs text-gray-500 mb-4">// {week.subtitle}</p>
+                    <p className="font-mono text-xs text-gray-500 mb-4">{`// ${week.subtitle}`}</p>
                   )}
 
                   <ul className="space-y-2 mb-5">
@@ -540,7 +533,7 @@ export default function HomePage() {
               AI DevCamp Kick Off
             </h2>
             <p className="font-mono text-2xl text-green-400 font-bold mb-2 tracking-wider">
-              23 April 2026
+              23 September 2026
             </p>
             <p className="text-gray-300 font-mono text-base mb-10">
               Skyscanner HQ · London · W1D 4AL · 6:00 PM – 9:00 PM · Free to attend

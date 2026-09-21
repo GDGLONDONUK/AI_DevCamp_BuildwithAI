@@ -72,6 +72,7 @@ import {
   Download,
   FileText,
   Filter,
+  Home,
   LayoutGrid,
   Link2,
   Link as LinkIcon,
@@ -1167,6 +1168,9 @@ export default function AdminPage() {
             </Link>
             <Link href="/admin/learning-tasks" className="flex items-center gap-2 text-sm text-teal-400 hover:text-teal-300 border border-teal-500/20 hover:border-teal-500/40 bg-teal-500/10 px-4 py-2 rounded-lg font-mono transition-all">
               <ClipboardList size={14} /> Learning templates
+            </Link>
+            <Link href="/admin/site" className="flex items-center gap-2 text-sm text-lime-400 hover:text-lime-300 border border-lime-500/20 hover:border-lime-500/40 bg-lime-500/10 px-4 py-2 rounded-lg font-mono transition-all">
+              <Home size={14} /> Home content
             </Link>
             <button
               type="button"

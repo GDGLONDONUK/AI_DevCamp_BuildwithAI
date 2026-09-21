@@ -120,6 +120,25 @@ export function applyPendingRowToEnsureProfileData(
     userData.userStatus = s === "pending" ? "participated" : (s as UserStatus);
   }
 
+  // Preserve Luma / import cohort enrolment from pending row.
+  if (Array.isArray(pre.cohortIds) && pre.cohortIds.length > 0) {
+    const existing = Array.isArray(userData.cohortIds)
+      ? (userData.cohortIds as string[])
+      : [];
+    userData.cohortIds = [...new Set([...existing, ...pre.cohortIds.map(String)])];
+  }
+  if (typeof pre.activeCohortId === "string" && pre.activeCohortId.trim()) {
+    userData.activeCohortId = pre.activeCohortId.trim();
+  }
+  if (pre.cohortParticipation && typeof pre.cohortParticipation === "object") {
+    userData.cohortParticipation = {
+      ...(typeof userData.cohortParticipation === "object" && userData.cohortParticipation
+        ? (userData.cohortParticipation as Record<string, unknown>)
+        : {}),
+      ...pre.cohortParticipation,
+    };
+  }
+
   userData.preRegistered = true;
   userData.importLinkedAt = new Date().toISOString();
 }

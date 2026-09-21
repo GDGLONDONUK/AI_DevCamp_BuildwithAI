@@ -1,6 +1,10 @@
 /**
  * GET  /api/admin/preregistered  — list form-registered people (admin only) — from `users` with `preRegistered: true`
  * POST /api/admin/preregistered  — bulk-upsert pending import rows to `users/{email}` (admin only)
+ *
+ * Imports enrol people into the **active cohort** (September 2026). Existing Auth users
+ * on the list are merged into that cohort (same as Join); new emails become pending
+ * `users/{email}` until they register / sign in.
  */
 
 import { NextRequest } from "next/server";
@@ -15,18 +19,36 @@ import {
   resolveUserDocForImport,
   isLinkedProfile,
 } from "@/lib/server/resolveUserDocForImport";
+import { getActiveCohortId } from "@/lib/cohorts";
 import type { UserProfile } from "@/types";
+
+function cohortEnrolmentPatch(joinedAt?: string): Record<string, unknown> {
+  const cohortId = getActiveCohortId();
+  const at = joinedAt || new Date().toISOString();
+  return {
+    cohortIds: FieldValue.arrayUnion(cohortId),
+    activeCohortId: cohortId,
+    [`cohortParticipation.${cohortId}`]: {
+      status: "participated",
+      joinedAt: at,
+      role: "attendee",
+    },
+  };
+}
 
 function normalizeImportPayload(u: Record<string, unknown>, email: string): Record<string, unknown> {
   const raw = String(u.formSubmittedAt ?? u.importCreatedAt ?? "").trim();
   const isoFromRaw = formTimestampToIso(raw);
   const isAlreadyIso = /^\d{4}-\d{2}-\d{2}T/.test(raw);
   const at = (isAlreadyIso ? raw : isoFromRaw) ?? u.registeredAt ?? u.importCreatedAt ?? raw;
+  const atStr = typeof at === "string" && at ? at : new Date().toISOString();
 
   const locRaw =
     (typeof u.location === "string" && u.location.trim()) ||
     [u.city, u.country].filter(Boolean).join(", ");
   const { location, city, country } = parseLocationFields(String(locRaw || ""));
+
+  const cohortId = getActiveCohortId();
 
   return {
     ...u,
@@ -45,25 +67,45 @@ function normalizeImportPayload(u: Record<string, unknown>, email: string): Reco
     userStatus: "participated",
     /** Until they use the in-app kick-off flow after linking Auth */
     kickoffRsvpExplicitInApp: false,
+    cohortIds: [cohortId],
+    activeCohortId: cohortId,
+    cohortParticipation: {
+      ...(typeof u.cohortParticipation === "object" && u.cohortParticipation
+        ? (u.cohortParticipation as Record<string, unknown>)
+        : {}),
+      [cohortId]: {
+        status: "participated",
+        joinedAt: atStr,
+        role: "attendee",
+      },
+    },
     updatedAt: FieldValue.serverTimestamp(),
   };
 }
 
-/** Already signed up: only merge kickoff / ticket list fields; do not clear auth. */
-function kickoffLinkedUserPatch(
+/**
+ * Already signed up: enrol into active cohort + refresh import metadata.
+ * Does not wipe spring cohortIds / history.
+ */
+function linkedUserImportPatch(
   u: Record<string, unknown>,
   email: string
 ): Record<string, unknown> {
   const joining = String(
-    u.joiningInPerson ?? "In person (kickoff — ticket list)"
+    u.joiningInPerson ?? "Registered (Luma / import)"
   ).slice(0, 500);
+  const at =
+    (typeof u.formSubmittedAt === "string" && u.formSubmittedAt) ||
+    new Date().toISOString();
   const patch: Record<string, unknown> = {
     email,
+    preRegistered: true,
     kickoffInPersonRsvp: u.kickoffInPersonRsvp !== false,
     joiningInPerson: joining,
     kickoffRsvpUpdatedAt: new Date().toISOString(),
     kickoffRsvpExplicitInApp: false,
-    importSource: u.importSource ?? "gdg-ticket",
+    importSource: u.importSource ?? "luma",
+    ...cohortEnrolmentPatch(at),
     updatedAt: FieldValue.serverTimestamp(),
   };
   if (typeof u.displayName === "string" && u.displayName.trim()) {
@@ -127,7 +169,7 @@ export async function POST(request: NextRequest) {
         } else {
           const data = existing.data() as Record<string, unknown> | undefined;
           if (isLinkedProfile(data, ref.id)) {
-            batch.set(ref, kickoffLinkedUserPatch(rowObj, email), { merge: true });
+            batch.set(ref, linkedUserImportPatch(rowObj, email), { merge: true });
           } else {
             const normalized = normalizeImportPayload(rowObj, email);
             batch.set(ref, normalized, { merge: true });

@@ -19,15 +19,20 @@
     "migrate:sept:dry": "cross-env COHORT_ID=cohort-september-2026 DRY_RUN=true npm run migrate-to-cohorts",
     "migrate:sept:confirm": "cross-env COHORT_ID=cohort-september-2026 CONFIRM=true npm run migrate-to-cohorts",
     "seed-cohorts": "tsx --env-file=.env.local scripts/seed-cohorts.ts",
-    "open-september-2026-cohort": "tsx --env-file=.env.local scripts/open-september-2026-cohort.ts"
+    "open-september-2026-cohort": "tsx --env-file=.env.local scripts/open-september-2026-cohort.ts",
+    "import-luma-guests": "tsx --env-file=.env.local scripts/import-luma-guests.ts",
+    "seed-site-content": "tsx --env-file=.env.local scripts/seed-site-content.ts",
+    "seed-learning-materials": "tsx --env-file=.env.local scripts/seed-learning-materials.ts"
   },
   "dependencies": {
+    "@ai-sdk/google": "^4.0.76",
     "@radix-ui/react-avatar": "^1.1.11",
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-dropdown-menu": "^2.1.16",
     "@radix-ui/react-progress": "^1.1.8",
     "@radix-ui/react-select": "^2.2.6",
     "@radix-ui/react-tabs": "^1.1.13",
+    "ai": "^7.0.107",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "firebase": "^12.12.0",
@@ -39,6 +44,7 @@
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "react-hot-toast": "^2.6.0",
+    "server-only": "^0.0.1",
     "tailwind-merge": "^3.5.0",
     "zod": "^4.3.6"
   },
