@@ -23,6 +23,10 @@ npm run generate-favicons            # Generate square favicon PNGs from public/
 npm run sync-firestore-programme     # Sync sessions & speakers from src/data/ to Firestore
 npm run upload-speaker-photos        # Upload public/speakers/* to Storage + set Firestore photo URLs
 npm run open-september-2026-cohort   # Upsert cohorts + Sept agenda; tag spring users
+npm run import-luma-guests           # Luma CSV → pending users / enrol linked accounts
+npm run seed-site-content            # Seed siteContent/home marketing defaults
+npm run seed-learning-materials      # Seed Learning Assistant RAG corpus from sessions
+npm run fix-organiser-admins         # Dry-run organiser admin roles; add -- --apply to promote
 npm run delete-legacy-speaker-docs   # Clean up old speaker data structures
 npm run backfill-registration-map-coords  # Populate location data for users
 ```
@@ -42,11 +46,13 @@ Scripts use `tsx` for TypeScript execution and require `.env.local` with Firebas
 │
 ├─ Next.js API (Node.js + Firebase Admin SDK)
 │  src/app/api/* — JWT verify, privileged writes, cross-document logic, email
-│  Handles: attendance audit, self check-in, user ensures, programme leave, learning tasks by userId
+│  Handles: attendance audit, self check-in, user ensures, programme leave, learning tasks by userId,
+│  learning-chat (Gemini RAG), site-content CMS, join-cohort
 │
 └─ Firebase (Auth, Firestore, Storage)
    users, speakers, sessions, attendance, assignments, projects, 
-   session_self_checkin, learningTasks, learningTaskTemplates, error_logs, …
+   session_self_checkin, learningTasks, learningTaskTemplates, cohorts,
+   siteContent, sessionLearningMaterials, error_logs, …
 ```
 
 ### Key Data Flows

@@ -2,6 +2,7 @@ import "server-only";
 
 import { tool } from "ai";
 import { z } from "zod";
+import { SPRING_2026_COHORT_ID } from "@/lib/cohorts";
 import type { LearningChatContext } from "@/lib/learning-chat/constants";
 import {
   getSessionById,
@@ -10,11 +11,39 @@ import {
   searchLearningMaterials,
 } from "@/lib/learning-chat/materialsRepo";
 
+/** Session fields safe for the learning assistant (no PII beyond public speaker names). */
+function publicSessionPayload(session: Awaited<ReturnType<typeof getSessionById>>) {
+  if (!session) return null;
+  return {
+    id: session.id,
+    number: session.number,
+    title: session.title,
+    date: session.date,
+    time: session.time,
+    week: session.week,
+    topic: session.topic,
+    description: session.description,
+    whatYouWillLearn: session.whatYouWillLearn,
+    buildIdeas: session.buildIdeas,
+    resources: session.resources,
+    videoUrl: session.videoUrl,
+    resourcesFolderUrl: session.resourcesFolderUrl,
+    isKickoff: session.isKickoff,
+    isClosing: session.isClosing,
+    /** Public roster names only — never emails or user profile ids. */
+    speakers: (session.speakers || []).map((s) => ({
+      name: s.name,
+      title: s.title,
+    })),
+    speakerIds: session.speakerIds,
+  };
+}
+
 export function buildLearningChatTools(ctx: LearningChatContext) {
   return {
     list_cohort_sessions: tool({
       description:
-        "List programme sessions for the active cohort (titles, dates, topics, weeks). Use when the user asks what sessions exist or for a schedule overview.",
+        "List programme sessions for the active cohort (titles, dates, topics, weeks). Use for schedule overview. Does NOT return user or attendance data.",
       inputSchema: z.object({}),
       execute: async () => {
         const sessions = await listSessionsForCohort(ctx.cohortId);
@@ -40,36 +69,24 @@ export function buildLearningChatTools(ctx: LearningChatContext) {
 
     get_session_detail: tool({
       description:
-        "Get full session metadata: description, learning outcomes, build ideas, resources, video URL, speakers.",
+        "Get session learning content: description, outcomes, build ideas, public resources, video URL, speaker names. Cohort-scoped only.",
       inputSchema: z.object({
         sessionId: z.string().min(1).describe("Firestore sessions document id"),
       }),
       execute: async ({ sessionId }) => {
         const session = await getSessionById(sessionId);
         if (!session) return { error: `Session not found: ${sessionId}` };
-        return {
-          id: session.id,
-          number: session.number,
-          title: session.title,
-          date: session.date,
-          time: session.time,
-          week: session.week,
-          topic: session.topic,
-          description: session.description,
-          whatYouWillLearn: session.whatYouWillLearn,
-          buildIdeas: session.buildIdeas,
-          resources: session.resources,
-          videoUrl: session.videoUrl,
-          resourcesFolderUrl: session.resourcesFolderUrl,
-          speakerIds: session.speakerIds,
-          speakers: session.speakers,
-        };
+        const sessionCohort = session.cohortId || SPRING_2026_COHORT_ID;
+        if (sessionCohort !== ctx.cohortId) {
+          return { error: "Session is not in the active cohort." };
+        }
+        return publicSessionPayload(session);
       },
     }),
 
     search_session_materials: tool({
       description:
-        "RAG search over PDFs, transcripts, videos notes, concepts, and session summaries. Prefer this when answering what was covered or explaining a concept.",
+        "RAG search over programme materials (PDFs, transcripts, videos, concepts, session summaries) for the active cohort only. Never searches users or personal tasks.",
       inputSchema: z.object({
         query: z.string().min(1).max(500),
         sessionId: z
@@ -118,12 +135,20 @@ export function buildLearningChatTools(ctx: LearningChatContext) {
 
     list_session_materials: tool({
       description:
-        "List all learning materials (PDF, transcript, video, concepts) attached to a session.",
+        "List programme learning materials (PDF, transcript, video, concepts) for one session in the active cohort.",
       inputSchema: z.object({
         sessionId: z.string().min(1),
       }),
       execute: async ({ sessionId }) => {
-        const materials = await listMaterialsForSession(sessionId);
+        const session = await getSessionById(sessionId);
+        if (!session) return { error: `Session not found: ${sessionId}` };
+        const sessionCohort = session.cohortId || SPRING_2026_COHORT_ID;
+        if (sessionCohort !== ctx.cohortId) {
+          return { error: "Session is not in the active cohort." };
+        }
+        const materials = (await listMaterialsForSession(sessionId)).filter(
+          (m) => m.cohortId === ctx.cohortId
+        );
         return {
           sessionId,
           count: materials.length,
@@ -140,13 +165,13 @@ export function buildLearningChatTools(ctx: LearningChatContext) {
     }),
 
     get_focus_hint: tool({
-      description: "Return the UI focus session and current page path for context.",
+      description:
+        "Return the UI focus session id and page path only (no user profile fields).",
       inputSchema: z.object({}),
       execute: async () => ({
         focusSessionId: ctx.focusSessionId ?? null,
         pathname: ctx.pathname ?? null,
         cohortId: ctx.cohortId,
-        userRole: ctx.role,
       }),
     }),
   };

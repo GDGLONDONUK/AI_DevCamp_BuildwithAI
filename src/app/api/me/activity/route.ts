@@ -18,6 +18,7 @@ const bodySchema = z
       "resources_folder_click",
       "assignment_submitted",
       "project_submitted",
+      "learning_chat",
     ]),
     sessionId: z.string().max(120).optional(),
     sessionTitle: z.string().max(500).optional(),

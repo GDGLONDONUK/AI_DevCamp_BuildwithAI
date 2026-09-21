@@ -12,6 +12,11 @@ import type {
   LearningChatResult,
 } from "@/lib/learning-chat/constants";
 import { buildLearningChatTools } from "@/lib/learning-chat/tools";
+import {
+  buildLearningChatSystemPrompt,
+  isLikelyOutOfScopeLearningQuery,
+  LEARNING_CHAT_REFUSE_MESSAGE,
+} from "@/lib/learning-chat/scope";
 
 const MAX_TOOL_STEPS = 8;
 const MAX_HISTORY_TURNS = 8;
@@ -27,26 +32,35 @@ function getProvider() {
   return providerSingleton;
 }
 
-function buildSystemPrompt(ctx: LearningChatContext): string {
-  return [
-    "You are the AI DevCamp learning assistant for GDG London attendees.",
-    "Answer using tools that read programme sessions and the learning materials corpus (transcripts, PDFs, videos, concepts).",
-    "Prefer search_session_materials and get_session_detail before answering factual questions.",
-    "If materials are missing, say so clearly and point to session description / resources when available.",
-    "Do not invent attendance records, grades, or private user data.",
-    "Cite session titles and material kinds when helpful.",
-    `Active cohortId: ${ctx.cohortId}.`,
-    ctx.focusSessionId ? `UI focus sessionId: ${ctx.focusSessionId}.` : "",
-    `Caller role: ${ctx.role}.`,
-  ]
-    .filter(Boolean)
-    .join("\n");
+function extractToolNames(result: {
+  steps?: Array<{ toolCalls?: Array<{ toolName?: string }> }>;
+}): string[] {
+  const names = new Set<string>();
+  for (const step of result.steps ?? []) {
+    for (const call of step.toolCalls ?? []) {
+      if (call.toolName) names.add(call.toolName);
+    }
+  }
+  return [...names];
 }
+
+export type ProcessLearningChatOutcome = LearningChatResult & {
+  refusedOutOfScope?: boolean;
+  toolsUsed?: string[];
+};
 
 export async function processLearningChat(
   message: string,
   context: LearningChatContext
-): Promise<LearningChatResult> {
+): Promise<ProcessLearningChatOutcome> {
+  if (isLikelyOutOfScopeLearningQuery(message)) {
+    return {
+      text: LEARNING_CHAT_REFUSE_MESSAGE,
+      refusedOutOfScope: true,
+      toolsUsed: [],
+    };
+  }
+
   try {
     const provider = getProvider();
     const history = (context.history ?? [])
@@ -55,7 +69,10 @@ export async function processLearningChat(
 
     const result = await generateText({
       model: provider(getLearningGeminiModelId()),
-      system: buildSystemPrompt(context),
+      system: buildLearningChatSystemPrompt({
+        cohortId: context.cohortId,
+        focusSessionId: context.focusSessionId,
+      }),
       messages: [
         ...history.map((m) => ({
           role: m.role as "user" | "assistant",
@@ -74,9 +91,10 @@ export async function processLearningChat(
       text:
         result.text ||
         "I looked at the materials but have nothing further to add. Try a more specific session or concept.",
+      toolsUsed: extractToolNames(result),
     };
   } catch (err: unknown) {
     console.error("processLearningChat error:", err);
-    return { error: formatLearningGeminiError(err) };
+    return { error: formatLearningGeminiError(err), toolsUsed: [] };
   }
 }

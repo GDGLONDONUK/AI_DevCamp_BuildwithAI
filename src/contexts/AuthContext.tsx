@@ -12,6 +12,7 @@ import { auth } from "@/lib/firebase";
 import { getUserProfile, syncAuthProvidersToUserDoc } from "@/lib/auth";
 import { ensureProfileOnServer } from "@/lib/meApi";
 import { firebaseAuthErrorMessage } from "@/lib/firebaseAuthErrors";
+import { isOrganiserAdminEmail } from "@/lib/organiserAdmins";
 import { UserProfile } from "@/types";
 import toast from "react-hot-toast";
 
@@ -60,6 +61,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setUserProfile(null);
             return;
           }
+        }
+      }
+      if (
+        profile &&
+        isOrganiserAdminEmail(profile.email || user.email) &&
+        profile.role !== "admin"
+      ) {
+        try {
+          await ensureProfileOnServer();
+          profile = (await getUserProfile(user.uid)) ?? profile;
+        } catch (e) {
+          console.error("ensureProfileOnServer organiser sync", e);
         }
       }
       if (profileAccessRevoked(profile)) {
@@ -122,6 +135,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               setLoading(false);
               return;
             }
+          }
+        }
+        // Re-assert organiser admin role if an import demoted the account.
+        if (
+          profile &&
+          isOrganiserAdminEmail(profile.email || firebaseUser.email) &&
+          profile.role !== "admin"
+        ) {
+          try {
+            await ensureProfileOnServer();
+            profile = (await getUserProfile(firebaseUser.uid)) ?? profile;
+          } catch (e) {
+            console.error("ensureProfileOnServer organiser sync", e);
           }
         }
         if (profileAccessRevoked(profile)) {

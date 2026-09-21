@@ -28,13 +28,17 @@ AI_DevCamp_BuildwithAI/
 │   │   │   ├── bevy/page.tsx     ← /admin/bevy  Bevy CSV merge
 │   │   │   ├── errors/page.tsx   ← /admin/errors  Error log viewer
 │   │   │   ├── users-map/page.tsx← /admin/users-map  User locations on a map
-│   │   │   └── learning-tasks/page.tsx ← /admin/learning-tasks  Template catalogue CRUD / seed / clear
+│   │   │   ├── learning-tasks/page.tsx ← /admin/learning-tasks  Template catalogue CRUD / seed / clear
+│   │   │   └── site/page.tsx     ← /admin/site  Home marketing copy (siteContent/home)
 │   │   └── api/                  ← REST API (server-side, Firebase Admin SDK)
 │   │       ├── sessions/         ← GET list, POST create, GET/PUT/DELETE by id
 │   │       ├── speakers/         ← GET list (public roster)
 │   │       ├── users/            ← GET list (admin), GET/PATCH by uid
-│   │       ├── me/               ← ensure-profile, leave-program, preregistered, link-preregister
+│   │       ├── me/               ← ensure-profile, leave-program, join-cohort, preregistered, …
 │   │       │   └── attendance/   ← self-check-in POST, check-in-status GET
+│   │       ├── cohorts/          ← public list + [cohortId] (Admin SDK)
+│   │       ├── site-content/     ← public home marketing copy (cached)
+│   │       ├── learning-chat/    ← Bearer; Gemini RAG session Q&A
 │   │       ├── attendance/       ← GET all, GET/PATCH by uid (PATCH writes sessionAttendanceAudit)
 │   │       ├── assignments/      ← GET list, POST submit, GET/PATCH by id
 │   │       ├── projects/         ← GET list, POST submit, GET/PATCH by id
@@ -46,13 +50,15 @@ AI_DevCamp_BuildwithAI/
 │   │       ├── log-error/        ← client error ingestion
 │   │       ├── tags/             ← public tag catalog
 │   │       ├── buddies/          ← directory, profile/[uid], requests, requests/[id], connections (Bearer)
-│   │       └── admin/            ← preregistered, pending-user, disabled-users, users-no-session-attendance, error-logs, tags, bevy-merge, approve-all-users, users-location-map, learning-task-templates (+ seed, PATCH/DELETE by id), …
+│   │       └── admin/            ← preregistered, pending-user, disabled-users, site-content, learning-materials, learning-task-templates, …
 │   │
 │   ├── components/               ← Reusable UI pieces
 │   │   ├── icons/
 │   │   │   └── SocialBrandIcons.tsx ← LinkedIn / GitHub SVGs (profile, register, User Editor)
 │   │   ├── Navbar.tsx            ← Top navigation bar
 │   │   ├── AuthModal.tsx         ← Sign-in modal (email + Google)
+│   │   ├── JoinCohortBanner.tsx  ← Signed-in users not in active cohort → join CTA
+│   │   ├── LearningChatPanel.tsx ← Learning Assistant FAB + right slider (Ask / Summarize / Translate)
 │   │   ├── AuthenticatedMain.tsx ← App shell: profile completion, kickoff prompts, children
 │   │   ├── KickoffRsvpBanner.tsx ← Kick-off RSVP (23 Apr)
 │   │   ├── ProgramOptOutControl.tsx ← Leave programme (nav + dashboard)
@@ -86,8 +92,9 @@ AI_DevCamp_BuildwithAI/
 │   │   └── AuthContext.tsx       ← Global auth state (user + profile)
 │   │
 │   ├── hooks/                    ← Custom React hooks (data fetching)
-│   │   ├── useSessions.ts        ← Load sessions from Firestore
+│   │   ├── useSessions.ts        ← Load sessions from Firestore (active cohort)
 │   │   ├── useSpeakers.ts        ← Load speakers / mentors roster from Firestore
+│   │   ├── useSiteContent.ts     ← Home marketing copy (+ localStorage cache)
 │   │   └── useAdminData.ts       ← Load all admin data in one call
 │   │
 │   ├── lib/                      ← Pure service/utility functions (no JSX)
@@ -95,6 +102,13 @@ AI_DevCamp_BuildwithAI/
 │   │   ├── firebase-admin.ts     ← Firebase Admin SDK (server-side API routes only)
 │   │   ├── api-helpers.ts        ← verifyAuth, requireAdmin, ok/err response helpers
 │   │   ├── auth.ts               ← Auth helpers (register, login, logout)
+│   │   ├── cohorts.ts            ← Active cohort id + session/user helpers
+│   │   ├── organiserAdmins.ts    ← Email allowlist that must keep role=admin
+│   │   ├── registrationOpen.ts   ← NEXT_PUBLIC_REGISTRATION_OPEN helper
+│   │   ├── siteContent.ts        ← Home CMS defaults + normalise
+│   │   ├── siteContentApi.ts     ← Client fetch for public/admin site content
+│   │   ├── siteContentSchema.ts  ← Zod for admin PUT
+│   │   ├── learning-chat/        ← Learning Assistant (Gemini + RAG tools + client API)
 │   │   ├── meApi.ts              ← Client calls to /api/me/*
 │   │   ├── profileCompletion.ts  ← Profile completeness helpers (gating)
 │   │   ├── kickoffRsvp.ts        ← Kick-off RSVP labels and write payloads
@@ -111,6 +125,7 @@ AI_DevCamp_BuildwithAI/
 │   │   │   ├── registrationMapSync.ts ← Users map: labels, Firestore coord cache, batch persist
 │   │   │   ├── userAdminView.ts     ← user doc → admin profile shape
 │   │   │   ├── mergePendingUserIntoProfile.ts
+│   │   │   ├── siteContentCache.ts  ← in-memory TTL cache for siteContent/home
 │   │   │   ├── selfCheckInCode.ts, selfCheckInWindow.ts, selfCheckInRateLimit.ts ← /api/me/attendance/*
 │   │   │   ├── learningTasksFirestore.ts, learningTaskActor.ts ← learning tasks serialisation / audit actor
 │   │   │   └── …                  ← e.g. preRegisteredLookup, appErrorLog, ensureUserProfileDocument
@@ -140,10 +155,16 @@ AI_DevCamp_BuildwithAI/
 │   ├── ensure-profiles.ts        ← npm run ensure-profiles — backfill profiles by email (Admin SDK; pass emails as args)
 │   ├── backfill-registration-map-coords.ts ← npm run backfill-registration-map-coords — geocode & store map coords on user docs
 │   ├── sync-firestore-programme.ts ← npm run sync-firestore-programme — upsert speakers + sessions from src/data (Admin SDK)
+│   ├── open-september-2026-cohort.ts ← npm run open-september-2026-cohort
+│   ├── import-luma-guests.ts     ← npm run import-luma-guests — Luma CSV → pending / enrol
+│   ├── seed-site-content.ts      ← npm run seed-site-content — siteContent/home defaults
+│   ├── seed-learning-materials.ts ← npm run seed-learning-materials — RAG corpus from sessions
+│   ├── fix-organiser-admins.ts   ← npm run fix-organiser-admins — restore organiser role=admin
 │   ├── migrate-sessions-speakers.ts ← one-time migration: embedded session speakers → speakers collection + speakerIds
 │   ├── delete-legacy-speaker-docs.ts ← npm run delete-legacy-speaker-docs — remove abandoned speaker doc ids after rename
 │   └── generate-favicons.ts      ← npm run generate-favicons — square PNGs from public/logo.png (requires sharp)
 │
+├── .claude/skills/               ← Agent skills (cohorts, firebase-security, learning-chat)
 ├── firestore.rules               ← Firestore security rules (deployed to Firebase)
 ├── storage.rules                 ← Storage security rules (deployed to Firebase)
 ├── firestore.indexes.json        ← Composite indexes for efficient queries
@@ -177,6 +198,9 @@ AI_DevCamp_BuildwithAI/
 | Change who can access what in the DB | `firestore.rules` |
 | Add/remove skill tag presets | `src/data/tags.ts` |
 | Learning checklist & template catalogue | `src/app/dashboard/tasks/page.tsx`, `src/features/learning-tasks/*`, `src/lib/learningTasksApi.ts`; admin `src/app/admin/learning-tasks/page.tsx`; seed `src/data/learningTaskTemplatesSeed.ts`. **Docs:** [09](./09-learning-tasks-architecture.md). |
+| Learning Assistant (RAG chat) | `src/components/LearningChatPanel.tsx`, `src/lib/learning-chat/*`, `POST /api/learning-chat`. **Docs:** [14](./14-learning-assistant.md). |
+| Home marketing CMS | `src/lib/siteContent.ts`, `/admin/site`, `GET /api/site-content`. |
+| Organiser admin emails | `src/lib/organiserAdmins.ts`, `npm run fix-organiser-admins` |
 | Add an environment variable | `.env.local` |
 | Change route protection logic | `src/proxy.ts` |
 

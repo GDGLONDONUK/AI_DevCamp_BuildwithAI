@@ -56,7 +56,7 @@ export type HomeSiteContent = {
 };
 
 export const DEFAULT_HOME_SITE_CONTENT: HomeSiteContent = {
-  discordInviteUrl: "https://discord.gg/asrXvYeA",
+  discordInviteUrl: "https://discord.gg/jRBz8nsch",
   discordLinkLabel: "Join GDG London on Discord",
   announcementBanner: {
     enabled: true,
