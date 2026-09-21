@@ -7,7 +7,7 @@ import {
 } from "@/lib/siteContent";
 import { fetchHomeSiteContent } from "@/lib/siteContentApi";
 
-const CACHE_KEY = "aidevcamp.siteContent.home.v1";
+const CACHE_KEY = "aidevcamp.siteContent.home.v2";
 const CACHE_TTL_MS = 5 * 60_000;
 
 type Cached = { data: HomeSiteContent; expiresAt: number };

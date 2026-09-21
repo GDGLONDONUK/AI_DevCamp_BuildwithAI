@@ -25,6 +25,7 @@ import { getActiveCohortSessions, CURRICULUM_WEEKS } from "@/data/sessions";
 import { SPEAKERS as STATIC_SPEAKERS } from "@/data/speakers";
 import { useSessions } from "@/hooks/useSessions";
 import { useSpeakers } from "@/hooks/useSpeakers";
+import { useSiteContent } from "@/hooks/useSiteContent";
 import { getSessionSpeakersList, speakerRecordsToLookup } from "@/lib/sessionSpeakers";
 import type { Speaker } from "@/types";
 import AuthModal from "@/components/AuthModal";
@@ -35,8 +36,6 @@ import { useAuth } from "@/contexts/AuthContext";
 const STATIC_SESSIONS = getActiveCohortSessions();
 
 const WEEK_ICONS = [Code2, Brain, BookOpen, Rocket];
-
-const DISCORD_INVITE_URL = "https://discord.gg/asrXvYeA";
 
 function DiscordIcon({ className }: { className?: string }) {
   return (
@@ -60,6 +59,7 @@ export default function HomePage() {
   const { user, userProfile } = useAuth();
   const { sessions: liveSessions } = useSessions();
   const { speakers: liveSpeakers } = useSpeakers();
+  const { content } = useSiteContent();
 
   const displaySessions = liveSessions.length > 0 ? liveSessions : STATIC_SESSIONS;
   const rosterSpeakers = liveSpeakers.length > 0 ? liveSpeakers : STATIC_SPEAKERS;
@@ -71,11 +71,15 @@ export default function HomePage() {
   const statsDisplay = useMemo(
     () => [
       { label: "Sessions", value: String(displaySessions.length), icon: Terminal },
-      { label: "Weeks", value: "4", icon: Clock },
-      { label: "Projects", value: "40+", icon: GitBranch },
-      { label: "Active attendees", value: "150+", icon: Users },
+      { label: "Weeks", value: content.stats.weeksValue, icon: Clock },
+      { label: "Projects", value: content.stats.projectsValue, icon: GitBranch },
+      {
+        label: "Active attendees",
+        value: content.stats.activeAttendeesValue,
+        icon: Users,
+      },
     ],
-    [displaySessions.length]
+    [displaySessions.length, content.stats]
   );
 
   /** Private community server — only for signed-in participants (not on the public home page for guests). */
@@ -132,17 +136,24 @@ export default function HomePage() {
 
           {/* Cohort Announcement Banner */}
           <div className="inline-flex flex-col items-center gap-3 mb-8 w-full max-w-lg">
-            <div className="inline-flex items-center gap-2 font-mono text-sm bg-blue-500/15 border border-blue-500/50 rounded-full px-5 py-2 text-blue-300 animate-pulse">
-              <Calendar size={16} className="text-blue-400" />
-              NEXT COHORT: 23 SEPTEMBER 2026 (Wed) · 3 HR
-            </div>
+            {content.announcementBanner.enabled ? (
+              <div className="inline-flex items-center gap-2 font-mono text-sm bg-blue-500/15 border border-blue-500/50 rounded-full px-5 py-2 text-blue-300 animate-pulse">
+                <Calendar size={16} className="text-blue-400" />
+                {content.announcementBanner.text}
+              </div>
+            ) : null}
 
-            <div className="flex flex-wrap justify-center gap-3">
-              <Link href="/past-cohorts" className="inline-flex items-center gap-2 font-mono text-sm bg-amber-500/15 border border-amber-500/50 hover:border-amber-500 hover:bg-amber-500/25 rounded-full px-5 py-2 text-amber-300 transition-all">
-                <Archive size={16} className="text-amber-400" />
-                📚 VIEW PAST COHORTS
-              </Link>
-            </div>
+            {content.pastCohortsCta.enabled ? (
+              <div className="flex flex-wrap justify-center gap-3">
+                <Link
+                  href={content.pastCohortsCta.href}
+                  className="inline-flex items-center gap-2 font-mono text-sm bg-amber-500/15 border border-amber-500/50 hover:border-amber-500 hover:bg-amber-500/25 rounded-full px-5 py-2 text-amber-300 transition-all"
+                >
+                  <Archive size={16} className="text-amber-400" />
+                  {content.pastCohortsCta.label}
+                </Link>
+              </div>
+            ) : null}
           </div>
 
           {/* Logo — large */}
@@ -265,13 +276,13 @@ export default function HomePage() {
           </div>
           {showDiscordLink ? (
             <a
-              href={DISCORD_INVITE_URL}
+              href={content.discordInviteUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="mt-5 inline-flex items-center gap-2 text-[#a5b4fc] hover:text-[#c7d2fe] font-mono text-sm font-semibold border border-indigo-500/35 bg-indigo-500/10 hover:bg-indigo-500/15 px-5 py-2.5 rounded-lg transition-all"
             >
               <DiscordIcon className="w-4 h-4 shrink-0" />
-              Join GDG London on Discord
+              {content.discordLinkLabel}
             </a>
           ) : null}
         </div>
