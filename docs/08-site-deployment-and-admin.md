@@ -27,6 +27,8 @@ Configure DNS in your domain provider per Vercel’s instructions, then set envi
 | `CERTIFIER_API_TOKEN` | Server-only Certifier API token (never `NEXT_PUBLIC_`). |
 | `CERTIFIER_API_VERSION` | Optional Certifier API version header (default `2022-10-26`). |
 | `NEXT_PUBLIC_CERTIFIER_CREDENTIAL_BASE_URL` | Optional; default `https://credsverse.com/credentials`. |
+| `LEARNING_GEMINI_API_KEY` | **Server-only.** Dedicated Gemini key for Learning Assistant (`POST /api/learning-chat`). |
+| `LEARNING_GEMINI_MODEL` | Optional model id (default `gemini-2.5-flash`). |
 
 Vercel also sets `VERCEL_URL` (the default `*.vercel.app` host). The proxy includes `https://${VERCEL_URL}` for previews, but **`NEXT_PUBLIC_SITE_URL` must be your custom domain** when users browse `aidevcamp.gdg.london`.
 
@@ -36,6 +38,8 @@ Vercel also sets `VERCEL_URL` (the default `*.vercel.app` host). The proxy inclu
 npm run open-september-2026-cohort
 npm run sync-firestore-programme
 npm run upload-speaker-photos
+npm run seed-site-content
+npm run seed-learning-materials
 firebase deploy --only firestore:rules   # if rules changed
 ```
 
@@ -43,9 +47,15 @@ See [11-cohort-architecture.md](./11-cohort-architecture.md) and `.claude/skills
 
 ---
 
-## Community (Discord)
+## Community (Discord) & home CMS
 
-The [home page](/) (`src/app/page.tsx`) links to the **GDG London Discord** invite for signed-in participants (`DISCORD_INVITE_URL`). Update that constant if the invite changes.
+Discord invite, announcement banner, “next cohort” terminal lines, join-cohort banner copy, and kickoff CTA are stored in Firestore **`siteContent/home`** — edit at **Admin → Home content** (`/admin/site`), or seed defaults with `npm run seed-site-content`. Public read: **`GET /api/site-content`** (cached). Do not hardcode Discord URLs in `page.tsx`.
+
+---
+
+## Learning Assistant
+
+Signed-in floating chat (Ask / Summarize / Translate). Requires **`LEARNING_GEMINI_API_KEY`**. Corpus: **`sessionLearningMaterials`**. Full build notes + future **Learning MCP / BYO-LLM** design: [14-learning-assistant.md](./14-learning-assistant.md).
 
 ---
 

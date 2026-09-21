@@ -21,6 +21,9 @@ Firestore
 ├── learningTaskTemplates/ ← Organiser catalogue for suggested checklist rows (signed-in read)
 ├── buddyRequests/       ← DevcampBuddies pending/accepted/rejected requests (API / Admin SDK only)
 ├── buddyPairs/            ← Accepted buddy pairs (`uids` pair + `createdAt`; API / Admin SDK only)
+├── cohorts/               ← Cohort metadata (Admin SDK / `/api/cohorts` only)
+├── siteContent/           ← Home marketing CMS (`home` doc; Admin SDK / `/api/site-content`)
+├── sessionLearningMaterials/ ← Learning Assistant RAG corpus (Admin SDK / learning-chat APIs)
 └── error_logs/            ← Client and server errors (Admin SDK / API only; `/admin/errors`)
 ```
 
@@ -444,6 +447,28 @@ Document id = **`${minUid}__${maxUid}`** (lexicographic). **Client rules:** deny
 ```
 
 Listed with `where("uids", "array-contains", viewerUid)` for “my buddies”. Accepting a request creates the pair doc and increments **`buddyCount`** on both **`users/{uid}`** documents (transaction).
+
+---
+
+## `siteContent/{docId}`
+
+Marketing copy for the home page (Discord invite, announcement banner, terminal lines, join-cohort banner, kickoff CTA, stats). Document id today: **`home`**.
+
+**Client rules:** deny all — public **`GET /api/site-content`** (cached) and admin **`PUT /api/admin/site-content`**. Edit UI: **`/admin/site`**. Defaults: `src/lib/siteContent.ts`. Seed: `npm run seed-site-content`.
+
+---
+
+## `sessionLearningMaterials/{materialId}`
+
+RAG corpus for the Learning Assistant (transcripts, PDF extracts, concepts, video notes). See [14-learning-assistant.md](./14-learning-assistant.md).
+
+**Client rules:** deny all — chat via **`POST /api/learning-chat`**; admin upsert via **`PUT /api/admin/learning-materials`**. Seed summaries: `npm run seed-learning-materials`.
+
+---
+
+## `cohorts/{cohortId}`
+
+Programme metadata (name, dates, status). **Client rules:** deny all — use **`GET /api/cohorts`**. See [11-cohort-architecture.md](./11-cohort-architecture.md).
 
 ---
 

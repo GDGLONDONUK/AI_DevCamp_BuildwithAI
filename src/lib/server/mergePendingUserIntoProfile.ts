@@ -1,5 +1,6 @@
 import type { UserRecord } from "firebase-admin/auth";
 import type { UserProfile, UserRole, UserStatus } from "@/types";
+import { isOrganiserAdminEmail } from "@/lib/organiserAdmins";
 
 const FORM_FIELDS = [
   "formRole",
@@ -113,6 +114,10 @@ export function applyPendingRowToEnsureProfileData(
   const r = pre.role;
   if (r && VALID_ROLES.includes(r as UserRole)) {
     userData.role = r;
+  }
+  // Organiser allowlist wins over pending attendee rows (e.g. Luma import).
+  if (isOrganiserAdminEmail(String(userData.email || record.email || ""))) {
+    userData.role = "admin";
   }
   const s = pre.userStatus;
   if (s && VALID_STATUS.includes(s as UserStatus)) {

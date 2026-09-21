@@ -7,6 +7,7 @@ import { applyPendingRowToEnsureProfileData } from "@/lib/server/mergePendingUse
 import type { UserProfile } from "@/types";
 import { isRegistrationOpen } from "@/lib/registrationOpen";
 import { getActiveCohortId } from "@/lib/cohorts";
+import { isOrganiserAdminEmail } from "@/lib/organiserAdmins";
 
 export type EnsureUserProfileResult = {
   profileExists: boolean;
@@ -29,6 +30,14 @@ export async function ensureUserProfileForUid(uid: string): Promise<EnsureUserPr
     }
     if (existing.data()?.programOptOut === true) {
       throw new Error("PROGRAM_OPT_OUT");
+    }
+    // Keep known organisers as admin even if an import demoted them.
+    const email = String(existing.data()?.email || "").trim();
+    if (isOrganiserAdminEmail(email) && existing.data()?.role !== "admin") {
+      await userRef.set(
+        { role: "admin", updatedAt: FieldValue.serverTimestamp() },
+        { merge: true }
+      );
     }
     return {
       profileExists: true,
@@ -86,6 +95,7 @@ export async function ensureUserProfileForUid(uid: string): Promise<EnsureUserPr
 
   const activeCohortId = getActiveCohortId();
   const nowIso = new Date().toISOString();
+  const organiserAdmin = isOrganiserAdminEmail(email);
 
   const userData: Record<string, unknown> = {
     uid,
@@ -93,7 +103,7 @@ export async function ensureUserProfileForUid(uid: string): Promise<EnsureUserPr
     displayName,
     handle,
     photoURL: record.photoURL || "",
-    role: "attendee",
+    role: organiserAdmin ? "admin" : "attendee",
     userStatus: "participated",
     registeredSessions: [],
     createdAt: FieldValue.serverTimestamp(),
@@ -109,7 +119,7 @@ export async function ensureUserProfileForUid(uid: string): Promise<EnsureUserPr
       [activeCohortId]: {
         status: "participated",
         joinedAt: nowIso,
-        role: "attendee",
+        role: organiserAdmin ? "admin" : "attendee",
       },
     },
   };

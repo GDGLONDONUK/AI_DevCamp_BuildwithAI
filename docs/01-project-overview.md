@@ -21,8 +21,10 @@
 | **Assignments & projects** | Submit, review, statuses (`assignments`: through `approved`; `projects`: through `winner` / `passed` / `failed`); gallery-style project visibility where configured. |
 | **Dashboard** | Progress, programme communications opt-out / leave programme, session list with attendance labels. |
 | **Learning tasks** | **`/dashboard/tasks`** — private per-user checklist (table / cards / timeline), filters & paging, optional auto-import from **`learningTaskTemplates`** when empty. Organisers maintain templates at **`/admin/learning-tasks`**. See [09-learning-tasks-architecture.md](./09-learning-tasks-architecture.md). |
+| **Learning Assistant** | Signed-in right-slider chat (**Ask / Summarize / Translate**); RAG over **`sessionLearningMaterials`** via dedicated Gemini. See [14-learning-assistant.md](./14-learning-assistant.md). |
+| **Home marketing CMS** | Editable banners / Discord / kickoff copy in **`siteContent/home`** — Admin → **Home content** (`/admin/site`). |
 | **Programme lifecycle** | **Leave programme** sets `programOptOut` → no API/session until admin clears; cohort email uses `receivesProgramCommunications()`. |
-| **Admin** | Users (grid/table, CSV export, **certified completion** panel + export, bulk email, User Editor), **Inactive** (`disabledUsers` archive / restore, multi-select), Attendance, Sessions (CRUD, **multi-speaker** editor, **live check-in config**), Pre-registered, Assignments, Projects (`passed` / `failed` review), **Learning task templates** (`/admin/learning-tasks`), sub-routes: email, import, Bevy, errors, users map. |
+| **Admin** | Users (grid/table, CSV export, **certified completion** panel + export, bulk email, User Editor), **Inactive** (`disabledUsers` archive / restore, multi-select), Attendance, Sessions (CRUD, **multi-speaker** editor, **live check-in config**), Pre-registered, Assignments, Projects (`passed` / `failed` review), **Learning task templates** (`/admin/learning-tasks`), **Home content** (`/admin/site`), sub-routes: email, import, Bevy, errors, users map. |
 | **Observability** | Client/server errors to `error_logs`; `/admin/errors`. |
 | **Branding** | Navbar uses `public/logo.png`; **favicons** are generated square PNGs from the logo (`npm run generate-favicons`) — see [08-site-deployment-and-admin.md](./08-site-deployment-and-admin.md). |
 
@@ -40,6 +42,7 @@
 | Storage | **Firebase Storage** | Avatars |
 | Server APIs | **Firebase Admin SDK** (in `/api` routes) | Token verification, privileged writes, email, merges |
 | Icons | **Lucide React** | Consistent icon set |
+| AI (learning chat) | **Vercel AI SDK** + **`@ai-sdk/google`** | Dedicated Gemini for Learning Assistant RAG |
 | Toasts | **react-hot-toast** | Lightweight feedback |
 | Dev tooling | **sharp** (devDependency) | `scripts/generate-favicons.ts` — square favicons from logo |
 
@@ -70,7 +73,8 @@
 │  Firestore       — users, speakers, sessions, attendance,     │
 │                    assignments, projects, tags, error_logs, │
 │                    session_self_checkin, learningTasks,       │
-│                    learningTaskTemplates                      │
+│                    learningTaskTemplates, cohorts,            │
+│                    siteContent, sessionLearningMaterials, …   │
 │  Storage         — avatars                                   │
 │  Security rules  — client-side boundary; Admin SDK bypasses  │
 └─────────────────────────────────────────────────────────────┘
@@ -79,7 +83,7 @@
 **Data flow patterns**
 
 1. **Client-first** — Most reads (sessions list, profile) use the Firebase web SDK; rules enforce access.
-2. **Server-first** — Anything needing secrets, cross-document checks, or bypassing rules uses `/api/*` + Admin SDK (e.g. self check-in validates code and window server-side).
+2. **Server-first** — Anything needing secrets, cross-document checks, or bypassing rules uses `/api/*` + Admin SDK (e.g. self check-in validates code and window server-side; Learning Assistant + home CMS use Admin SDK).
 3. **Hybrid** — Admin attendance grid historically used client `setDoc`; **session toggles** now go through **`PATCH /api/attendance/[uid]`** so **`sessionAttendanceAudit`** stays consistent.
 
 ---

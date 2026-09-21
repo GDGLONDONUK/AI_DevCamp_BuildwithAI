@@ -73,6 +73,8 @@ npm run dev              # Verify locally
 | Add a page | `CLAUDE.md` “Adding a Page” + `docs/02-project-structure.md` |
 | Add an API route | `verifyAuth`/`requireAdmin` + `adminDb()`; `docs/07-api-routes.md` |
 | Open / re-seed a cohort | `npm run open-september-2026-cohort` + env; skill **cohorts** / `docs/11-cohort-architecture.md` |
+| Home marketing CMS | `/admin/site` + `siteContent/home`; `npm run seed-site-content` |
+| Learning Assistant / future MCP | `docs/14-learning-assistant.md`; skill **learning-chat** |
 | Add speakers / sessions | `src/data/speakers.ts`, `src/data/sessions.ts` → sync + `upload-speaker-photos` |
 | Open/close registration | `NEXT_PUBLIC_REGISTRATION_OPEN`; join via `POST /api/me/join-cohort` |
 | Certifier links | `CERTIFIER_API_TOKEN`; public URL via `src/lib/certifierLinks.ts` (Credsverse) |
@@ -117,6 +119,8 @@ npm run dev              # Verify locally
 | `.cursor/rules/typescript-firebase.mdc` | TypeScript/React/Firebase patterns |
 | `.claude/skills/cohorts/SKILL.md` | Cohort open/seed/join checklist |
 | `.claude/skills/firebase-security/SKILL.md` | Firebase security checklist |
+| `.claude/skills/learning-chat/SKILL.md` | Learning Assistant RAG + future MCP |
+| `docs/14-learning-assistant.md` | How the chatbot is built; MCP / BYO-LLM / key cycling |
 
 ---
 
@@ -128,6 +132,8 @@ npm run dev              # Verify locally
 - **Status gates content:** `userStatus` = `pending` | `participated` | `certified` | `not-certified` | `failed`; determines what users see.
 - **Learning tasks are private:** `learningTasks/{userId}/{taskId}` scoped to owner; `/api/learning-tasks/` enforces Bearer token + userId check.
 - **Cohorts:** Active programme is `NEXT_PUBLIC_ACTIVE_COHORT_ID` (default `cohort-september-2026`). Users need that id in `cohortIds` to count as enrolled; registration gate is `NEXT_PUBLIC_REGISTRATION_OPEN`.
+- **Learning Assistant:** Signed-in only; `LEARNING_GEMINI_API_KEY` server-side; corpus `sessionLearningMaterials` is Admin-SDK-only.
+- **Organiser admins:** Emails in `src/lib/organiserAdmins.ts` are re-promoted to `role: admin` on ensure-profile.
 
 ---
 
@@ -138,4 +144,5 @@ npm run dev              # Verify locally
 - **Deployment:** Vercel (GitHub-linked)
 - **Environment variables:** Set on Vercel dashboard (Settings → Environment Variables) — same as `.env.local`
 - **Cohort-related env:** `NEXT_PUBLIC_REGISTRATION_OPEN`, `NEXT_PUBLIC_ACTIVE_COHORT_ID`, `CERTIFIER_API_TOKEN`, `NEXT_PUBLIC_CERTIFIER_CREDENTIAL_BASE_URL`
+- **Learning chat:** `LEARNING_GEMINI_API_KEY`, optional `LEARNING_GEMINI_MODEL`
 - **See:** `docs/08-site-deployment-and-admin.md` for full checklist

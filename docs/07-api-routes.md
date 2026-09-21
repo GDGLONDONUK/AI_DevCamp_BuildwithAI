@@ -180,6 +180,22 @@ Cross-user profile data is **not** read from client Firestore (rules only allow 
 | `GET` | `/api/cohorts` | List `cohorts/*` (optional `?status=`). Uses **Admin SDK** (`adminDb`). Powers `/past-cohorts`. |
 | `GET` | `/api/cohorts/[cohortId]` | Cohort metadata + flat `sessions` filtered by `cohortId` + speakers roster. |
 
+### Site content (home CMS)
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/site-content` | Public | Home marketing copy (`siteContent/home`). `Cache-Control: s-maxage=60` + server memory TTL. |
+| `GET` | `/api/admin/site-content` | Admin / Moderator | Same payload for editor. |
+| `PUT` | `/api/admin/site-content` | Admin / Moderator | Save body (Zod) or `{ "action": "seed" }` to write defaults. |
+
+### Learning Assistant (RAG)
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `POST` | `/api/learning-chat` | **Bearer required** | Body `{ message, history?, focusSessionId?, pathname?, cohortId? }`. Gemini + tools over sessions / `sessionLearningMaterials`. Requires `LEARNING_GEMINI_API_KEY`. See [14](./14-learning-assistant.md). |
+| `GET` | `/api/admin/learning-materials?cohortId=` | Admin / Moderator | List corpus docs for a cohort. |
+| `PUT` | `/api/admin/learning-materials` | Admin / Moderator | Upsert a material (`sessionId`, `kind`, `textContent`, optional `url`). |
+
 Merge logic and field list: `src/lib/server/mergePendingUserIntoProfile.ts`.
 
 ---

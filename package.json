@@ -22,7 +22,7 @@
     "open-september-2026-cohort": "tsx --env-file=.env.local scripts/open-september-2026-cohort.ts",
     "import-luma-guests": "tsx --env-file=.env.local scripts/import-luma-guests.ts",
     "seed-site-content": "tsx --env-file=.env.local scripts/seed-site-content.ts",
-    "seed-learning-materials": "tsx --env-file=.env.local scripts/seed-learning-materials.ts"
+    "fix-organiser-admins": "tsx --env-file=.env.local scripts/fix-organiser-admins.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.76",

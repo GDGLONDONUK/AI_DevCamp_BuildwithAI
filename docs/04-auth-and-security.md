@@ -260,7 +260,18 @@ match /avatars/{userId}/{allPaths=**} {
 | `moderator` | Everything above + manage attendance, sessions, update statuses |
 | `admin` | Everything above + change roles, delete documents |
 
-**How to make someone an admin:** In the Firebase Console → Firestore → `users` collection → find the user's document → change `role` to `"admin"`. (The UI cannot do this because of the security rules — intentionally.)
+**How to make someone an admin:** In the Firebase Console → Firestore → `users` collection → find the user's document → change `role` to `"admin"`. (The UI cannot do this because of the security rules — intentionally.) Or use Admin → Users role picker (admin-only API).
+
+### Organiser allowlist
+
+Known organiser emails in **`src/lib/organiserAdmins.ts`** are always re-asserted as **`role: "admin"`** when **`POST /api/me/ensure-profile`** runs (and AuthContext triggers ensure when an organiser is demoted). Restore in bulk:
+
+```bash
+npm run fix-organiser-admins           # dry-run
+npm run fix-organiser-admins -- --apply
+```
+
+This prevents Luma / pending merges from leaving organisers as `attendee` and hiding the Admin nav.
 
 ---
 
