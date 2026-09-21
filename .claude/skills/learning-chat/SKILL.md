@@ -85,6 +85,8 @@ Not shipped. Design in `docs/14-learning-assistant.md`:
 - **Do** keep the corpus server-only; chat goes through `/api/learning-chat`.
 - **Do** ground answers with tools — do not invent session coverage.
 - **Do** keep tool names stable for a future MCP surface.
+- **Do** log every chat call to `learning_chat_logs` (never skip logging on errors).
+- **Don't** add tools that read `users`, `learningTasks`, `attendance`, assignments, or buddies.
 - **Don't** reuse marketing/CMS Gemini keys; this feature uses `LEARNING_GEMINI_*`.
 - **Don't** expose materials via client Firestore reads.
 - **Don't** put emails, attendance, or check-in codes into materials text.

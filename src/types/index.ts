@@ -205,7 +205,8 @@ export type ActivityEventType =
   | "resource_click"
   | "resources_folder_click"
   | "assignment_submitted"
-  | "project_submitted";
+  | "project_submitted"
+  | "learning_chat";
 
 /** Server-written row in `activity_events` (Admin SDK only). */
 export interface ActivityEvent {

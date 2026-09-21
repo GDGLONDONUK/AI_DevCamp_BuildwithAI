@@ -192,7 +192,7 @@ Cross-user profile data is **not** read from client Firestore (rules only allow 
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| `POST` | `/api/learning-chat` | **Bearer required** | Body `{ message, history?, focusSessionId?, pathname?, cohortId? }`. Gemini + tools over sessions / `sessionLearningMaterials`. Requires `LEARNING_GEMINI_API_KEY`. See [14](./14-learning-assistant.md). |
+| `POST` | `/api/learning-chat` | **Bearer required** | Body `{ message, history?, focusSessionId?, pathname?, cohortId? }`. Gemini + tools over sessions / `sessionLearningMaterials` for the **active cohort only** (client `cohortId` ignored). Refuses out-of-scope asks (other users, personal tasks, attendance, etc.). Logs to **`learning_chat_logs`** + `activity_events` (`learning_chat`). Requires `LEARNING_GEMINI_API_KEY`. See [14](./14-learning-assistant.md). |
 | `GET` | `/api/admin/learning-materials?cohortId=` | Admin / Moderator | List corpus docs for a cohort. |
 | `PUT` | `/api/admin/learning-materials` | Admin / Moderator | Upsert a material (`sessionId`, `kind`, `textContent`, optional `url`). |
 

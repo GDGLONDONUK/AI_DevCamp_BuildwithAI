@@ -112,6 +112,13 @@ Never put this under `NEXT_PUBLIC_*`.
 | `list_session_materials` | All materials for one session |
 | `get_focus_hint` | UI focus session / pathname |
 
+### Privacy, scope & API logging
+
+- **Allowed:** active-cohort sessions, programme materials, curriculum learning activities (what you’ll learn / build ideas), Ask / Summarize / Translate on that content.
+- **Forbidden:** other users’ profiles or emails; personal learning tasks; attendance / check-in codes; buddies; other people’s assignments/projects; admin/role changes.
+- Enforcement: no tools touch those collections; session tools are **cohort-scoped**; heuristic refuse + system prompt; client `cohortId` ignored (server uses `getActiveCohortId()`).
+- **Every** `POST /api/learning-chat` writes **`learning_chat_logs`** (preview, tools, duration, ok/error) and `activity_events` with `type: "learning_chat"`.
+
 ---
 
 ## Future: Learning MCP (bring your own LLM)

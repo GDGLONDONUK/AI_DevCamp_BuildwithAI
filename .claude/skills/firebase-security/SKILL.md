@@ -44,11 +44,11 @@ Edit `firestore.rules` / `storage.rules`:
 - [ ] Storage client writes require **owner uid match + size cap + `contentType.matches('image/.*')`** (see `avatars/{userId}`). Never grant anonymous write.
 - [ ] Re-read the neighbouring rules — one over-broad `allow` anywhere grants access (Firestore ORs all matching rules; a later deny cannot revoke an earlier allow).
 
-**Server-only collections/prefixes (keep `if false`):** `error_logs`, `activity_events`, `buddyRequests`, `buddyPairs`, `disabledUsers`, `cohorts`, `siteContent`, `sessionLearningMaterials`, `speakerCallSubmissions`, `session_self_checkin` (mod/admin), Storage `speakers/` and `speaker-submissions/`.
+**Learning Assistant:** chat via **`POST /api/learning-chat`** (`verifyAuth` + `LEARNING_GEMINI_API_KEY`). Corpus is `sessionLearningMaterials` (never client-readable). Tools are cohort-scoped session/materials only — **no** users, tasks, attendance, or buddy data. Every call is logged to **`learning_chat_logs`** (+ `activity_events` type `learning_chat`). Future Learning MCP must use the same authz — see `docs/14-learning-assistant.md`.
+
+**Server-only collections/prefixes (keep `if false`):** `error_logs`, `activity_events`, `buddyRequests`, `buddyPairs`, `disabledUsers`, `cohorts`, `siteContent`, `sessionLearningMaterials`, `learning_chat_logs`, `speakerCallSubmissions`, `session_self_checkin` (mod/admin), Storage `speakers/` and `speaker-submissions/`.
 
 **Cohorts:** metadata is server-only. Attendee UI never reads `cohorts/` via the Web SDK — use **`GET /api/cohorts`**. Session docs stay public-read on `sessions/{id}` (include `cohortId`; no secrets).
-
-**Learning Assistant:** chat via **`POST /api/learning-chat`** (`verifyAuth` + `LEARNING_GEMINI_API_KEY`). Corpus is `sessionLearningMaterials` (never client-readable). Future Learning MCP must use the same authz — see `docs/14-learning-assistant.md`.
 
 ## 3. Server path (`/api/*` + Admin SDK) — auth checklist
 

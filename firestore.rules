@@ -204,6 +204,11 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // ── Learning chat audit logs — Admin SDK only (written by /api/learning-chat). ──
+    match /learning_chat_logs/{logId} {
+      allow read, write: if false;
+    }
+
     // ── Speaker call submissions — written by /api/speaker-call (Admin SDK). ──
     // Public form input; never client-readable (contains submitter email).
     match /speakerCallSubmissions/{document=**} {

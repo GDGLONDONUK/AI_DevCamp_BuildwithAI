@@ -466,6 +466,12 @@ RAG corpus for the Learning Assistant (transcripts, PDF extracts, concepts, vide
 
 ---
 
+## `learning_chat_logs/{autoId}`
+
+Audit log for every Learning Assistant API call (Admin SDK only). Fields include `userId`, `userEmail`, `cohortId`, truncated `messagePreview` / `assistantPreview`, `toolsUsed`, `ok`, `refusedOutOfScope`, `durationMs`, `createdAt`.
+
+---
+
 ## `cohorts/{cohortId}`
 
 Programme metadata (name, dates, status). **Client rules:** deny all — use **`GET /api/cohorts`**. See [11-cohort-architecture.md](./11-cohort-architecture.md).
