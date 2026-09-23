@@ -74,7 +74,7 @@ export const SPRING_2026_SESSIONS: Session[] = [
     resources: [
       {
         title: "Google – Introduction to AI Agents",
-        url: "https://cloud.google.com/use-cases/ai-agents",
+        url: "https://cloud.google.com/products/agent-builder",
       },
       {
         title: "LangChain – Agents Documentation",
@@ -255,78 +255,59 @@ export const SPRING_2026_SESSIONS: Session[] = [
 
 /**
  * September 2026 — Build, Scale, Govern, Optimise (production-ready agent lifecycle).
- * Thursday theory (1hr) + Saturday workshop (2hrs); kickoff Wed 23 Sept hybrid at Skyscanner.
+ * Wed 23 Sept hybrid kickoff includes Build foundations (no separate Thu theory that week);
+ * later weeks: Thursday theory (1hr) + Saturday workshop (2hrs).
  */
 export const SEPTEMBER_2026_SESSIONS: Session[] = [
   {
     id: "sept-2026-kickoff",
     number: 1,
-    title: "Kickoff",
+    title: "Kickoff · Build foundations",
     date: "23 September 2026",
     time: "6:00 PM",
     duration: "3 hours",
-    week: 0,
+    week: 1,
     cohortId: SEPTEMBER_2026_COHORT_ID,
-    topic: "Series overview + agent trends",
+    topic: "Build",
     description:
-      "Hybrid kickoff at Skyscanner + online. Speakers: Daniela Petruzalek, Sonika Janagill, Sumith Damodaran, and Renuka Kelkar. Series introduction (why the series exists, the four-pillar lifecycle, what you will ship, requirements, support channels, buddy groups and certificate criteria); tech talk on Build foundations (agents & ADK, MCP & Agent Skills, Antigravity, use-case architecture demo); short agent-trend speaker teasers; networking in person and on Discord.\n\nRunning use case for the cohort: an agent that turns a moment into a LinkedIn/X post with a human always in the loop.",
+      "Hybrid kickoff at Skyscanner + online — one combined session (no separate Thursday theory this week). Speakers: Daniela Petruzalek, Sonika Janagill, Sumith Damodaran, and Renuka Kelkar.\n\nSeries introduction (why the series exists, the four-pillar lifecycle, what you will ship, requirements, support channels, buddy groups and certificate criteria). Build foundations with Sonika: what an agent really is (model, instructions, tools, loop); ADK in one slide (agent types, adk web, six-line hello world); tools (function tools, Google Search, MCP, Agent Skills); choosing a model from Model Garden and pinning Flash-tier models; multi-agent design (orchestrator + specialists); Agent Garden, RAG Engine, AG-UI / CopilotKit; Antigravity and the running use-case architecture demo; short agent-trend speaker teasers; networking in person and on Discord. Live demo of the finished Build-stage app and Saturday's workshop plan.\n\nRunning use case for the cohort: an agent that turns a moment into a LinkedIn/X post with a human always in the loop.",
     speakerIds: ["daniela-petruzalek", "sonika-janagill", "sumith-damodaran", "renuka-kelkar"],
     isKickoff: true,
     tags: [
       "Kickoff",
+      "Build",
       "Hybrid",
       "Skyscanner",
       "ADK",
       "MCP",
       "Agent Skills",
       "Antigravity",
+      "Multi-Agent",
       "Lifecycle",
     ],
     whatYouWillLearn: [
       "The four-pillar production-ready agent lifecycle: Build, Scale, Govern, Optimise",
-      "ADK core concepts: agents, tools, sessions",
-      "What MCP and Agent Skills are and why they matter",
+      "Agent basics: model, instructions, tools, loop",
+      "ADK agent types, adk web, and the local hello-world path",
+      "What MCP and Agent Skills are and when to use each",
+      "Multi-agent orchestrator + specialists patterns",
       "How Antigravity fits the build workflow",
       "The running use-case architecture you will evolve across four weeks",
     ],
     buildIdeas: [
       "Follow the setup guide and join Discord + buddy groups",
       "Sketch how your use case maps to the lifecycle pillars",
+      "Prepare your local ADK environment for Saturday's workshop",
     ],
     resources: [
       { title: "Google ADK docs", url: "https://google.github.io/adk-docs/" },
-      { title: "Google Cloud – AI agents", url: "https://cloud.google.com/use-cases/ai-agents" },
-    ],
-  },
-  {
-    id: "sept-2026-build-thu",
-    number: 2,
-    title: "Build — Theory",
-    date: "24 September 2026",
-    time: "6:00 PM",
-    duration: "1 hour",
-    week: 1,
-    cohortId: SEPTEMBER_2026_COHORT_ID,
-    topic: "Build",
-    description:
-      "What an agent really is: model, instructions, tools, loop. ADK in one slide (agent types, adk web, six-line hello world). Tools: function tools, Google Search, MCP, Agent Skills. Choosing a model from Model Garden and pinning Flash-tier models. Multi-agent design: orchestrator plus specialists. Agent Garden, RAG Engine, AG-UI / CopilotKit. Live demo of the finished Build-stage app, then Saturday's plan.",
-    speakerIds: ["sonika-janagill"],
-    tags: ["Build", "ADK", "MCP", "Agent Skills", "Multi-Agent", "Theory"],
-    whatYouWillLearn: [
-      "Agent basics: model, instructions, tools, loop",
-      "ADK agent types and the local hello-world path",
-      "When to use MCP tools vs Agent Skills",
-      "Multi-agent orchestrator + specialists patterns",
-    ],
-    buildIdeas: ["Prepare your local ADK environment for Saturday's workshop"],
-    resources: [
-      { title: "Google ADK docs", url: "https://google.github.io/adk-docs/" },
+      { title: "Google Cloud – AI agents", url: "https://cloud.google.com/products/agent-builder" },
       { title: "Model Context Protocol", url: "https://modelcontextprotocol.io/" },
     ],
   },
   {
     id: "sept-2026-build-sat",
-    number: 3,
+    number: 2,
     title: "Build — Workshop",
     date: "26 September 2026",
     time: "10:00 AM",
@@ -356,7 +337,7 @@ export const SEPTEMBER_2026_SESSIONS: Session[] = [
   },
   {
     id: "sept-2026-scale-thu",
-    number: 4,
+    number: 3,
     title: "Scale — Theory",
     date: "1 October 2026",
     time: "6:00 PM",
@@ -384,7 +365,7 @@ export const SEPTEMBER_2026_SESSIONS: Session[] = [
   },
   {
     id: "sept-2026-scale-sat",
-    number: 5,
+    number: 4,
     title: "Scale — Workshop",
     date: "3 October 2026",
     time: "10:00 AM",
@@ -415,7 +396,7 @@ export const SEPTEMBER_2026_SESSIONS: Session[] = [
   },
   {
     id: "sept-2026-govern-thu",
-    number: 6,
+    number: 5,
     title: "Govern — Theory",
     date: "8 October 2026",
     time: "6:00 PM",
@@ -447,7 +428,7 @@ export const SEPTEMBER_2026_SESSIONS: Session[] = [
   },
   {
     id: "sept-2026-govern-sat",
-    number: 7,
+    number: 6,
     title: "Govern — Workshop",
     date: "10 October 2026",
     time: "10:00 AM",
@@ -479,7 +460,7 @@ export const SEPTEMBER_2026_SESSIONS: Session[] = [
   },
   {
     id: "sept-2026-optimise-thu",
-    number: 8,
+    number: 7,
     title: "Optimise — Theory",
     date: "15 October 2026",
     time: "6:00 PM",
@@ -507,7 +488,7 @@ export const SEPTEMBER_2026_SESSIONS: Session[] = [
   },
   {
     id: "sept-2026-optimise-sat",
-    number: 9,
+    number: 8,
     title: "Optimise — Workshop & Graduation",
     date: "17 October 2026",
     time: "10:00 AM",
@@ -551,7 +532,7 @@ export const CURRICULUM_WEEKS = [
   {
     week: 1,
     title: "Build",
-    subtitle: "Thu theory · Sat workshop",
+    subtitle: "Wed kickoff · Sat workshop",
     color: "from-blue-500 to-blue-700",
     learn: [
       "Agent basics and ADK core concepts",
@@ -563,7 +544,7 @@ export const CURRICULUM_WEEKS = [
       "Working multi-agent app running locally",
       "First draft LinkedIn/X post from the agent",
     ],
-    timePerDay: "Thu 1hr · Sat 2hrs",
+    timePerDay: "Wed kickoff 3hrs · Sat 2hrs",
     resources: [
       { title: "Google ADK docs", url: "https://google.github.io/adk-docs/" },
       { title: "Model Context Protocol", url: "https://modelcontextprotocol.io/" },

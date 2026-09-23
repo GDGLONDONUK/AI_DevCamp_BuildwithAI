@@ -70,7 +70,7 @@ export default function SessionsPage() {
           </h1>
           <p className="text-gray-300 text-lg font-mono mb-4">
             <span className="text-green-400">{sessions.length || 6}</span> sessions ·{" "}
-            <span className="text-green-400">4</span> weeks · Thu, Sat &amp; Tue evenings
+            <span className="text-green-400">4</span> weeks · Wed kickoff · Thu &amp; Sat
           </p>
           <div className="flex items-center justify-center gap-2 text-base text-gray-400 font-mono">
             <MapPin size={16} className="text-green-400" />
