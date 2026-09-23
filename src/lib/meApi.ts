@@ -51,6 +51,8 @@ export interface CheckInStatusResult {
   active: boolean;
   opensAt: string | null;
   closesAt: string | null;
+  /** Cohort of this session — attendance is always keyed by sessionId. */
+  cohortId?: string | null;
 }
 
 export async function fetchSessionCheckInStatus(sessionId: string): Promise<CheckInStatusResult | null> {

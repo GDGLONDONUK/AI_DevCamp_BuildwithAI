@@ -9,17 +9,24 @@ export function getSessionAttendanceAudit(
   return v as Record<string, SessionAttendanceAuditEntry>;
 }
 
+export type AttendanceAuditOptions = {
+  /** Cohort of the session being marked (for multi-cohort attendance reports). */
+  cohortId?: string;
+};
+
 /** Build Firestore merge payload for session boolean + audit map entry. */
 export function attendancePatchWithAudit(
   sessionId: string,
   attended: boolean,
   actorUid: string,
   source: AttendanceMarkSource,
-  existingRow: Record<string, unknown> | undefined
+  existingRow: Record<string, unknown> | undefined,
+  opts?: AttendanceAuditOptions
 ): Record<string, unknown> {
   const nowIso = new Date().toISOString();
   const prevMap = getSessionAttendanceAudit(existingRow) ?? {};
   const prev = prevMap[sessionId];
+  const cohortId = opts?.cohortId?.trim() || prev?.cohortId;
 
   const nextAudit: Record<string, SessionAttendanceAuditEntry> = { ...prevMap };
 
@@ -29,6 +36,7 @@ export function attendancePatchWithAudit(
         ...prev,
         updatedBy: actorUid,
         updatedAt: nowIso,
+        ...(cohortId ? { cohortId } : {}),
       };
     } else {
       delete nextAudit[sessionId];
@@ -40,6 +48,7 @@ export function attendancePatchWithAudit(
       createdAt: prev?.createdAt ?? nowIso,
       updatedAt: nowIso,
       source: prev?.source ?? source,
+      ...(cohortId ? { cohortId } : {}),
     };
   }
 

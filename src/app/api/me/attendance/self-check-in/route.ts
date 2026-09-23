@@ -1,7 +1,10 @@
 /**
  * POST /api/me/attendance/self-check-in
  *
- * Marks `attendance/{uid}` for a session when the live window is open and the code matches.
+ * Marks `attendance/{uid}[sessionId]=true` when the live window for that session is open
+ * and the code matches. One check-in config + attendance flag per session id (cohort-safe:
+ * session ids are unique per programme).
+ *
  * Body: { sessionId: string, code: string }
  */
 
@@ -11,27 +14,21 @@ import { adminDb } from "@/lib/firebase-admin";
 import { verifyAuth, ok, err, isErrorResponse } from "@/lib/api-helpers";
 import { logServerRouteException } from "@/lib/server/appErrorLog";
 import { attendancePatchWithAudit } from "@/lib/attendanceAudit";
-import {
-  SESSION_SELF_CHECKIN_COLLECTION,
-} from "@/lib/sessionSelfCheckInConstants";
+import { SESSION_SELF_CHECKIN_COLLECTION } from "@/lib/sessionSelfCheckInConstants";
 import { normalizeAttendanceCode } from "@/lib/server/selfCheckInCode";
 import {
   isSelfCheckInRateLimited,
   recordSelfCheckInFailure,
 } from "@/lib/server/selfCheckInRateLimit";
+import { canSelfCheckInStatus } from "@/lib/server/selfCheckInEligibility";
+import {
+  canSelfCheckInForSessionCohort,
+  sessionCohortId,
+} from "@/lib/server/sessionCohortAccess";
 import { isSelfCheckInWindowOpen } from "@/lib/server/selfCheckInWindow";
 import type { SessionSelfCheckInDocument } from "@/types";
 import { parseJsonBody } from "@/lib/api/parseJsonBody";
 import { selfCheckInBodySchema } from "@/lib/api/schemas/requestBodies";
-
-function canSelfCheckInStatus(userStatus: unknown): boolean {
-  return (
-    userStatus === "participated" ||
-    userStatus === "certified" ||
-    userStatus === "outstanding" ||
-    userStatus === "not-certified"
-  );
-}
 
 export async function POST(request: NextRequest) {
   const auth = await verifyAuth(request);
@@ -43,13 +40,18 @@ export async function POST(request: NextRequest) {
     const { sessionId, code: codeRaw } = parsed.data;
 
     const userSnap = await adminDb().collection("users").doc(auth.uid).get();
-    const userStatus = userSnap.exists ? userSnap.data()?.userStatus : undefined;
-    if (!canSelfCheckInStatus(userStatus)) {
+    const userData = userSnap.exists ? userSnap.data() : undefined;
+    if (!canSelfCheckInStatus(userData?.userStatus)) {
       return err("Your account is not eligible for self check-in yet.", 403);
     }
 
     const sessionSnap = await adminDb().collection("sessions").doc(sessionId).get();
     if (!sessionSnap.exists) return err("Session not found", 404);
+
+    const cohortId = sessionCohortId(sessionSnap.data());
+    if (!canSelfCheckInForSessionCohort(userData, cohortId)) {
+      return err("You are not enrolled in this session’s programme cohort.", 403);
+    }
 
     if (isSelfCheckInRateLimited(auth.uid)) {
       return err("Too many attempts. Try again in a few minutes.", 429);
@@ -76,18 +78,20 @@ export async function POST(request: NextRequest) {
     const existingData = attSnap.exists ? (attSnap.data() as Record<string, unknown>) : undefined;
 
     if (existingData?.[sessionId] === true) {
-      return ok({ sessionId, alreadyMarked: true });
+      return ok({ sessionId, cohortId, alreadyMarked: true });
     }
 
     await ref.set(
       {
-        ...attendancePatchWithAudit(sessionId, true, auth.uid, "self_check_in", existingData),
+        ...attendancePatchWithAudit(sessionId, true, auth.uid, "self_check_in", existingData, {
+          cohortId,
+        }),
         updatedAt: FieldValue.serverTimestamp(),
       },
       { merge: true }
     );
 
-    return ok({ sessionId, marked: true });
+    return ok({ sessionId, cohortId, marked: true });
   } catch (e) {
     logServerRouteException("POST /api/me/attendance/self-check-in", e);
     return err("Check-in failed", 500);

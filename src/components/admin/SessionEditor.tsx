@@ -216,7 +216,7 @@ export default function SessionEditor({
       toast.error("Add a name for the new speaker.");
       return;
     }
-    let id = (newSpeakerId.trim() || slugifySpeakerId(name)).replace(/\s+/g, "-");
+    const id = (newSpeakerId.trim() || slugifySpeakerId(name)).replace(/\s+/g, "-");
     if (speakersRoster.some((x) => x.id === id)) {
       toast.error(`Speaker id "${id}" already exists — choose another id.`);
       return;
@@ -283,12 +283,17 @@ export default function SessionEditor({
       toast.error("Check-in close time must be after open time.");
       throw new Error("Invalid check-in window");
     }
+    const cohortId =
+      typeof form.cohortId === "string" && form.cohortId.trim()
+        ? form.cohortId.trim()
+        : undefined;
     await setDoc(
       ref,
       {
         code: liveCode.replace(/\D/g, "").padStart(6, "0").slice(-6),
         opensAt: opensIso,
         closesAt: closesIso,
+        ...(cohortId ? { cohortId } : {}),
         updatedAt: new Date().toISOString(),
         updatedByUid: auth.currentUser?.uid ?? "",
       },
@@ -718,8 +723,11 @@ export default function SessionEditor({
               Live attendance code
             </div>
             <p className="text-xs text-gray-500 leading-snug">
-              Attendees signed into the app can mark themselves present during the window below by entering this
-              6-digit code on the session schedule. The code is stored separately from the public session document.
+              Attendees signed into the app can mark themselves present for{" "}
+              <span className="text-gray-400">this session only</span> during the window below by
+              entering this 6-digit code on the session schedule. Attendance is stored per user per
+              session (session ids stay unique across cohorts). The code is stored separately from the
+              public session document.
             </p>
             <label className="flex items-center gap-2 cursor-pointer select-none text-sm text-gray-300">
               <input
