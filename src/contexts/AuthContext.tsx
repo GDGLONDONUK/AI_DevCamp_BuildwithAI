@@ -59,6 +59,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (code) {
             await signOut(auth);
             setUserProfile(null);
+            toast.error(
+              code === "PROGRAM_OPT_OUT"
+                ? "You have left the programme. Contact the organisers if you need access again."
+                : "This account was archived and cannot sign in. Contact the organisers if you need access restored."
+            );
             return;
           }
         }
@@ -133,6 +138,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               await signOut(auth);
               setUserProfile(null);
               setLoading(false);
+              toast.error(
+                code === "PROGRAM_OPT_OUT"
+                  ? "You have left the programme. Contact the organisers if you need access again."
+                  : "This account was archived and cannot sign in. Contact the organisers if you need access restored."
+              );
               return;
             }
           }
