@@ -46,11 +46,6 @@ export async function ensureUserProfileForUid(uid: string): Promise<EnsureUserPr
     };
   }
 
-  const archivedOnly = await db.collection("disabledUsers").doc(uid).get();
-  if (archivedOnly.exists) {
-    throw new Error("ACCOUNT_DISABLED");
-  }
-
   let record: UserRecord;
   try {
     record = await adminAuth().getUser(uid);
@@ -66,6 +61,20 @@ export async function ensureUserProfileForUid(uid: string): Promise<EnsureUserPr
   const pending = await findPendingUserByEmail(db, email);
   const pre = pending?.data ?? null;
   const preDocId = pending?.docId;
+
+  const archivedOnly = await db.collection("disabledUsers").doc(uid).get();
+  if (archivedOnly.exists) {
+    // Spring archives block ensure-profile. A fresh Luma/pending import for the same
+    // email (new cohort) should reopen access — Auth was never disabled.
+    const pendingAllowsReopen =
+      Boolean(pre) &&
+      pre?.accountDisabled !== true &&
+      pre?.programOptOut !== true;
+    if (!pendingAllowsReopen) {
+      throw new Error("ACCOUNT_DISABLED");
+    }
+    await archivedOnly.ref.delete();
+  }
 
   if (!isRegistrationOpen() && !pre) {
     throw new Error("REGISTRATION_CLOSED");
