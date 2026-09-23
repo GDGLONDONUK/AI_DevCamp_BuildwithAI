@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import { KeyRound, Loader2 } from "lucide-react";
+import { KeyRound } from "lucide-react";
 import {
   fetchSessionCheckInStatus,
   postSelfAttendanceCheckIn,
@@ -11,7 +11,10 @@ import {
 
 type Props = {
   sessionId: string;
-  expanded: boolean;
+  /** Fetch status whenever the user can check in (not only when the card is expanded). */
+  enabled: boolean;
+  /** Show “not open yet” window text when expanded; active form always shows. */
+  showInactiveHint: boolean;
   hasSessionAccess: boolean;
   alreadyAttended: boolean;
   onAttended: () => void;
@@ -29,26 +32,40 @@ function formatWhen(iso: string | null): string {
 
 export default function SessionSelfCheckInPanel({
   sessionId,
-  expanded,
+  enabled,
+  showInactiveHint,
   hasSessionAccess,
   alreadyAttended,
   onAttended,
 }: Props) {
   const [status, setStatus] = useState<CheckInStatusResult | null>(null);
+  const [loadError, setLoadError] = useState(false);
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (!expanded || !hasSessionAccess) {
-      setStatus(null);
+    if (!enabled || !hasSessionAccess || alreadyAttended) {
       return;
     }
     let cancelled = false;
     setLoading(true);
+    setLoadError(false);
     fetchSessionCheckInStatus(sessionId)
       .then((s) => {
-        if (!cancelled) setStatus(s);
+        if (cancelled) return;
+        if (!s) {
+          setStatus(null);
+          setLoadError(true);
+          return;
+        }
+        setStatus(s);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setStatus(null);
+          setLoadError(true);
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -56,9 +73,9 @@ export default function SessionSelfCheckInPanel({
     return () => {
       cancelled = true;
     };
-  }, [expanded, sessionId, hasSessionAccess]);
+  }, [enabled, sessionId, hasSessionAccess, alreadyAttended]);
 
-  if (!hasSessionAccess || alreadyAttended) return null;
+  if (!hasSessionAccess || alreadyAttended || !enabled) return null;
 
   const submit = async () => {
     const trimmed = code.replace(/\D/g, "");
@@ -73,7 +90,7 @@ export default function SessionSelfCheckInPanel({
       setCode("");
       onAttended();
       const s = await fetchSessionCheckInStatus(sessionId);
-      setStatus(s);
+      if (s) setStatus(s);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Check-in failed");
     } finally {
@@ -81,39 +98,36 @@ export default function SessionSelfCheckInPanel({
     }
   };
 
-  if (loading || !status) {
-    return (
-      <div className="flex items-center gap-2 text-sm text-gray-500 font-mono py-2">
-        <Loader2 size={14} className="animate-spin text-cyan-400" />
-        Checking live check-in…
-      </div>
-    );
+  if (loading) {
+    // Stay quiet while probing — avoid “Checking…” on every collapsed card.
+    return null;
+  }
+
+  if (loadError || !status) {
+    return null;
   }
 
   if (!status.eligible) return null;
 
   if (!status.active) {
+    if (!showInactiveHint || (!status.opensAt && !status.closesAt)) return null;
     return (
-      <div className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-gray-400">
+      <div className="mx-5 mb-4 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-gray-400">
         <div className="flex items-center gap-2 text-cyan-300/90 font-mono text-xs font-bold mb-1">
           <KeyRound size={14} />
           Self check-in
         </div>
-        {status.opensAt && status.closesAt ? (
-          <p>
-            Not open yet (or closed). Window:{" "}
-            <span className="text-gray-300">{formatWhen(status.opensAt)}</span> –{" "}
-            <span className="text-gray-300">{formatWhen(status.closesAt)}</span>.
-          </p>
-        ) : (
-          <p>There is no live check-in window configured for this session.</p>
-        )}
+        <p>
+          Not open yet (or closed). Window:{" "}
+          <span className="text-gray-300">{formatWhen(status.opensAt)}</span> –{" "}
+          <span className="text-gray-300">{formatWhen(status.closesAt)}</span>.
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="rounded-xl border border-cyan-500/30 bg-cyan-500/[0.07] px-4 py-3 space-y-3">
+    <div className="mx-5 mb-4 rounded-xl border border-cyan-500/30 bg-cyan-500/[0.07] px-4 py-3 space-y-3">
       <div className="flex items-center gap-2 text-cyan-200 font-mono text-xs font-bold">
         <KeyRound size={14} />
         Mark yourself present

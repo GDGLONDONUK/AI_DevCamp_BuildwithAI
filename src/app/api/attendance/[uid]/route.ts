@@ -12,6 +12,7 @@ import { adminDb } from "@/lib/firebase-admin";
 import { ok, err, requireAdmin, requireAdminOrSelf, isErrorResponse } from "@/lib/api-helpers";
 import { logServerRouteException } from "@/lib/server/appErrorLog";
 import { attendancePatchWithAudit } from "@/lib/attendanceAudit";
+import { sessionCohortId } from "@/lib/server/sessionCohortAccess";
 import { parseJsonBody } from "@/lib/api/parseJsonBody";
 import { attendanceAdminPatchSchema } from "@/lib/api/schemas/requestBodies";
 
@@ -43,13 +44,19 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     if (!parsed.ok) return parsed.response;
     const { sessionId, attended } = parsed.data;
 
+    const sessionSnap = await adminDb().collection("sessions").doc(sessionId).get();
+    if (!sessionSnap.exists) return err("Session not found", 404);
+    const cohortId = sessionCohortId(sessionSnap.data());
+
     const ref = adminDb().collection("attendance").doc(uid);
     const existing = await ref.get();
     const existingData = existing.exists ? (existing.data() as Record<string, unknown>) : undefined;
 
     await ref.set(
       {
-        ...attendancePatchWithAudit(sessionId, attended, auth.uid, "admin", existingData),
+        ...attendancePatchWithAudit(sessionId, attended, auth.uid, "admin", existingData, {
+          cohortId,
+        }),
         updatedAt: FieldValue.serverTimestamp(),
       },
       { merge: true }

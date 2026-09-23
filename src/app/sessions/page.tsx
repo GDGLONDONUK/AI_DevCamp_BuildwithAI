@@ -63,7 +63,7 @@ export default function SessionsPage() {
         {/* ── Header ── */}
         <div className="text-center mb-16">
           <div className="inline-flex items-center gap-2 font-mono text-sm text-green-400/70 tracking-widest mb-4">
-            <span className="text-green-500/40">// </span>PROGRAMME 2026
+            <span className="text-green-500/40">{"// "}</span>PROGRAMME 2026
           </div>
           <h1 className="text-5xl sm:text-6xl font-extrabold text-white mb-5 leading-tight">
             Session Schedule
@@ -305,19 +305,21 @@ export default function SessionsPage() {
                                 </div>
                               </button>
 
+                              {/* Live check-in — visible without expanding so hosts can collect codes during the session */}
+                              {user && hasSessionAccess && (
+                                <SessionSelfCheckInPanel
+                                  sessionId={session.id}
+                                  enabled
+                                  showInactiveHint={isOpen}
+                                  hasSessionAccess={hasSessionAccess}
+                                  alreadyAttended={attended}
+                                  onAttended={reloadAttendance}
+                                />
+                              )}
+
                               {/* ── Expanded detail ── */}
                               {isOpen && (
                                 <div className="px-5 pb-6 space-y-5 border-t border-white/8 pt-5">
-
-                                  {user && (
-                                    <SessionSelfCheckInPanel
-                                      sessionId={session.id}
-                                      expanded={isOpen}
-                                      hasSessionAccess={hasSessionAccess}
-                                      alreadyAttended={attended}
-                                      onAttended={reloadAttendance}
-                                    />
-                                  )}
 
                                   {/* Description */}
                                   {session.description && (

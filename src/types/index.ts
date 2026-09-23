@@ -16,16 +16,21 @@ export interface SessionAttendanceAuditEntry {
   createdAt: string;
   updatedAt: string;
   source: AttendanceMarkSource;
+  /** Cohort of the session when marked — supports multi-cohort reporting. */
+  cohortId?: string;
 }
 
 /**
  * Live self check-in window for a session. Stored in `session_self_checkin/{sessionId}` —
  * not on `sessions/*` (sessions are public-read; the code must stay server- or admin-only).
+ * One document per session id (session ids are unique across cohorts).
  */
 export interface SessionSelfCheckInDocument {
   code: string;
   opensAt: string;
   closesAt: string;
+  /** Denormalised from `sessions/{sessionId}.cohortId` for ops / future multi-cohort tools. */
+  cohortId?: string;
   updatedAt?: string;
   updatedByUid?: string;
 }
