@@ -3,7 +3,10 @@ import type { DocumentSnapshot } from "firebase-admin/firestore";
 export function deriveSessionOrder(sessionKey: string, explicit?: number): number {
   if (explicit !== undefined && Number.isFinite(explicit)) return explicit;
   const m = /^session-(\d+)$/i.exec(sessionKey.trim());
-  return m ? parseInt(m[1], 10) : 999;
+  if (m) return parseInt(m[1], 10);
+  const sept = /^sept-2026-/i.test(sessionKey.trim());
+  if (sept) return 999;
+  return 999;
 }
 
 export function firestoreTsToIso(v: unknown): string | undefined | null {
@@ -25,6 +28,7 @@ export function serializeLearningTaskDoc(doc: DocumentSnapshot): Record<string, 
   return {
     id: doc.id,
     userId: d.userId,
+    cohortId: typeof d.cohortId === "string" ? d.cohortId : undefined,
     sessionKey: d.sessionKey,
     sessionLabel: d.sessionLabel,
     sessionOrder: d.sessionOrder,
@@ -50,12 +54,14 @@ export function serializeLearningTemplateDoc(doc: DocumentSnapshot): Record<stri
   if (!d) return { id: doc.id };
   return {
     id: doc.id,
+    cohortId: typeof d.cohortId === "string" ? d.cohortId : undefined,
     sessionKey: d.sessionKey,
     sessionLabel: d.sessionLabel,
     sessionOrder: d.sessionOrder,
     title: d.title,
     category: d.category,
     sortOrder: d.sortOrder,
+    notes: typeof d.notes === "string" ? d.notes : "",
     active: d.active !== false,
     createdAt: firestoreTsToIso(d.createdAt) ?? undefined,
     updatedAt: firestoreTsToIso(d.updatedAt) ?? undefined,

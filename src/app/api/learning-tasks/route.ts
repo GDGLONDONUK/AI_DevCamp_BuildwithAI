@@ -1,5 +1,5 @@
 /**
- * GET  /api/learning-tasks — list tasks for the signed-in user only
+ * GET  /api/learning-tasks — list tasks for the signed-in user (active cohort only)
  * POST /api/learning-tasks — create a task owned by the signed-in user
  *
  * Security: Both handlers require `Authorization: Bearer <Firebase ID token>` via `verifyAuth`.
@@ -19,12 +19,20 @@ import {
   serializeLearningTaskDoc,
 } from "@/lib/server/learningTasksFirestore";
 import { resolveLearningTaskActor } from "@/lib/server/learningTaskActor";
+import {
+  learningItemBelongsToCohort,
+  resolveLearningTasksCohortId,
+} from "@/lib/learningTasksCohort";
 
 export async function GET(request: NextRequest) {
   const auth = await verifyAuth(request);
   if (isErrorResponse(auth)) return auth;
 
   try {
+    const cohortId = resolveLearningTasksCohortId(
+      request.nextUrl.searchParams.get("cohortId")
+    );
+
     const snap = await adminDb()
       .collection("learningTasks")
       .where("userId", "==", auth.uid)
@@ -32,7 +40,17 @@ export async function GET(request: NextRequest) {
       .orderBy("sortOrder", "asc")
       .get();
 
-    const tasks = snap.docs.map((d) => serializeLearningTaskDoc(d));
+    const tasks = snap.docs
+      .map((d) => serializeLearningTaskDoc(d))
+      .filter((row) =>
+        learningItemBelongsToCohort(
+          {
+            cohortId: typeof row.cohortId === "string" ? row.cohortId : null,
+            sessionKey: typeof row.sessionKey === "string" ? row.sessionKey : null,
+          },
+          cohortId
+        )
+      );
     return ok(tasks);
   } catch (e) {
     logServerRouteException("GET /api/learning-tasks", e);
@@ -51,6 +69,7 @@ export async function POST(request: NextRequest) {
     const body = parsed.data;
     const sessionOrder = deriveSessionOrder(body.sessionKey, body.sessionOrder);
     const sortOrder = body.sortOrder ?? Date.now();
+    const cohortId = resolveLearningTasksCohortId(body.cohortId);
 
     const due =
       body.dueDate === null || body.dueDate === undefined
@@ -61,6 +80,7 @@ export async function POST(request: NextRequest) {
 
     const task = {
       userId: auth.uid,
+      cohortId,
       title: body.title,
       sessionKey: body.sessionKey,
       sessionLabel: body.sessionLabel,

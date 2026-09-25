@@ -394,6 +394,8 @@ export type UserMapPayload = {
 /** Organiser-maintained checklist row in `learningTaskTemplates`. */
 export interface LearningTaskTemplate {
   id: string;
+  /** Programme cohort — filters catalogue for the active programme. */
+  cohortId?: string;
   sessionKey: string;
   sessionLabel: string;
   /** Numeric ordering for sessions (1 = Session 1). */
@@ -403,6 +405,8 @@ export interface LearningTaskTemplate {
   /** Ordering within the session group. */
   sortOrder: number;
   active: boolean;
+  /** Optional notes / material URLs (linkified in the dashboard). */
+  notes?: string;
   createdAt?: Date | string;
   updatedAt?: Date | string;
 }
@@ -411,6 +415,8 @@ export interface LearningTaskTemplate {
 export interface LearningTask {
   id: string;
   userId: string;
+  /** Programme cohort — list APIs filter to the active cohort. */
+  cohortId?: string;
   sessionKey: string;
   sessionLabel: string;
   sessionOrder: number;

@@ -82,15 +82,16 @@ function isDueAhead(task: LearningTask): boolean {
   return due >= startOfToday();
 }
 
-/** Numbered programme sessions from Firestore (fallback `sessions.ts`) plus General. */
+/** Programme sessions from Firestore (fallback `sessions.ts`) plus General. */
 function buildSessionPresets(sessions: Session[]): { key: string; label: string; order: number }[] {
   const list = sessions.length > 0 ? sessions : STATIC_SESSIONS;
   return [
     ...list
-      .filter((s) => /^session-\d+$/.test(s.id))
+      .slice()
+      .sort((a, b) => a.number - b.number)
       .map((s) => ({
         key: s.id,
-        label: `Session ${s.number}`,
+        label: s.title?.trim() ? `S${s.number} · ${s.title}` : `Session ${s.number}`,
         order: s.number,
       })),
     { key: "general", label: "General", order: 999 },

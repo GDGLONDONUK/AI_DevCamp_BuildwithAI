@@ -300,10 +300,17 @@ export const SEPTEMBER_2026_SESSIONS: Session[] = [
       "Prepare your local ADK environment for Saturday's workshop",
     ],
     resources: [
+      { title: "Lab site — AI DevCamp labs", url: "https://sonikajanagill.com/ai-devcamp-labs/" },
+      { title: "Labs repo (GitHub)", url: "https://github.com/sonikajanagill/ai-devcamp-labs" },
+      {
+        title: "Google ADK + Gemini + A2UI Codelab (Daniela)",
+        url: "https://codelabs.developers.google.com/adk-gemini-a2ui#0",
+      },
       { title: "Google ADK docs", url: "https://google.github.io/adk-docs/" },
       { title: "Google Cloud – AI agents", url: "https://cloud.google.com/products/agent-builder" },
       { title: "Model Context Protocol", url: "https://modelcontextprotocol.io/" },
     ],
+    videoUrl: "https://www.youtube.com/watch?v=bT8zpjTsu4A",
   },
   {
     id: "sept-2026-build-sat",
