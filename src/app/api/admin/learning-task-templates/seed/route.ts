@@ -1,5 +1,6 @@
 /**
- * POST /api/admin/learning-task-templates/seed — upsert the default bootcamp checklist (idempotent).
+ * POST /api/admin/learning-task-templates/seed — upsert programme checklists (idempotent).
+ * Writes spring (inactive) + September (active) rows with cohortId + material notes/URLs.
  */
 
 import { NextRequest } from "next/server";
@@ -33,13 +34,15 @@ export async function POST(_request: NextRequest) {
       batch.set(
         ref,
         {
+          cohortId: row.cohortId,
           sessionKey: row.sessionKey,
           sessionLabel: row.sessionLabel,
           sessionOrder: row.sessionOrder,
           title: row.title,
           category: row.category,
           sortOrder: row.sortOrder,
-          active: true,
+          notes: row.notes ?? "",
+          active: row.active !== false,
           updatedByUid: auth.uid,
           updatedAt: now,
           createdAt: now,

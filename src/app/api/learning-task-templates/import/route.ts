@@ -1,5 +1,6 @@
 /**
  * POST /api/learning-task-templates/import — copy catalogue rows into the user's private tasks.
+ * Only imports templates for the active cohort (unless templateIds are explicitly listed).
  */
 
 import { NextRequest } from "next/server";
@@ -11,6 +12,10 @@ import { parseJsonBody } from "@/lib/api/parseJsonBody";
 import { learningTaskImportSchema } from "@/lib/api/schemas/requestBodies";
 import { logServerRouteException } from "@/lib/server/appErrorLog";
 import { resolveLearningTaskActor } from "@/lib/server/learningTaskActor";
+import {
+  learningItemBelongsToCohort,
+  resolveLearningTasksCohortId,
+} from "@/lib/learningTasksCohort";
 
 export async function POST(request: NextRequest) {
   const auth = await verifyAuth(request);
@@ -22,6 +27,7 @@ export async function POST(request: NextRequest) {
 
     const db = adminDb();
     const actor = await resolveLearningTaskActor(auth.uid, auth.email ?? null);
+    const cohortId = resolveLearningTasksCohortId(parsed.data.cohortId);
 
     let templateDocs: DocumentSnapshot[] = [];
 
@@ -31,7 +37,17 @@ export async function POST(request: NextRequest) {
       templateDocs = (await db.getAll(...refs)).filter((s) => s.exists);
     } else if (parsed.data.importAllActive) {
       const snap = await db.collection("learningTaskTemplates").get();
-      templateDocs = snap.docs.filter((d) => d.data()?.active !== false);
+      templateDocs = snap.docs.filter((d) => {
+        const td = d.data();
+        if (!td || td.active === false) return false;
+        return learningItemBelongsToCohort(
+          {
+            cohortId: typeof td.cohortId === "string" ? td.cohortId : null,
+            sessionKey: typeof td.sessionKey === "string" ? td.sessionKey : null,
+          },
+          cohortId
+        );
+      });
     }
 
     const existingSnap = await db.collection("learningTasks").where("userId", "==", auth.uid).get();
@@ -66,9 +82,15 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
+      const rowCohort =
+        typeof td.cohortId === "string" && td.cohortId.trim()
+          ? td.cohortId.trim()
+          : cohortId;
+
       const ref = db.collection("learningTasks").doc();
       batch.set(ref, {
         userId: auth.uid,
+        cohortId: rowCohort,
         title: td.title,
         sessionKey: td.sessionKey,
         sessionLabel: td.sessionLabel,
@@ -77,7 +99,7 @@ export async function POST(request: NextRequest) {
         priority: "medium",
         progress: "not_started",
         dueDate: null,
-        notes: "",
+        notes: typeof td.notes === "string" ? td.notes : "",
         sourceTemplateId: id,
         sortOrder: td.sortOrder ?? Date.now(),
         createdAt: FieldValue.serverTimestamp(),
@@ -96,7 +118,7 @@ export async function POST(request: NextRequest) {
 
     await commitBatch();
 
-    return ok({ imported, skipped });
+    return ok({ imported, skipped, cohortId });
   } catch (e) {
     logServerRouteException("POST /api/learning-task-templates/import", e);
     return err("Failed to import templates", 500);

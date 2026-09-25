@@ -148,6 +148,7 @@ export const learningTaskCreateSchema = z.object({
   sessionKey: z.coerce.string().trim().min(1).max(120).default("general"),
   sessionLabel: z.coerce.string().trim().min(1).max(200).default("General"),
   sessionOrder: z.coerce.number().int().min(0).max(999).optional(),
+  cohortId: z.coerce.string().trim().min(1).max(80).optional(),
   category: learningCategorySchema.optional().default("other"),
   priority: learningPrioritySchema.optional().default("medium"),
   progress: learningProgressSchema.optional().default("not_started"),
@@ -205,6 +206,7 @@ export const learningTaskImportSchema = z
   .object({
     templateIds: z.array(z.string().min(1).max(200)).max(100).optional(),
     importAllActive: z.boolean().optional(),
+    cohortId: z.coerce.string().trim().min(1).max(80).optional(),
   })
   .strict()
   .refine((b) => (b.templateIds?.length ?? 0) > 0 || b.importAllActive === true, {

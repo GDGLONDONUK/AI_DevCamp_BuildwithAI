@@ -21,7 +21,7 @@ export function getLearningGeminiModelId(): string {
   return (
     process.env.LEARNING_GEMINI_MODEL?.trim() ||
     process.env.GEMINI_LEARNING_MODEL?.trim() ||
-    "gemini-2.5-flash"
+    "gemini-3.8-flash"
   );
 }
 
