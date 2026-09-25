@@ -35,7 +35,7 @@ Flow: UI → Bearer token → `generateText` + tools → Admin SDK reads `sessio
 
 ```bash
 LEARNING_GEMINI_API_KEY=...          # required — separate from other products
-LEARNING_GEMINI_MODEL=gemini-2.5-flash   # optional
+LEARNING_GEMINI_MODEL=gemini-3.8-flash   # optional — latest GA Flash (Sep 2026)
 # Future key pool (not implemented yet):
 # LEARNING_GEMINI_API_KEYS=key1,key2,key3
 ```
