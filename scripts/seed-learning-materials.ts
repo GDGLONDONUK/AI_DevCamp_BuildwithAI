@@ -4,6 +4,8 @@
  * Optional: --cohort=cohort-september-2026
  */
 
+import { existsSync, readFileSync } from "node:fs";
+import path from "node:path";
 import { adminDb } from "../src/lib/firebase-admin";
 import {
   getActiveCohortId,
@@ -101,7 +103,55 @@ function buildFromSession(session: Session): SessionLearningMaterial[] {
     });
   }
 
+  const notes = readExtraMaterial(session.id, "notes.md");
+  if (notes) {
+    rows.push({
+      id: `${session.id}_notes`,
+      sessionId: session.id,
+      cohortId: session.cohortId || SPRING_2026_COHORT_ID,
+      title: `${session.title} — workshop notes`,
+      kind: "notes",
+      textContent: notes,
+      url: session.videoUrl,
+      concepts,
+      week: session.week,
+      sessionTitle: session.title,
+      sessionTopic: session.topic,
+    });
+  }
+
+  const transcript = readExtraMaterial(session.id, "transcript.txt");
+  if (transcript) {
+    rows.push({
+      id: `${session.id}_transcript`,
+      sessionId: session.id,
+      cohortId: session.cohortId || SPRING_2026_COHORT_ID,
+      title: `${session.title} — transcript`,
+      kind: "transcript",
+      textContent: transcript,
+      url: session.videoUrl,
+      concepts,
+      week: session.week,
+      sessionTitle: session.title,
+      sessionTopic: session.topic,
+    });
+  }
+
   return rows;
+}
+
+/** Optional corpus files: scripts/data/learning-materials/{sessionId}.notes.md and .transcript.txt */
+function readExtraMaterial(sessionId: string, suffix: string): string | null {
+  const file = path.join(
+    process.cwd(),
+    "scripts",
+    "data",
+    "learning-materials",
+    `${sessionId}.${suffix}`
+  );
+  if (!existsSync(file)) return null;
+  const text = readFileSync(file, "utf8").trim();
+  return text.length > 0 ? text : null;
 }
 
 function stripUndefined<T extends Record<string, unknown>>(obj: T): T {

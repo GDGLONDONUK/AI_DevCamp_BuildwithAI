@@ -1,0 +1,165 @@
+Build — Workshop transcript
+Recording: https://www.youtube.com/watch?v=7CcQwBGOHEY
+CopilotKit: https://www.copilotkit.ai/
+Transcription source: organiser export of the 26 September 2026 Saturday workshop (about 2h 27m). Closed group — for enrolled AI DevCamp attendees.
+
+00:02:45
+The session is recorded by the organisers. External note-taker apps are not admitted. Content is for this closed group and should not be shared outside it. Attendees will get the recording and notes on the portal.
+
+00:11:51
+Sonika Janagill: Thank you so much Renuka. Hello everyone. I am Sonika. I am a lead dev. I work with MLOps, AI ops and that kind of thing, with GCP, Google Cloud. I have around 20 years of experience. These days exploring AI. I work for Satalia, an AI product company, and I am a Google Developer Expert in Cloud AI. What you see on screen is the setup guide and the docs we shared. We also have a Discord channel for setup help. I will post the guide there. If you need help with setup, ask me there. Around 45 attendees besides organisers. Only a few people had finished the setup guide, so we go through it.
+
+00:12:58
+Phase 1 is Cloud. If you already have Google Cloud, you can use it. We asked people to create a new account because new accounts get 300 free credits. An existing free-tier account only lasts about three months and may already be out of credits. Sonika created a new email and connected a Google Cloud account to it to get the 300 credits.
+
+00:14:17
+Add another account, create account, personal use, any name (for example AI Dev Camp plus your name). It asks for a phone number and a backup account. Then open console.cloud.google.com (also in the setup guide) and switch to that new account. There is no project at the start. Click new project. Project names do not take underscores, only hyphens. The project ID is global and unique; if the name is taken, Cloud appends an ID. If you want the ID to match the name and it is available, clear the suffix. Create. Sometimes the name is rejected — try another. There is no billing account at the start. Create one or select an existing billing account, then create the project and switch to it. Creation takes a few seconds.
+
+00:17:11
+Next in the setup guide: billing alerts. Creating the Cloud account asks for a credit card. A card is mandatory even on the free tier. Set alerts so you are not charged for something you did not expect. The banner shows remaining credit in local currency (dollars converted, for example to pounds) and days left (about 87 days if created a couple of days earlier). Go to billing, billing accounts. Manage billing and create a named account such as "AI dev camp billing" so it is easy to see what it is linked to. You can change the project's billing account later (actions → change billing). A hyphenated billing account name is easier when you run console commands.
+
+00:19:41
+Budgets and alerts. Two types. First, a normal alert named for example "AI dev alerts". Set a monthly amount. Choose the project and services. Vertex AI is what you are charged for LLM calls; everything else in this lab is free tier. You can alert on Vertex AI only, on all services, or set two alerts. Example amount 10: Cloud splits thresholds so you are emailed at 50%, 90%, and 100%. Extra alerting channels are out of scope; on a non-enterprise account the email goes to you, the admin. Finish.
+
+Second type: spend-cap enforcement. Example name "AI alert", choose the project and Vertex AI, target amount for example 5. When that spend is reached, calls stop and you get a different error code so you know the cap is gone. Raise the cap or stop. You can delete an alert. These are the two alert types to set up. You can reset a cap or edit the existing one instead of creating many alerts.
+
+00:22:25
+Question: why not also a spend cap for the Gemini language API? This workshop uses ADK against Vertex AI directly, not the Gemini Developer API. You can add a cap for other services if you experiment with them. An API product and a direct Cloud call are the difference. Only some services support spend-cap alerts.
+
+00:24:03
+Enabling APIs is the next phase, via a command in the setup guide, because some APIs keep asking you to enable them. Two things you cannot fully script in Google Cloud: creating authorisation tokens (and some social login), and some API enables. The APIs for this workshop are enabled by the script.
+
+00:25:03
+Kholofelo Robyn Rababalela: does this let us deploy our own custom API or custom CI/CD? Sonika: this series is not about building APIs. We go through ADK deployments and using Vertex AI models directly in ADK. In general, yes, you can write CI/CD to deploy custom APIs. We usually do that through Cloud Run.
+
+00:26:21
+Local dev tools. Google Cloud SDK CLI first. If it is already installed, running the command again is fine; it may tell you to update. Init opens a browser so you can log in with the new Cloud account.
+
+00:27:31
+Next is uv. All backend package management in the labs goes through uv. There are other ways; this is the fastest. Then Python if you do not have it. Then Node for the front end, which we use at the end of the day.
+
+00:28:43
+After installs, copy the command block and change the project ID. The project ID is the one you created (not shown on the org-level billing page; open the project picker). Ignore API-enablement banners; the commands enable APIs. Replace the project ID, then run the commands. Those are the APIs the workshops need. The login command sets the default Google Cloud account on the machine (a local credential, valid for a limited time, about an hour, then you log in again). Do both user login and application-default login if you have other Google accounts; otherwise the first login is enough. Then set the compute region to us-central1. Governance-phase steps later are only available in us-central1 at the moment, and it is the cheapest region. After this, the "enable API" banner should disappear. Windows installers differ; the gcloud commands themselves are the same. uv's website has Windows commands.
+
+00:32:01
+Phase 2 clone: today's tag is pillar-build. You can also start from the starter tag, which is an empty ADK agent. Cloning is just copying the code.
+
+Model aliases: "Gemini Flash" without a pinned version picks the latest version available. Pin a version if you need a fixed one. Regional URLs are for pinned Vertex AI calls. Sonika uses aliases and therefore sets the model location to global. Everything else (compute) stays on us-central1. The check commands should print versions for gcloud, uv, Python, and Node, and print the current project.
+
+00:33:22
+Windows: GDG London will share a document for Windows laptops. Most steps are the same except installations. Gemini CLI has been renamed; the docs should say Antigravity CLI. Gcloud CLI steps will be updated with Windows commands too. A slash error in a pasted enable command is a parsing error: run `gcloud services enable` plus the one service that failed. Antigravity sometimes has issues on Windows. WSL works better for some tools if you know it. ADK itself works well on Windows directly. If you do not want Antigravity, use Cursor or any other IDE and connect an AI assistant there. The editor is optional.
+
+00:36:12
+Ollama, for a free coding agent: download for your OS, install, open. Two coding apps are available out of the box, plus other CLIs. Disconnect and connect, enable Gemma 4 (or another model). Models here are free. You can add multiple project folders. Usage is a monthly budget, not a 5-hour window like some other coding products. The demo account had no credit card. You can switch to a larger model when you want better answers. If a skill is in the repo, the review runs that skill.
+
+00:39:14
+If you cannot pull the startup branch, use main and pull. Main has the latest.
+
+00:40:35
+Kholofelo: Antigravity as an IDE versus the agent-orchestration UI — which is more efficient? Sonika: Antigravity is a coding agent you can use to build. The agent we are building is the ADK social-post agent. You can build that with Antigravity. Sonika prefers VS Code. The Antigravity IDE and the plugin share the same harness, sessions, and background files, so you will not notice a difference. Use whichever you already have.
+
+00:42:51
+Phase 3 is the coding agent. If you have nothing, use Ollama. Antigravity gives some free tokens on a personal email. In Antigravity settings, log in with the personal account and use it until tokens run out. Then sign out and sign in with the Google Cloud account for this project (the one with alerts on Vertex AI). It asks for the project ID (in the setup steps) and region global. Without an enterprise licence it defaults to that, which is fine. It then uses your Cloud account. Sessions stay tracked when you switch, but you must start a new session when you switch between Cloud and personal. Use Ollama wherever you can.
+
+00:46:24
+CLI setup: uv must already be installed. The setup command downloads the agent CLI and ADK skills. Skills for Antigravity live under the Gemini config in your home directory (on Windows, under the user profile): `.gemini`, then config, then skills. Because we use ADK, there is an ADK code skill. Reading the skill is a simple way to learn what the agent does in the background.
+
+A skill is a markdown file with metadata at the top. When the agent runs, it uses that metadata and builds a graph of skills. If you say "create an ADK agent", it matches the ADK agent code skill and follows it to create a basic working agent.
+
+00:49:25
+You can also run the agent CLI in the terminal from the project root. Example shape: agent CLI create, ADK, project name. The skill file's top block (between the fences) is metadata. The agent uses name and description; you can also add version and requirements. One skill requires the agent CLI and includes the install command, so if the CLI is missing the skill installs it and runs. Below the metadata are the steps, related skills, and sometimes references.
+
+00:50:53
+Progressive disclosure: metadata stays with the agent (a graph, or embeddings in some agents). When a keyword matches the description, the agent loads the instructions, and only then any referenced scripts or assets. The coding agent already has a lot of code context, so skill instructions stay short. Skills run via local shell commands. Unless a step makes an external call, that work stays on your machine, which also helps security. ADK uses the same idea.
+
+00:53:34
+If agent CLI setup installed into the repo, a virtual environment may have been missing first; Sonika will correct the setup command. The coding-agent setup is optional because the CLI or the coding agent will install missing pieces later.
+
+Environment file copied from lab 1: the basic variables are the model, try/dry-run true, location global, project ID, and Vertex AI true. An enterprise flag is used in some setups; Vertex AI works without it. Buddy-up instructions come from the moderators. Even if you missed an install, talking to the coding agent or using the agent CLI will set it up.
+
+00:54:49
+Break until about 10:55 UK time.
+
+00:55:52
+After the break: the local install command had asked for a folder and installed into the repository because no folder was given. Use the official Google Cloud CLI install page if that happens. People were on phase 3. The agent CLI install command authenticates (browser login if needed). By default, setup installs the ADK skills. It installs into the project `.agents` directory and into Gemini config. Those copies are linked. After that you can ask the agent CLI or your coding agent to build agents.
+
+01:10:08
+Social poster repo, passed on to attendees. Setup files: pyproject.toml — uv installs dependencies from it. agents.md — update it. It says what the agent is and which folders are front end, MCP server, and skills. You do not have to mention standard folders; agents.md is for custom instructions. Mention your tech stack. You can say do not touch a legacy folder. How to run: front end and back end are different ports, two commands, or back end only. Conventions Sonika follows are in that file; treat it as yours. Cloud Build in the repo is for a later scaling phase. The only Cloud use today besides model calls is an optional public bucket for generated images. If you skip the bucket, generated images stay in the local folder.
+
+01:12:08
+Create an agent without a coding assistant: `agent CLI create`, with a name (live demo renamed). You do not need to know the folder layout. It asks you to log in for models. One command creates the full structure: inside app, the agent is already there. You can move the model into an environment file. Terraform deployment files are created; skip them this week. uv dependencies, a readme, a Gemini markdown file you can rename to agents.md, Docker if you want to deploy, and an agent CLI manifest.
+
+01:14:44
+The dummy agent has no real instructions. A coding agent can be told to create a specific kind of agent; the CLI alone creates a placeholder. The agent sits at agents/agent. Required fields: name, model, instructions. Tools are optional. The model in the demo was 3.8. Instructions in the dummy agent do nothing useful until you add them.
+
+01:15:44
+From inside the new agent folder: `agent CLI playground`. That runs ADK web on a port (change the port if you want), with allow-origins (front end or other API callers) and reload (code changes are picked up; no restart). Open 127.0.0.1 (localhost). If you launched from a folder with several agents, all are listed. With one agent named app, you see app. The default agent file is always agent.md; change the folder name for a different agent.
+
+01:16:55
+Saying hi works because the scaffold created a runnable agent and, since gcloud was already authorised, it picked up the project. The dummy agent says it can help, and that it does not have real access. Two tools were added: get weather (a simulation, always the same temperature) and current time from the machine. You add your own tools when you build a real agent.
+
+01:18:31
+Live audio and video: go to adk.dev, then ADK live, for streaming agents, instructions, and demos. The only change from the text agent is the model: a live audio-video model. Because the version is pinned, it does not work on global. Set the region to us-central1. That is the only difference for a pinned version. Restart the playground if it does not reload. The mic button starts a bidirectional session; you can interrupt the agent. In the text UI you can see which agent is active; the live demo did not add a control to stop the stream. Audio must be shared from the meeting for the room to hear the agent's voice, not only the speaker's microphone.
+
+01:23:34
+Live models charge more. Test in text mode, and only validate with live models at the end before publishing.
+
+01:24:49
+Lab: build an agent, start small. One root agent. If you add sub-agents, tools, or skills, the shape is: a root agent, usually called the orchestrator. It can use a cheaper model because it is not doing the heavy work. Sonika puts an orchestrator model in the env file; a Flash model is enough. Deep research can use a different model, referenced from agent.py. The instruction is short: this orchestrator drafts and publishes social posts. If you need facts you do not have, call research; otherwise skip it. When you have the facts, call the draft agent.
+
+The draft agent is another agent, used as a tool. Everything goes in tools: skills, other agents, MCP tools. Buffer is an MCP. Draft and research are agents used as tools (research uses Google Search). You do not have to say when to call each tool. Explain the job in plain English and the model chooses. You can still be explicit: if I give a public image URL, use that image; if I upload a file, use that file; Buffer needs a public URL, so the agent uploads to the public bucket and passes that link to Buffer. Optional callbacks: before agent, after agent, before tool, after tool. They make the agent more predictable. Not mandatory. Read the build pillar or main branch; it is straightforward.
+
+01:28:01
+Memory agent: if something already exists, do not recreate it. Research agent: one tool, Google Search. Output is research notes. You can force a format; Sonika set a format for social posts. The output key is reused as-is by the root agent so the wording is not rewritten. Research is for numbers and factual information. Skills sit outside the social-post package (give the directory). Four skills in the demo; you can have as many as you want. Brand voice: metadata, no version (versioning matters for agent CLI skills that update; your own skill is versioned by Git). Casual and warm, no em-dashes, so it does not look generated. Platform styles: LinkedIn length, X max, hashtags. That is the L3 references layer. Post formatter: hook line first, short paragraph, hashtags, no em-dashes. Without it the format is random. Poster style is the skill left as an exercise — try one skill on your own. Brand colours can be references too.
+
+01:32:37
+Same idea as the CLI agent, with a defined scope: research the web, generate images, post to LinkedIn or X. Decide where skills go, which tools sit on which agent, then build, connect, and configure. Scaffolding and playground are this week (the build stage). Evaluate and deploy are later sessions. The official ADK diagram is the same, plus agent skills (not on the official diagram), MCP as tools, and human in the loop.
+
+Human in the loop: an instruction that says "ask me before you post" is sometimes ignored. Set require confirmation true on the toolset. Before posting to LinkedIn, that tool always waits for a human yes. The same flag is on the Buffer post. The web UI shipped with the lab shows three tools, an approval gate, then the MCP post.
+
+01:35:36
+The lab step creates the environment file and clones the repo. `uv sync` installs or updates dependencies. Sumith suggested posting about the session with the agent after the walkthrough. Duncan had a question; chat was the fallback when audio did not come through. Fork or clone. A fork lets you publish changes. Submission is a GitHub link the organisers can open.
+
+Adding a tool: the lab adds generate image. After it is on the tool list, the agent can generate images. Skills: YAML front matter, markdown body, then load skill from directory and add it to the skill toolset. Web research is the Google Search tool, wrapped as the research agent, including a simple workflow for stats and numbers.
+
+01:37:58
+Publishing code is small. require confirmation, and an MCP toolset (a library in ADK). The agent streams text, so the connector is streamable HTTP connect params. You need the MCP URL and a Buffer API key. MCP is similar to an API; the difference called out here is streaming. Create a Buffer key (one key on a free account), copy it into the env file. Say post via Buffer. Buffer covers LinkedIn as well as X, Instagram, TikTok, and others. If the key is empty, dry-run true means it will not publish. You can test in the ADK playground. Stop the demo agent and start the real one.
+
+01:40:24
+The lab runs a back end and a front end. The back-end command uv-syncs if needed and runs the app as an API, because the front end needs an API, not ADK web. main.py calls the same agent and exposes it as OpenAI-style HTTP API routes, including streaming. CopilotKit then uses that API. The agent code stays in the agent package; the API is main.py. Front end: npm run dev (Node). Run either first. First Next.js start is slower because it builds cache under node_modules and .next; later starts are faster. Open localhost:3000. The agent shows in the page while Next compiles.
+
+01:42:42
+If you only have instructions, the small agent just writes a post. If require confirmation is true, the model drafts, a gate asks you to approve, then it posts. That gate matters for most agents. The earlier approved posts in the demo gallery come from local memory (a local DB the lab creates) and a gallery of images. There is a branch with the same agent as audio/video if you want to try it; this session stays on text to keep it simple.
+
+Demo prompt: create a post for Google live agents, for X, because X is shorter; LinkedIn allows more characters and takes longer. The Node process only calls the back end. The back end calls Vertex AI. Streaming was off at that moment. Model: Gemini Flash latest, which was 3.8. If you are logged in, it proceeds; otherwise it asks for Cloud login. Telemetry is enabled: logging you can turn up or down. Local DB is db.py — without it the agent does not remember. On Agent Platform this becomes Memory Bank. Logging level is info; set it to error if you want less. Generate-image is on by default; remove that tool to test with text only and save money. The X post is short. The trace shows: idea, memory, research, draft, then it waited for approval. Because this is a learning build, the UI shows the calls: research arguments, drafting, then which accounts the tools have. X goes through Buffer; the other tool is LinkedIn-only. Buffer lists accounts and creates the post. Approve. The approval message is plain — homework: make that message nicer. After approve, ADK records the approval and the result. A second draft can happen if context was lost; check the model and Buffer. Buffer needs a public image URL. The lab README explains the Cloud connection. If you have not set that up, the image link is missing — figure out why from the readme. Buffer has no dry-run in its MCP, so the lab delays Buffer posts by 60 minutes. Publish now sends it. The post showed up on the Buffer account, with earlier tests that included images when Cloud Storage was connected. You can see previous posts and add channels. LinkedIn in the lab is marked optional.
+
+01:51:10
+LinkedIn does not give an MCP to post directly. The repo has a custom MCP server, one small file. Each API method is a tool: get profile (required), create post (included; delete is possible but not in this file). A coding agent can generate this. Instructions cover creating a LinkedIn app. Demo posts were made to a LinkedIn business page. Formatting can be improved; that is the skill work.
+
+About 10 minutes left. Evals are generated when you use agent CLI (tests and related files). Evaluation itself is a later session. This week, local build is the goal: if ADK web works locally, you are done. Wiring the front end with the front-end script is the extra. Gotchas from fixing the lab are in the notes; you need the front-end folder from the repo.
+
+When you build your own agent, start small, run one thing, then add tools. A tool can be a plain method (generate image), an API, an MCP server, Google Search, or another agent. Expand and test as you go. ADK docs cover agent CLI and ADK in detail. Links are in the lab. Multi-agent graphs are not required for every use case. If you need help architecting, ask on Discord. Best starting point: a basic ADK web app running, then expand.
+
+01:54:48
+Question on monitoring and logging: local logging is what you have now. In the Scale phase, Agent Platform provides monitoring and logging out of the box.
+
+Sumith: if we do not use ADK, can we create agents? Sonika: yes. ADK makes it easier. You can call the Gemini API directly. The spend-cap discussion mentioned Gemini APIs as a separate product. People who do not want ADK write code from scratch. The Interactions API covers much of what ADK does; when you call models through APIs you are using interactions. Renuka: you can also use Firebase AI Logic, but then you need React, Flutter, or another UI stack. This cohort goes back end to front end. You can start from the front end. CopilotKit matches agent UIs because memory is passed back and forth: if you say your name or talk about ADK and then ask for another post in the same session, it remembers. A raw API is stateless; every call must send the context again, or a compressed form of it.
+
+01:57:55
+Sumith: can you do this outside Google — create an agent, use a model, send a post? Sonika: yes. It is localhost for now. In Scale there will be a short Cloud Run demo: build a container and deploy it on AWS or another cloud. This series is aimed at Agent Platform, which containerises the agent for you. Both paths will be shown.
+
+01:59:02
+GitHub Codespaces for labs: any environment is fine for evaluation if organisers can open it and see progress and assignments. Keep the link simple. Attendance was about 62 people in and out, and the organisers are volunteers, so broken links and long email threads do not scale.
+
+02:00:08
+Why CopilotKit? ADK is open source and has monthly community calls. On a recent one (around July) CopilotKit was mentioned; people from CopilotKit had built the kit. In ADK docs, under integrations, UI or AG-UI: AG-UI is the protocol for agent user interfaces. That page is CopilotKit. It is an official integration because ADK is the back end and CopilotKit is the UI. Check ADK's built-in tools before you write your own — for example Google Cloud Storage already has a tool and instructions. AG-UI: turn agents into an application with a rich responsive UI. It streams; you do not wait for the whole response. Memory is passed back and forth efficiently.
+
+02:02:09
+Sumith: copilotkit.ai pricing looks free for one prototype and one developer, so an enterprise app would pay. Sonika: CopilotKit is open source. The pricing page is for a hosted product. The free tier covers one project. Use the free path, or use another front end. The ADK API in main.py does not care which front end you use. CopilotKit feels more natural for these interactions. There is an ADK quick start on the CopilotKit site. It is the official UI tool called out for ADK, not a requirement to stay inside one vendor.
+
+02:03:17
+Wrap-up. Sumith thanked Sonika. Next session is Thursday; an invite will go out. Sonika leads again, moving from this build into the next phase. The video and portal links will be uploaded and emailed.
+
+Transcription ended after 02:26:46.
+
+Summary: Workshop covered Google Cloud setup and agent development via ADK and CopilotKit. Setup: new Cloud accounts, billing alerts, local tools, region us-central1. Participants built and tested a multi-agent app with tool confirmation and a local playground. CopilotKit and ADK give a streaming UI and a path to deploy later.
