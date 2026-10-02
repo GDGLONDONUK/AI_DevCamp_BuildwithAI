@@ -428,6 +428,7 @@ export const LEARNING_TASK_TEMPLATES_SEED_SEPTEMBER: LearningTaskTemplateSeedRow
     title: "Scale theory — attend or watch recording",
     category: "recording",
     sortOrder: 10,
+    notes: "https://www.youtube.com/watch?v=YSm5HeNw9oo",
   },
   {
     id: "sept-2026-scale-sat-workshop",

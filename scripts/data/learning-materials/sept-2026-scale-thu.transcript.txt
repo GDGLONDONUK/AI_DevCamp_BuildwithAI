@@ -1,0 +1,47 @@
+Scale — Theory transcript notes
+Recording: https://www.youtube.com/watch?v=YSm5HeNw9oo
+AI DevCamp Session 3 Scale Theory 2026. Closed group. This is the organiser summary of the 1 October 2026 theory session, not a word-for-word timed transcript.
+
+Software scaling strategies and cloud components via agent runtime and memory management.
+
+Sonika Janagill introduced scaling agents after the build stage. Princess Okafor defined scale as software used by multiple concurrent users without crashing or exhausting resources. Sonika added that scale means moving off local laptops to serve many users while managing sessions, identities, and logging.
+
+Build recap: Google's open-source Agent Development Kit, with models, instructions, and tools such as Model Context Protocol servers and agent skills for on-demand knowledge. A multi-agent orchestrator managed drafting, deep research, and posting. CopilotKit was the user interface, using the agentic user interface protocol (AG-UI).
+
+Cloud console: choose models and move through build, scale, govern, and optimise. Agent Platform studio and the gallery offer examples, including a room shot generator using Nano Banana 2. Out-of-the-box MCP servers such as Jira handle identification and security. Vector search and retrieval manage embedding databases.
+
+Hello GDG London asked about retrieval-augmented generation. Sonika: RAG can be built with ADK libraries or linked as an external embedding database. Vector Search creates indexes for existing databases in Vertex AI. Vector Search 2.0 automatically creates searchable collections with embeddings and ranking, at a higher cost. On autosync, Vertex AI handles autosync for external databases. Whether the RAG engine itself autosyncs, or that feature is only Vertex Search, was left to check.
+
+Statistics Sonika shared: 33% of companies will use agentic AI by 2028; 15% of daily decisions unsupervised by 2028; 40% of current agent products projected to be cancelled by 2027 because of scaling difficulty, rising cost, unclear business value, and weak risk controls. Local laptops lack autoscaling, session persistence, identities, and centralised logging. Scaling adds hosting, conversation management, long-term memory banks, sandboxing, and agent identities.
+
+Core scale components: agent runtime for hosting; sessions for conversation continuity; memory banks for long-term data; sandboxes for safe code execution; agent identities so the system records which agent acted, not only the human user.
+
+Rafal asked how to start building AI agents. Hello GDG London and Sonika pointed to the emailed resources, the startup labs, session recordings, and Discord.
+
+Agent Runtime: warm starts under one second, rapid provisioning, long-running asynchronous operations up to seven days. Languages include Python, Java, TypeScript, and Go. Frameworks include LangChain, LlamaIndex, and LangGraph. OpenTelemetry for logging and monitoring. Limit of 3,000 agents per Google Cloud project. The runtime handles hosting, scaling, IAM, streaming, and traffic splitting. Developers write the agent logic and tests.
+
+Five deploy methods: a Dockerfile; connect a repository via Developer Connect; upload raw Python source; deploy from Artifact Registry; or use the Agent Platform SDK. Hello GDG London asked about cost. Enabling the SDK API adds little; Vertex AI model calls are most of the bill.
+
+Princess asked about frontend API endpoints. The web UI runs privately on Cloud Run. A Next.js proxy and identity-access tokens authenticate the frontend to the agent runtime. Deploy CLI flags include project id, agent identity, environment variables, no-confirm project, and no-wait.
+
+Monitoring dashboard (OpenTelemetry): request counts, latency, call volumes, agent invocations, and RAM. Sessions persist across restarts. Every message is an event. Conversation state is stored. A session is created with a simple class that takes the agent and the engine id.
+
+Memory Bank: long-term memories via embedding similarity search and automatic consolidation. Default topic time-to-live is 90 days. Hello GDG London and Princess asked about boundaries. Different agents and different users have separate memory banks. Agent-to-agent protocols keep context and memory from crossing those boundaries.
+
+Sandboxing isolates code execution and access to external systems. Computer use lets the agent operate a browser and take screenshots when there is no API. Agent identities use IAM and cryptographic credentials so each agent has precise permissions.
+
+Demo: a deployed agent with a private Cloud Run frontend behind Identity-Aware Proxy and a local reverse proxy. It processed a request, generated a social post, and stored memory under topics such as posting style. The dashboard shows session traces, agent topology, and a built-in playground.
+
+Slides with the scaling docs and the live demo resources were to be shared on the website. Participants need an application running locally so they can deploy it in the Saturday workshop.
+
+Cath asked whether a memory bank has a size limit and whether compute cost grows exponentially. Sonika: exact limits and costs are in the official documentation. Banks can grow large because data moves into vector search.
+
+Princess asked about LangChain multi-agent docs, specifically sub-agents versus handoffs. Hello GDG London said the website multi-agent documentation had just been updated, and to check Discord if something still looks old.
+
+Princess asked whether the weekly submission is an independently built parallel agent or the completed codelab. Hello GDG London: both. Submit the weekly lab and keep building your own agent, so by the end of four weeks you have two production-ready agents. Sonika: do the codelabs first so the fundamentals are in place before the custom agent.
+
+Princess asked how to keep up with AI changes. Sonika uses YouTube, podcasts, and automated Gemini email newsletters with custom web-research boundaries. Hello GDG London suggested an agent that fetches LinkedIn updates. Sonika mentioned Daniela's demo: an agent with skills that research, draft, and publish articles.
+
+Nanjundan Chinnasamy asked whether the agent SDK backend can be called from Postman and how to secure the frontend-to-backend path. Sonika: agent runtime exposes an API you call with a bearer token, including from Postman. Do not hard-code service accounts or passwords; use federated authentication. Hello GDG London has used Firebase Authentication to connect a Flutter frontend on Firebase Hosting to a Google Cloud backend.
+
+Next practical session is the following Saturday.

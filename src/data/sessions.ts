@@ -364,22 +364,35 @@ export const SEPTEMBER_2026_SESSIONS: Session[] = [
     cohortId: SEPTEMBER_2026_COHORT_ID,
     topic: "Scale",
     description:
-      "Why the local app cannot serve real users. Agent Runtime: cold starts, long-running agents, free tier. Deploy options on Agent Platform (Runtime vs Cloud Run vs GKE). Sessions vs Memory Bank. Agent Identity at deploy time. Code Execution sandboxes. Where a custom UI meets a managed runtime. Live demo on Agent Runtime, then Saturday's plan.",
+      "Scale theory with Sonika Janagill. Scale means many people can use the agent at once without it crashing or running out of resources — off a laptop, with sessions, identity, and logging.\n\nRecap of Build: ADK (model, instructions, MCP tools, Agent Skills), a multi-agent orchestrator for research, drafting, and posting, and a CopilotKit UI on AG-UI. Then Agent Platform's scale stage: Agent Runtime (warm start under a second, long-running work up to 7 days, up to 3,000 agents per project, five deploy paths), sessions versus Memory Bank (embedding search, 90-day topic TTL, separate banks per agent and user), code sandboxes including computer use, and Agent Identity so actions are not only attributed to a person.\n\nThe web UI stays private on Cloud Run behind Identity-Aware Proxy; the runtime API is called with bearer tokens. Do not hard-code service accounts. Saturday's workshop is deploying the app you already run locally. Weekly submission is the lab plus your own parallel agent.",
     speakerIds: ["sonika-janagill"],
     tags: ["Scale", "Agent Runtime", "Sessions", "Memory Bank", "Identity", "Theory"],
     whatYouWillLearn: [
-      "Limits of local agents in production",
-      "What Agent Runtime manages for you",
-      "Sessions vs persistent Memory Bank",
-      "Agent Identity and why Govern revisits it",
+      "Why a local agent cannot serve concurrent users",
+      "What Agent Runtime hosts for you: scaling, IAM, streaming, and traffic splitting",
+      "Five ways to deploy: Dockerfile, linked repo, source upload, Artifact Registry, or the Agent Platform SDK",
+      "Sessions for this conversation versus Memory Bank for long-term recall",
+      "Sandboxes and computer use when there is no API",
+      "Agent Identity so each agent has its own IAM credentials",
+      "How a private UI calls the runtime with bearer tokens instead of hard-coded keys",
     ],
-    buildIdeas: ["Plan the refactor from local app to Runtime deploy"],
+    buildIdeas: [
+      "Have the Build-stage app running locally before Saturday's deploy workshop",
+      "Submit this week's lab and keep developing your own parallel agent",
+    ],
     resources: [
+      {
+        title: "Session recording (YouTube)",
+        url: "https://www.youtube.com/watch?v=YSm5HeNw9oo",
+      },
       {
         title: "Vertex AI Agent Builder",
         url: "https://cloud.google.com/products/agent-builder",
       },
+      { title: "Google ADK docs", url: "https://google.github.io/adk-docs/" },
+      { title: "CopilotKit", url: "https://www.copilotkit.ai/" },
     ],
+    videoUrl: "https://www.youtube.com/watch?v=YSm5HeNw9oo",
   },
   {
     id: "sept-2026-scale-sat",
