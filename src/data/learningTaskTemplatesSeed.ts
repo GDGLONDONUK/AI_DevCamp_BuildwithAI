@@ -442,6 +442,17 @@ export const LEARNING_TASK_TEMPLATES_SEED_SEPTEMBER: LearningTaskTemplateSeedRow
     notes: "https://cloud.google.com/products/agent-builder",
   },
   {
+    id: "sept-2026-scale-sat-recording",
+    cohortId: SEPTEMBER_2026_COHORT_ID,
+    sessionKey: "sept-2026-scale-sat",
+    sessionLabel: "Scale — Workshop",
+    sessionOrder: 4,
+    title: "Watch the Scale workshop recording",
+    category: "recording",
+    sortOrder: 15,
+    notes: "https://www.youtube.com/watch?v=0MEwAaKtxm0",
+  },
+  {
     id: "sept-2026-govern-thu-theory",
     cohortId: SEPTEMBER_2026_COHORT_ID,
     sessionKey: "sept-2026-govern-thu",

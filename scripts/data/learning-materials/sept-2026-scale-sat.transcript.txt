@@ -1,0 +1,47 @@
+Scale — Workshop transcript notes
+Recording: https://www.youtube.com/watch?v=0MEwAaKtxm0
+AI DevCamp Saturday 3 October 2026 Scale lab. Closed group. Organiser summary plus the useful chat. Attendance codes from the meeting chat are not stored here.
+
+Duncan Moncrieff described a rowing-club agent: a 13-week and annual plan integrated with intervals.icu to watch for overtraining. Markdown files lose context. In tests the agent slips back to earlier weeks and forgets hardcoded priorities such as a December competition. He needs retrieval-augmented generation, sessions, and memory. He will submit a sanitised, randomised dataset because of privacy. Sumith encouraged a LinkedIn post about the project. Sonika said today's session and memory features are the out-of-the-box answer to that context loss.
+
+Sonika: the scale lab was published at midnight. Follow it step by step. Agent Studio builds agents without writing the first code. Demo prompt: a root agent that identifies a plant, plus sub-agents for variety and plant care. Name the agent with no spaces. Get code downloads the ADK project. Deploy grants storage permissions. The dashboard shows runtime sessions; each interaction is an event.
+
+Max asked how Studio chat relates to build-and-scale. Deploying from Studio does both: the agent lands on the runtime. Princess asked about image or video agents. Agent Studio is text-only. Local ADK web and a specific branch support live audio and video models. Ian's deployed agent replied that direct image upload is not supported because the model is text-only (Gemini Flash 3.5).
+
+Ankur asked whether non-Google models can be used. The runtime hosts more than ADK, including other frameworks. This lab deploys ADK. Nanjundan is building in Java. The same deploy rules apply: manifest, project id, and the correct directory.
+
+Prerequisites: a simple agent needs little Google Cloud setup. The social poster needs login, quota project, env file, application-default credentials, a bucket, Vertex access, a frontend service account, and API keys in Secret Manager. Soumyamol asked whether YOUR_PROJECT is the project id. Yes.
+
+Deploy: `agents-cli create live-agent --adk` (Ankur). Sonika's live demo used `agents-cli create` for a demo agent with double hyphens, then the deploy command from the generated folder. `--agent-identity` creates a cryptographic principal rather than a normal service account. The manifest has the agent name, local path, Docker build folder, and region. Targets include Agent Runtime, GKE, and Cloud Run. The identity shows in IAM. Logs stream during deploy. Vaidehi: deploy takes time. That is normal.
+
+Ankur's error: `agents-cli deploy --project ai-devcamp-ankur --agent-identity` failed with "No agents-cli-manifest.yaml found in the current directory or its parents." He was not in the project root. Sonika: run it from the agent folder, or pass a deployment target. After he changed directory, the demo agent deployed and appeared on Agent Platform. Checking status is not enough. List agents to confirm success. A status call can report nothing pending even when the deploy worked.
+
+Ankur asked how to get an agent created in Studio into the local repo. Copy the code (get code) into the repo and deploy with the CLI. Redeploy updates the existing deployment when the manifest name matches. Using ADK in the repo gives more control than staying in Studio. Max had been using only Agent Studio. Adding the project locally is simpler. Copying into a new folder creates a separate deployment you then update from the repo.
+
+Vector Search syncs automatically. RAG does not. New files or folders need a manual or coded re-sync.
+
+Gemini Enterprise: Ian asked. Sonika: you can distribute the agent inside the organisation's existing Gemini chat, so you do not have to build a custom UI for that audience.
+
+API: the lab was updated for curl and Postman. From the manifest folder, curl needs engine name, project number, token, and engine id. The identity URL is in the agent settings. A successful call returns the OpenAPI description. FastAPI: `main.py` outside the agent route wraps the agent as an API, including streaming for the agent engine. Hello GDG London asked; Sonika confirmed.
+
+Nanjundan: several root agents in one repository. Deploy each one. Separate repos, or a script that changes directory so each manifest is used. One runtime deploy does not expose a switch between root agents. CI: build the container in GitLab so its scanners run, then deploy the artifact.
+
+Sessions: the console records conversations, tool calls, and traces. Open them in the playground. Request and response body logging is optional for governance; Sonika had not turned it on. Traces have session, trace, and span views with timestamps and latency. In code, sessions are not automatic. Create a session service with project, location, and engine id and attach it. After that, refresh keeps the session. Add a new-chat control for a new thread. OpenTelemetry is on by default via an environment flag and can be disabled. Nanjundan asked whether a GCS/ADK runtime still needs a separate observability product. No. Built-in traces cover the session. Kong Leong Lee was implementing the session service during the call.
+
+Memory Bank: a Vertex AI memory bank service on the agent, using project, location, and engine id. Topics such as posting style decide what is saved. Personal names are blocked by data-loss prevention. A callback reads the finished session and writes memories, so there is a short delay. Memories are per agent and per user. Sub-agents share the parent memories. They are not mixed across users.
+
+Front end: set the backend-origin URL to the same URL as curl. OAuth client id for social login goes into the Docker build, not only Cloud Run env. Private Cloud Run: `gcloud run services proxy` with service name, region, project, and port 8090. Deploy the front end with the lab script. `main.py` was updated for agent-engine streaming.
+
+Cost: delete unused Cloud Run services and agents. Agent Runtime is in a free tier through the end of the year. Raise memory on the Cloud Run service if you need it. Keep at least one minimum instance if you want a faster front end. Sonika will add tear-down steps to the docs.
+
+Week 2 submission: a deployed agent and a deployed social poster with a front end. Screenshot or GitHub link on Discord. Duncan: updated personal project and updated lab repo. Yes.
+
+Certification: Sonika said an enterprise certification in November, mainly ADK agents. Ian, Duncan, and Dana are looking at the Professional Agentic Architect exam when it is generally available. The course content is aimed at that kind of work.
+
+Cath: Ollama or another provider can be used for the end-of-course agent as the build platform. The lab deploy path is still Agent Runtime.
+
+Ankur: questions for Sonika during the week go on Discord. Next week has a new presenter.
+
+Natalia asked how much disk Antigravity, new projects, and Ollama use, and whether projects can sit on an external drive. Clean unused caches and Ollama models. Projects can live on another drive. No exact size was given.
+
+Chat also included people catching up on the recording, screen-share delays, and thanks. Those lines are not needed for the lab.

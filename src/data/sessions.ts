@@ -405,25 +405,38 @@ export const SEPTEMBER_2026_SESSIONS: Session[] = [
     cohortId: SEPTEMBER_2026_COHORT_ID,
     topic: "Scale",
     description:
-      "Refactor the Week 1 agent into a multi-agent pipeline. Implement A2A delegation (orchestrator + specialists: photo-search, web-research, drafting). Deploy to Agent Platform. Test the scaled version end to end.\n\nYou leave with your agent deployed to Agent Runtime with an Agent Identity and persistent sessions.",
+      "Saturday Scale lab with Sonika Janagill. Build a multi-agent app in Agent Studio (no code required), then copy the generated ADK project and deploy it with the agent CLI. The deploy uses a manifest and an Agent Identity (a cryptographic principal, not a shared service account).\n\nAfter deploy: call the runtime with curl or Postman (OpenAPI, bearer token), turn on sessions so conversations and traces stay in the console, and attach a Memory Bank scoped per agent and per user. A Cloud Run front end connects with a backend-origin URL; gcloud run services proxy reaches a private service on a local port. FastAPI in main.py wraps the agent when you need your own API.\n\nAgent Studio is text-only today. Live audio and video stay on local ADK. Vector Search syncs indexes for you; a RAG corpus does not — re-sync files yourself. Week 2 submission is two deploys: your agent and the social poster (screenshot or GitHub link on Discord). Agent Runtime is on a free tier through the end of 2026; delete Cloud Run services and agents you are not using.",
     speakerIds: ["sonika-janagill"],
-    tags: ["Scale", "Workshop", "A2A", "Agent Platform", "Deploy", "Hands-on"],
+    tags: ["Scale", "Workshop", "Agent Studio", "Agent Runtime", "Sessions", "Memory Bank", "Hands-on"],
     whatYouWillLearn: [
-      "Split a monolith agent into orchestrator + specialists",
-      "Use A2A-style delegation between agents",
-      "Deploy to Agent Runtime with identity and sessions",
+      "Scaffold a multi-agent app in Agent Studio and take the generated ADK code locally",
+      "Deploy with agents-cli from the folder that contains agents-cli-manifest.yaml",
+      "Use Agent Identity instead of a shared service account",
+      "Call the deployed agent with curl or Postman using a bearer token",
+      "Record sessions and traces, and save long-term memory per user and agent",
+      "Point a Cloud Run or FastAPI front end at the runtime",
     ],
     buildIdeas: [
-      "Multi-agent pipeline on Agent Platform",
-      "Persistent sessions + Memory Bank",
-      "End-to-end scaled run",
+      "Deploy one agent from Agent Studio or from a local ADK repo",
+      "Deploy the social poster with a front end",
+      "Submit both: a screenshot or a GitHub link on Discord",
     ],
     resources: [
+      {
+        title: "Session recording (YouTube)",
+        url: "https://www.youtube.com/watch?v=0MEwAaKtxm0",
+      },
+      {
+        title: "Vertex AI Agent Builder",
+        url: "https://cloud.google.com/products/agent-builder",
+      },
+      { title: "Google ADK docs", url: "https://google.github.io/adk-docs/" },
       {
         title: "A2A Protocol",
         url: "https://a2aproject.github.io/A2A/latest/specification/",
       },
     ],
+    videoUrl: "https://www.youtube.com/watch?v=0MEwAaKtxm0",
   },
   {
     id: "sept-2026-govern-thu",
