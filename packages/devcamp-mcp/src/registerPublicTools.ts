@@ -26,8 +26,24 @@ export function registerPublicTools(server: McpServer): void {
     },
     async () => {
       try {
-        await resolveCaller();
+        const caller = await resolveCaller();
+        // Attendees get learning-oriented summary only — no admin/maintainer attack surface map.
+        if (!caller.isAdmin || !caller.scopes.includes("admin")) {
+          return okResult({
+            audience: "attendee",
+            canAccess: [
+              "programme schedule",
+              "cohort lesson materials",
+              "flashcards / quiz / learning guide",
+              "your own learning tasks",
+            ],
+            cannotAccess: ["other people's data"],
+            setup: "Mint a learning token on /mcp; client steps on /faq",
+            inAppChat: "Signed-in Learning Assistant on the site (same materials)",
+          });
+        }
         return okResult({
+          audience: "staff",
           principle: "AI decides; tools execute. Not one giant agent.",
           surfaces: {
             learningChat: {

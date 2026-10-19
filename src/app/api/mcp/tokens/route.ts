@@ -29,7 +29,9 @@ export async function GET(request: NextRequest) {
   if (isErrorResponse(auth)) return auth;
 
   try {
-    const tokens = await listMcpAccessTokensForUid(auth.uid);
+    const includeRevoked =
+      new URL(request.url).searchParams.get("includeRevoked") === "1";
+    const tokens = await listMcpAccessTokensForUid(auth.uid, { includeRevoked });
     return ok({ tokens });
   } catch (e) {
     logServerRouteException("GET /api/mcp/tokens", e);

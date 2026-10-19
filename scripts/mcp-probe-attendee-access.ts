@@ -23,7 +23,10 @@ import { randomBytes } from "node:crypto";
 import { FieldValue } from "firebase-admin/firestore";
 import { adminAuth, adminDb } from "../src/lib/firebase-admin";
 import { getActiveCohortId } from "../src/lib/cohorts";
-import { mintMcpAccessToken } from "../src/lib/mcp/accessTokens";
+import {
+  deleteProbeMcpTokensForUid,
+  mintMcpAccessToken,
+} from "../src/lib/mcp/accessTokens";
 import {
   requireAdmin,
   requireAttendee,
@@ -115,6 +118,10 @@ async function main() {
 
   console.log(JSON.stringify({ step: "ensure_attendee", emailSet: true }, null, 2));
   const { uid, cohortId } = await ensureAttendeeUser(email, password);
+  const cleaned = await deleteProbeMcpTokensForUid(uid);
+  if (cleaned > 0) {
+    console.log(JSON.stringify({ step: "cleanup_old_probe_tokens", deleted: cleaned }, null, 2));
+  }
 
   let mintAdminBlocked = false;
   try {
@@ -228,11 +235,9 @@ async function main() {
     detail: `scopes=${JSON.stringify(forgedCaller.scopes)} isAdmin=${forgedCaller.isAdmin}`,
   });
 
+  // Delete probe tokens — do not leave revoked rows cluttering /mcp "Your tokens".
   for (const id of [learning.tokenId, forged.tokenId]) {
-    await adminDb().collection("mcpAccessTokens").doc(id).update({
-      revoked: true,
-      revokedAt: FieldValue.serverTimestamp(),
-    });
+    await adminDb().collection("mcpAccessTokens").doc(id).delete();
   }
 
   const failed = probes.filter((p) => !p.ok);
