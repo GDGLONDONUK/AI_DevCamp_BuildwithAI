@@ -79,7 +79,7 @@ export const DEFAULT_HOME_SITE_CONTENT: HomeSiteContent = {
   cohortPills: [
     {
       id: "dates",
-      label: "Sept 3 – Oct 1, 2026 (Coming Soon)",
+      label: "23 Sept – 31 Oct 2026 · Hackathon closing",
       tone: "blue",
       icon: "calendar",
     },

@@ -20,6 +20,10 @@ export type LearningChatLogInput = {
   error?: string;
   assistantPreview?: string;
   toolsUsed?: string[];
+  stepCount?: number;
+  promptTokens?: number;
+  completionTokens?: number;
+  dryRun?: boolean;
   durationMs: number;
 };
 
@@ -46,6 +50,10 @@ export async function logLearningChatCall(input: LearningChatLogInput): Promise<
       ? preview(input.assistantPreview)
       : null,
     toolsUsed: input.toolsUsed ?? [],
+    stepCount: input.stepCount ?? null,
+    promptTokens: input.promptTokens ?? null,
+    completionTokens: input.completionTokens ?? null,
+    dryRun: input.dryRun ?? false,
     durationMs: input.durationMs,
     createdAt: FieldValue.serverTimestamp(),
   });

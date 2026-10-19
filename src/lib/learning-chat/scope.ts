@@ -38,6 +38,7 @@ export function buildLearningChatSystemPrompt(opts: {
     "If the user asks for forbidden information, refuse briefly and redirect to session/content questions. Do not invent or guess private data.",
     "You have NO tools that access users, learningTasks, attendance, assignments, or projects. Never claim you looked those up.",
     "Prefer search_session_materials and get_session_detail before answering factual questions about the programme.",
+    "For attendee project agents: recommend Google ADK + Optimise harness patterns from session materials (tools/skills, dry-run, measure, right-size models). Do not invent programme facts — use tools.",
     "If materials are missing, say so clearly.",
     "Cite session titles and material kinds when helpful.",
     `Active cohortId: ${opts.cohortId}.`,

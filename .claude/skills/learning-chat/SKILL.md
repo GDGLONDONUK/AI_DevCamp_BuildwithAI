@@ -1,93 +1,81 @@
 ---
 name: learning-chat
 description: >-
-  AI DevCamp learning assistant (right-slider chat) with Gemini RAG over
-  session materials — PDFs, transcripts, videos, concepts. Also covers the
-  planned Learning MCP (BYO-LLM, auth, API key cycling). Use when adding
-  materials, wiring LEARNING_GEMINI_API_KEY, tools/functions for session Q&A,
-  seeding the corpus, changing /api/learning-chat, or designing MCP. Triggers
-  on: "learning chat", "RAG", "session transcript", "learning Gemini", "PDF
-  materials", "what was covered", "FloatingLearningChat", "learning MCP",
-  "BYO LLM", "API key cycling".
+  MAINTAINER skill only (Claude Code / Cursor agents editing this repo).
+  Not for programme attendees. Attendees use https://aidevcamp.gdg.london
+  (in-app Learning Assistant + /mcp + /faq). Use this skill when changing
+  learning-chat APIs, RAG corpus, MCP package, harness limits, or LEARNING_GEMINI_*.
+  Triggers on: learning chat, RAG, sessionLearningMaterials, FloatingLearningChat,
+  packages/devcamp-mcp, LEARNING_GEMINI, harness, dryRun.
 ---
 
-# Learning chat (session RAG)
+# Learning chat & MCP — **repo maintainers**
 
-Inspired by Sitecore demo `AIChatPanel` (floating button + right drawer + Gemini tools), scoped to **programme learning** for signed-in attendees and admins.
+> **Attendees / Claude / ChatGPT users do not use this folder.**  
+> They learn via the live site: [aidevcamp.gdg.london](https://aidevcamp.gdg.london/) → in-app chat, [`/faq`](https://aidevcamp.gdg.london/faq), [`/mcp`](https://aidevcamp.gdg.london/mcp).  
+> `.claude/skills/*` only guides AI coding agents while changing this codebase.
 
-**Full docs:** `docs/14-learning-assistant.md` (how it is built + MCP design).
+## Kitchen sink (follow these principles in *our* code)
 
-## Architecture (shipped)
+Concepts from Optimise week — **no third-party slide images in git**. Full map: `docs/15-agent-harnessing-optimisation.md`.
 
-| Piece | Location |
-|-------|----------|
-| UI slider | `src/components/LearningChatPanel.tsx` (`FloatingLearningChat` in `layout.tsx`) |
-| API | `POST /api/learning-chat` — `verifyAuth()` |
-| Gemini (dedicated key) | `LEARNING_GEMINI_API_KEY` + optional `LEARNING_GEMINI_MODEL` |
-| Chat + tools | `src/lib/learning-chat/chatService.ts`, `tools.ts` |
-| Corpus | Firestore `sessionLearningMaterials/{id}` — **Admin SDK only** |
-| Admin upsert | `PUT /api/admin/learning-materials` |
-| Seed from sessions | `npm run seed-learning-materials` |
+| Principle | How we apply it |
+|-----------|-----------------|
+| Not one giant agent | Chat tools ≠ MCP packs ≠ maintainer skills |
+| Input control | Zod + scope refuse before Gemini; MCP token + tier gates |
+| Config over prompts | `LEARNING_HARNESS` + env — not longer system prompts |
+| Tools execute | `toolExecutors` / `studyAids` for RAG, cards, quiz |
+| Dry-run | `dryRun: true` on `/api/learning-chat` |
+| Measure | `learning_chat_logs` (tools, steps, tokens, duration) |
+| Shrink context | History + excerpt caps in harness |
+| Cohort agents | Prefer Google ADK (`examples/adk-harnessed-agent/`) |
 
-Flow: UI → Bearer token → `generateText` + tools → Admin SDK reads `sessions` + `sessionLearningMaterials` → grounded answer. Corpus is **not** dumped into the prompt whole; tools retrieve excerpts.
-
-## Env (platform Gemini)
-
-```bash
-LEARNING_GEMINI_API_KEY=...          # required — separate from other products
-LEARNING_GEMINI_MODEL=gemini-3.8-flash   # optional — latest GA Flash (Sep 2026)
-# Future key pool (not implemented yet):
-# LEARNING_GEMINI_API_KEYS=key1,key2,key3
+```
+Attendee browser / Claude / ChatGPT
+  └─ https://aidevcamp.gdg.london
+       ├─ POST /api/learning-chat     (platform Gemini + learning tools)
+       └─ MCP Bearer dcmcp_…          (BYO LLM → packages/devcamp-mcp packs)
+            └─ Admin SDK → sessions + sessionLearningMaterials + learningTasks
 ```
 
-Never put these keys in `NEXT_PUBLIC_*`.
+## Code map
 
-## Tool functions (stable names — HTTP today, MCP later)
+| Concern | Code |
+|---------|------|
+| Harness limits / dry-run | `src/lib/learning-chat/harness.ts` |
+| In-app chat UI | `src/components/LearningChatPanel.tsx` |
+| Chat API | `POST /api/learning-chat` |
+| Tools + RAG | `tools.ts`, `toolExecutors.ts`, `studyAids.ts`, `materialsRepoCore.ts` |
+| Access tiers | `src/lib/access/programmeAccess.ts` |
+| MCP tokens | `src/lib/mcp/accessTokens.ts`, `src/app/api/mcp/*`, `src/app/mcp` |
+| MCP server | `packages/devcamp-mcp` (`npm run mcp:devcamp` / `mcp:http`) |
+| Attendee FAQ | `src/app/faq/page.tsx` → `/faq` |
+| Design notes | `docs/14-learning-assistant.md`, `docs/15-agent-harnessing-optimisation.md` |
 
-- `list_cohort_sessions` — schedule overview
-- `get_session_detail` — description, outcomes, resources, video
-- `search_session_materials` — RAG keyword search over corpus
-- `list_session_materials` — all materials for one session
-- `get_focus_hint` — UI focus session / path
+Corpus: `sessionLearningMaterials` — Admin SDK only. Seed: `npm run seed-learning-materials`.
 
-## Material kinds
+## Env (platform Gemini — in-app only)
 
-`session_summary` | `transcript` | `pdf` | `video` | `slides` | `concept` | `notes` | `resource`
+```bash
+LEARNING_GEMINI_API_KEY=...
+# LEARNING_GEMINI_MODEL=gemini-3.8-flash
+```
 
-Each doc: `sessionId`, `cohortId`, `title`, `kind`, `textContent` (RAG body), optional `url`, `concepts[]`.
+Never `NEXT_PUBLIC_*`. BYO-LLM MCP does **not** use this key.
 
-## Common tasks
+## When editing this feature
 
-1. **Seed summaries/concepts from live sessions**
-   ```bash
-   npm run seed-learning-materials
-   npm run seed-learning-materials -- --cohort=cohort-june-2026
-   ```
-2. **Add a transcript / PDF extract** — `PUT /api/admin/learning-materials` with `kind: "transcript"` or `"pdf"` and full `textContent` (+ `url`).
-3. **Change prompts / welcome** — `src/lib/learning-chat/constants.ts`.
-4. **Deploy rules** after collection change:
-   ```bash
-   firebase deploy --only firestore:rules
-   ```
+1. Prefer a **new tool** (or MCP pack registration) over bloating the system prompt.
+2. Keep tool names stable across HTTP chat and MCP.
+3. Honour public / attendee / admin tiers (`programmeAccess` + MCP `requireAttendee` / `requireAdmin`).
+4. Do not put user/assignment/attendance tools on the **in-app** learning HTTP surface.
+5. Attendee docs belong on `/faq` and `/mcp`, not in `.claude/skills`.
+6. Do **not** commit workshop slide PNGs or other third-party training imagery.
 
-## Future: Learning MCP (BYO-LLM)
+## Do's / don'ts (maintainers)
 
-Not shipped. Design in `docs/14-learning-assistant.md`:
-
-- MCP server exposes the **same tools**; **host LLM is the user’s** (Cursor / Claude / etc.).
-- Auth: Firebase ID token or short-lived MCP session from `POST /api/learning-mcp/session`.
-- **API key cycling** applies only to **platform-paid** Gemini (in-app chat), via a key pool + 429 failover — not to BYO-LLM.
-- Reuse `materialsRepo` — do not fork corpus logic.
-- Phases: extract shared tool executors → MCP package → Cursor config docs → optional embeddings / key pool.
-
-## Do's / don'ts
-
-- **Do** keep the corpus server-only; chat goes through `/api/learning-chat`.
-- **Do** ground answers with tools — do not invent session coverage.
-- **Do** keep tool names stable for a future MCP surface.
-- **Do** log every chat call to `learning_chat_logs` (never skip logging on errors).
-- **Don't** add tools that read `users`, `learningTasks`, `attendance`, assignments, or buddies.
-- **Don't** reuse marketing/CMS Gemini keys; this feature uses `LEARNING_GEMINI_*`.
-- **Don't** expose materials via client Firestore reads.
-- **Don't** put emails, attendance, or check-in codes into materials text.
-- **Don't** put platform API keys in attendee-facing MCP client configs.
+- **Do** ground answers with Firestore tools; do not invent session coverage.
+- **Do** keep Optimise / harness concepts in RAG notes + `docs/15` (text only).
+- **Do** log `/api/learning-chat` to `learning_chat_logs`.
+- **Don't** tell attendees to clone the repo or open `.claude/skills` to learn.
+- **Don't** put platform API keys in attendee MCP configs.

@@ -1,0 +1,20 @@
+Govern — Workshop transcript notes
+Recording: https://www.youtube.com/watch?v=860gVUhsSuw
+Lab: https://renuka-agent-governance-workshop.renuka911346.chatgpt.site/#lesson-3
+AI DevCamp 15 October 2026 (organiser label “Session 07”; content = Govern hands-on after 10 Oct cancel). Renuka Kelkar. Closed group.
+
+Renuka opened Sonika’s govern codelab and asked whether copy-paste prompts teach well. Max: skeleton helps but CLI-heavy and long; simplifies with ChatGPT. Duncan (chat): learn by writing your own agent, not blind copy. Renuka will demonstrate a simpler agent and live-code on a later Saturday.
+
+Demo: blog agent, root orchestrator, search + image sub-agents, no UI yet. Ankur: governance = models/agents behave as asked, predictable. Layers: prompt protection, data, guardrails, Model Armor, identity, business rules, traffic path.
+
+Model Armor in console: new template, us-central1, injection/jailbreak, responsible AI filters. Redeploy. Off-brand/harmful prompt blocked in playground. Social Spark has armor on poster and coordinator. Ingress = agent→LLM path; egress = responses out. Code: Model Armor plugin / after-model callback. Build step by step: agent → deploy → armor → registry.
+
+Alexander: user id in Model Armor logs for hate? Renuka to investigate. Soumyamol: multi-agent — apply armor per agent / traffic direction.
+
+DLP: Ankur — protect secrets/PII. Non-technical users paste bank/passport/contacts. DLP reduction layer.
+
+Registry: Ankur — IDs to track agents. Renuka — library of inventory, MCP, storage, logs. Identity mandatory before registry populates. Shows A2A, runtime, location.
+
+Policies: never publish without human approval; Buffer as HITL. Access vs business policy. Education-only blog rejected a movie post. Gateway = check-post; depends on prior policy.
+
+Schedule: optimisation theory/practice shifted (illness). Hackathon planned after modules. Duncan deployed to GCP with proxy; memory bank quirks fixed. Submit video/screenshots if URL would burn Cloud cost. Project ideas: Ankur food-delivery WhatsApp routing; Cath academic effort optimiser. £100 video-agent bill as motivation for optimisation. Attendance codes deferred.

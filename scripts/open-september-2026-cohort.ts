@@ -56,13 +56,19 @@ async function main() {
       displayName: "AI DevCamp September 2026",
       status: "registration",
       startDate: new Date("2026-09-23"),
-      endDate: new Date("2026-10-17"),
+      endDate: new Date("2026-10-31"),
       numberOfSessions: 9,
       description:
-        "Build, Scale, Govern, Optimise — the production-ready agent lifecycle (Google Cloud Next 2026). Four weeks: Thursday theory + Saturday workshop. Kickoff Wed 23 Sept hybrid at Skyscanner.",
+        "Build, Scale, Govern, Optimise — the production-ready agent lifecycle (Google Cloud Next 2026). Kickoff Wed 23 Sept (Skyscanner). Cohort finishes Sat 31 Oct 2026 with the Agentic Hackathon, show-and-tell, pitching, and certificate / award ceremony at Encode Hub (Luma: https://luma.com/wz7509ty).",
       theme: "Build, Scale, Govern, Optimise: the production-ready agent lifecycle",
       registrationOpen: true,
-      format: "4 weeks, virtual (kickoff hybrid), Thursday 1hr + Saturday 2hr",
+      format: "4 weeks + closing hackathon (31 Oct), virtual + hybrid kickoff/closing",
+      closingEvent: {
+        title: "AIDevCamp 2026 Agentic Hackathon",
+        date: "2026-10-31",
+        lumaUrl: "https://luma.com/wz7509ty",
+        venue: "Encode Hub, London",
+      },
       updatedAt: now,
     },
     { merge: true }

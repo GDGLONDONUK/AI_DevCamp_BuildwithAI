@@ -48,3 +48,6 @@ next-env.d.ts
 
 # Luma / guest CSVs (PII — keep local only)
 scripts/imports/*.csv
+
+# Third-party workshop slide images (concepts live in docs/15 — do not commit)
+docs/assets/agent-harnessing/

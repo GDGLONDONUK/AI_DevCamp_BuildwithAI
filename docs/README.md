@@ -28,7 +28,8 @@ Then read: [01-project-overview.md](./01-project-overview.md) + [CLAUDE.md](../C
 | [11-cohort-architecture.md](./11-cohort-architecture.md) | **Shipped** cohort model (`sessions.cohortId`, user `cohortIds`) + browsing; see banner at top |
 | [12-multi-cohort-design.md](./12-multi-cohort-design.md) | **Design proposal** for fully nested cohort collections (aspirational — see banner) |
 | [13-firebase-operations.md](./13-firebase-operations.md) | Firebase ops: open September, sync programme, admin workflows, certification, CLI |
-| [14-learning-assistant.md](./14-learning-assistant.md) | **How we build** the Learning Assistant (RAG + Gemini tools) + **future Learning MCP / BYO-LLM** (auth, key cycling) |
+| [14-learning-assistant.md](./14-learning-assistant.md) | **How we build** the Learning Assistant (RAG + Gemini tools) + **DevCamp MCP / BYO-LLM** (auth, key cycling) |
+| [15-agent-harnessing-optimisation.md](./15-agent-harnessing-optimisation.md) | Harness **concepts** + kitchen sink for Learning Chat / MCP / skills (no third-party slides in git) |
 
 ---
 
@@ -41,6 +42,7 @@ Then read: [01-project-overview.md](./01-project-overview.md) + [CLAUDE.md](../C
 - **Open a new cohort / registration?** → [11](./11-cohort-architecture.md), skill `.claude/skills/cohorts/SKILL.md`, `npm run open-september-2026-cohort`
 - **Edit home marketing copy?** → Admin → **Home content** (`/admin/site`); [08](./08-site-deployment-and-admin.md)
 - **Learning Assistant / session RAG?** → [14](./14-learning-assistant.md), skill `.claude/skills/learning-chat/SKILL.md`
+- **Optimise / harness / ADK agents?** → [15](./15-agent-harnessing-optimisation.md), `examples/adk-harnessed-agent/`
 - **Add speakers / sessions?** → `src/data/speakers.ts` + `src/data/sessions.ts` → `sync-firestore-programme` + `upload-speaker-photos`
 - **Deploy to production?** → See `08-site-deployment-and-admin.md`
 - **Understand the database?** → See `03-database-schema.md`

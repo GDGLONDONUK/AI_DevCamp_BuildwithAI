@@ -121,11 +121,15 @@ Never put this under `NEXT_PUBLIC_*`.
 
 ---
 
-## Future: Learning MCP (bring your own LLM)
+## Learning + Admin MCP (bring your own LLM)
 
-Goal: expose the **same learning tools + corpus** over **MCP** so attendees can use Cursor, Claude Desktop, or custom agents with **their own LLM**, while DevCamp still authenticates them and protects materials.
+Goal: expose the **same learning tools + corpus** over **MCP** so attendees and organisers can use Cursor, Claude Desktop, ChatGPT, or custom agents with **their own LLM**, while DevCamp still authenticates them and protects materials.
 
-This is **not shipped yet**. Design below is the intended shape so we do not couple the UI forever to a single Gemini key.
+**Shipped:** `packages/devcamp-mcp` (stdio + HTTP). Setup: `packages/devcamp-mcp/README.md`.
+
+- **Mint tokens (per user / role):** site **`/mcp`**, or `POST /api/mcp/tokens` (self) / `POST /api/admin/mcp/tokens` (admin for another user). Opaque `dcmcp_…` tokens with scopes `learning` | `admin`.
+- **Stdio:** `DEVCAMP_MCP_ACCESS_TOKEN=…` → `npm run mcp:devcamp`
+- **Server HTTP:** `npm run mcp:http` (Bearer header). Prefer a small always-on host; not ideal on Vercel serverless.
 
 ### Why MCP
 
@@ -182,37 +186,42 @@ Keep names aligned with `src/lib/learning-chat/tools.ts` so one implementation b
 - `search_session_materials`
 - `list_session_materials`
 - `get_focus_hint` (optional for IDE; pass `sessionId` explicitly instead)
+- `prepare_flashcards` / `prepare_quiz` / `start_learning_guide` (NotebookLM-style study aids)
+- `list_my_learning_tasks` / `list_missing_learning_tasks` / `import_missing_learning_tasks` / `create_my_learning_task` / `update_my_learning_task` (owner-scoped checklist)
 
 Optional later resources:
 
 - `learning://session/{sessionId}` — markdown summary
 - `learning://material/{materialId}` — full text (authz-checked)
 
-### Suggested package layout (when implementing)
+### Package layout
 
 ```
-packages/learning-mcp/          # or scripts/learning-mcp/
-  src/server.ts                 # MCP stdio or HTTP transport
-  src/auth.ts                   # verify Firebase / session token
-  src/tools.ts                  # wrap materialsRepo + session reads
+packages/devcamp-mcp/
+  src/index.ts                  # MCP stdio entry
+  src/auth.ts                   # Firebase ID token → role / cohort
+  src/registerLearningTools.ts  # same names as tools.ts
+  src/registerAdminTools.ts     # admin users / sessions / assignments
+  README.md                     # Claude / Cursor / ChatGPT config
+src/lib/learning-chat/
+  toolExecutors.ts              # shared by HTTP chat + MCP
+  materialsRepoCore.ts          # corpus access (no server-only)
 ```
-
-Reuse `src/lib/learning-chat/materialsRepo.ts` and Firestore Admin init — do not duplicate corpus logic.
 
 ### Security checklist (MCP)
 
-- [ ] Tools only return materials for cohorts the caller may access
-- [ ] No write tools for attendees (writes stay on `/api/admin/learning-materials`)
+- [x] Tools only return materials for the caller's cohort (override via `DEVCAMP_MCP_COHORT_ID`)
+- [x] No write/admin tools for attendees (role check on every admin tool)
 - [ ] Rate-limit per uid / session
-- [ ] Rotate platform keys without client changes (server pool only)
-- [ ] Document Cursor MCP config with **env var references**, never committed secrets
+- [ ] Rotate platform keys without client changes (server pool only — in-app Gemini)
+- [x] Document Cursor / Claude MCP config with env var references, never committed secrets
 
 ### Implementation phases
 
-1. **Now (done):** In-app slider + `/api/learning-chat` + Gemini tools + Firestore corpus.
-2. **Next:** Extract tool executors into a shared module used by HTTP and (future) MCP.
-3. **Then:** MCP server package + Firebase auth handshake + docs for Cursor.
-4. **Optional:** Platform key pool cycling for in-app Gemini; embeddings behind the same `search_session_materials` tool.
+1. **Done:** In-app slider + `/api/learning-chat` + Gemini tools + Firestore corpus.
+2. **Done:** Shared `toolExecutors` + `materialsRepoCore` for HTTP and MCP.
+3. **Done:** `packages/devcamp-mcp` + Firebase ID token auth + Claude/Cursor README.
+4. **Optional:** Platform key pool cycling for in-app Gemini; embeddings behind the same `search_session_materials` tool; short-lived `POST /api/learning-mcp/session`.
 
 ---
 
@@ -220,5 +229,6 @@ Reuse `src/lib/learning-chat/materialsRepo.ts` and Firestore Admin init — do n
 
 - Home marketing CMS (`siteContent/home`) is separate — [08](./08-site-deployment-and-admin.md).
 - Security boundaries — [04](./04-auth-and-security.md), skill `.claude/skills/firebase-security/SKILL.md`.
+- Harness concepts + kitchen sink (Learning Chat / MCP / skills) — [15](./15-agent-harnessing-optimisation.md); cohort ADK sample `examples/adk-harnessed-agent/`.
 
 Next → [docs/README.md](./README.md)
