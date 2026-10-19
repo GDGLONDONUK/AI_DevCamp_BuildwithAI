@@ -171,6 +171,15 @@ const FAQS: FaqItem[] = [
           You do not need to run anything on your laptop. Mint the token on the site, then point
           your LLM at <code className="text-gray-400">/api/mcp</code>.
         </p>
+        <p className="text-gray-400 text-sm mt-3">
+          If Claude says <strong className="text-white">“Server not initialized”</strong> on every
+          tool call: remove the connector, save, then add{" "}
+          <code className="text-green-300">https://aidevcamp.gdg.london/api/mcp</code> again with a
+          fresh token from <Link href="/mcp" className="text-green-400 underline">/mcp</Link>. Do
+          not trust web search for the schedule — ask the connector for{" "}
+          <code className="text-green-300">list_public_sessions</code> (live cohort is September
+          2026, not the April–May spring run).
+        </p>
       </FaqAnswer>
     ),
   },
