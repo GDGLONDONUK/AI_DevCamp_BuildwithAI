@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
 import { logServerRouteException } from "@/lib/server/appErrorLog";
+import { resolveActiveCohortIdFromDb } from "@/lib/server/activeCohort";
 
 function toIso(value: unknown): string | null {
   if (!value) return null;
@@ -30,6 +31,8 @@ export async function GET(req: NextRequest) {
 
     const snapshot = await adminDb().collection("cohorts").get();
 
+    const currentCohortId = await resolveActiveCohortIdFromDb();
+
     let cohorts = snapshot.docs.map((doc) => {
       const data = doc.data();
       return {
@@ -37,6 +40,7 @@ export async function GET(req: NextRequest) {
         name: (data.name as string) || doc.id,
         displayName: (data.displayName as string) || (data.name as string) || doc.id,
         status: (data.status as string) || "active",
+        isCurrent: data.isCurrent === true || doc.id === currentCohortId,
         startDate: toIso(data.startDate),
         endDate: toIso(data.endDate),
         numberOfSessions: Number(data.numberOfSessions) || 0,
@@ -66,6 +70,8 @@ export async function GET(req: NextRequest) {
       {
         success: true,
         count: cohorts.length,
+        /** Live programme id (Firestore `cohorts.isCurrent`, env fallback). */
+        currentCohortId,
         cohorts,
       },
       {

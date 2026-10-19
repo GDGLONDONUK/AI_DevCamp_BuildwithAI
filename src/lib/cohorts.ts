@@ -22,6 +22,11 @@ export type CohortParticipation = {
   role?: "attendee" | "moderator" | "admin";
 };
 
+/**
+ * Sync helper for client bundles and scripts.
+ * Server/MCP/learning paths should prefer `resolveActiveCohortIdFromDb()`
+ * (`src/lib/server/activeCohort.ts`) — Firestore `cohorts.isCurrent` is the source of truth.
+ */
 export function getActiveCohortId(): string {
   const fromEnv =
     typeof process !== "undefined"

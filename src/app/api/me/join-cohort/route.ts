@@ -11,11 +11,11 @@ import { adminDb } from "@/lib/firebase-admin";
 import { verifyAuth, ok, err, isErrorResponse } from "@/lib/api-helpers";
 import { logServerRouteException } from "@/lib/server/appErrorLog";
 import {
-  getActiveCohortId,
   SEPTEMBER_2026_COHORT_ID,
   SPRING_2026_COHORT_ID,
   userInCohort,
 } from "@/lib/cohorts";
+import { resolveActiveCohortIdFromDb } from "@/lib/server/activeCohort";
 import { isRegistrationOpen } from "@/lib/registrationOpen";
 
 const BodySchema = z.object({
@@ -39,13 +39,14 @@ export async function POST(req: NextRequest) {
       return err(parsed.error.issues[0]?.message || "Invalid body", 400);
     }
 
-    const cohortId = parsed.data.cohortId?.trim() || getActiveCohortId();
+    const programmeActive = await resolveActiveCohortIdFromDb();
+    const cohortId = parsed.data.cohortId?.trim() || programmeActive;
     if (!JOINABLE.has(cohortId)) {
       return err("Unknown or closed cohort", 400);
     }
 
-    // Only the active cohort is joinable via self-serve (admins can PATCH).
-    if (cohortId !== getActiveCohortId()) {
+    // Only the live programme cohort is joinable via self-serve (admins can PATCH).
+    if (cohortId !== programmeActive) {
       return err("That cohort is not open for self-join", 400);
     }
 

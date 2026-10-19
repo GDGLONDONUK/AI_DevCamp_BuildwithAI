@@ -10,7 +10,7 @@ import { requireAttendeeForCohort } from "@/lib/access/programmeAccess";
 import { processLearningChat } from "@/lib/learning-chat/chatService";
 import { logLearningChatCall } from "@/lib/learning-chat/chatLog";
 import { LEARNING_HARNESS } from "@/lib/learning-chat/harness";
-import { getActiveCohortId } from "@/lib/cohorts";
+import { resolveActiveCohortIdFromDb } from "@/lib/server/activeCohort";
 import { logServerRouteException } from "@/lib/server/appErrorLog";
 import { logActivityEvent } from "@/lib/server/activityLog";
 
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
   if (isErrorResponse(auth)) return auth;
 
   const started = Date.now();
-  const cohortId = getActiveCohortId();
+  const cohortId = await resolveActiveCohortIdFromDb();
   let messagePreview = "";
   let messageLength = 0;
   let historyTurns = 0;

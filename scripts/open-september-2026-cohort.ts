@@ -14,6 +14,7 @@ import {
   SPRING_2026_COHORT_ID,
   SEPTEMBER_2026_COHORT_ID,
 } from "../src/lib/cohorts";
+import { clearActiveCohortCache } from "../src/lib/server/activeCohort";
 
 const BATCH_SIZE = 400;
 
@@ -38,6 +39,7 @@ async function main() {
       name: "Spring 2026 Cohort",
       displayName: "AI DevCamp Spring 2026",
       status: "completed",
+      isCurrent: false,
       startDate: new Date("2026-04-23"),
       endDate: new Date("2026-05-19"),
       numberOfSessions: 7,
@@ -55,6 +57,8 @@ async function main() {
       name: "September 2026 Cohort",
       displayName: "AI DevCamp September 2026",
       status: "registration",
+      /** Source of truth for MCP / learning chat (resolveActiveCohortIdFromDb). */
+      isCurrent: true,
       startDate: new Date("2026-09-23"),
       endDate: new Date("2026-10-31"),
       numberOfSessions: 9,
@@ -160,16 +164,19 @@ async function main() {
   }
   await commitBatches(userOps);
 
+  clearActiveCohortCache();
+
   console.log(
     JSON.stringify(
       {
         ok: true,
         cohorts: [SPRING_2026_COHORT_ID, SEPTEMBER_2026_COHORT_ID],
+        isCurrent: SEPTEMBER_2026_COHORT_ID,
         speakersWritten: SPEAKERS.length,
         sessionsWritten: SESSIONS.length,
         legacySessionsTaggedSpring: tagSessionOps.length,
         usersTaggedSpring: userOps.length,
-        note: "NEXT_PUBLIC_REGISTRATION_OPEN=true and NEXT_PUBLIC_ACTIVE_COHORT_ID=cohort-september-2026. Deploy firestore.rules. Existing users Join September via banner.",
+        note: "Firestore cohorts.isCurrent marks the live programme. Env NEXT_PUBLIC_ACTIVE_COHORT_ID is client/fallback only. Deploy firestore.rules. Existing users Join September via banner.",
       },
       null,
       2

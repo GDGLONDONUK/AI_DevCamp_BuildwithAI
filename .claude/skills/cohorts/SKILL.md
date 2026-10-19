@@ -16,24 +16,33 @@ description: >-
 
 | Collection | How cohort is expressed |
 |------------|-------------------------|
-| `cohorts/{cohortId}` | Metadata only (Admin SDK / `/api/cohorts` — **no client Firestore access**) |
+| `cohorts/{cohortId}` | Metadata + **`isCurrent: true`** on exactly one live programme (Admin SDK / `/api/cohorts` — **no client Firestore access**) |
 | `sessions/{id}` | Flat docs with **`cohortId`** field |
 | `speakers/{id}` | Global roster (shared) |
-| `users/{uid}` | **`cohortIds[]`**, **`activeCohortId`**, **`cohortParticipation`** |
+| `users/{uid}` | **`cohortIds[]`**, **`activeCohortId`**, **`cohortParticipation`** (user pointer — may lag past cohorts) |
 
 IDs today:
 
-- Spring (completed): `cohort-june-2026`
-- Active (registration): `cohort-september-2026`
+- Spring (completed): `cohort-june-2026` (`isCurrent: false`)
+- Live programme: `cohort-september-2026` (`isCurrent: true`)
 
-Helpers: `src/lib/cohorts.ts` (`getActiveCohortId()`, `sessionsForCohort()`, `userInCohort()`).
+**Source of truth for “current cohort”:** Firestore `cohorts.isCurrent` via `resolveActiveCohortIdFromDb()` (`src/lib/server/activeCohort.ts`). Used by MCP, learning-chat, join-cohort, ensure-profile. Env `NEXT_PUBLIC_ACTIVE_COHORT_ID` is client UI + cold-start fallback only.
 
-Env:
+Helpers: `src/lib/cohorts.ts` (`getActiveCohortId()` sync fallback, `sessionsForCohort()`, `userInCohort()`).
 
 ```bash
-NEXT_PUBLIC_ACTIVE_COHORT_ID=cohort-september-2026
+NEXT_PUBLIC_ACTIVE_COHORT_ID=cohort-september-2026   # fallback / client
 NEXT_PUBLIC_REGISTRATION_OPEN=true   # or false to close
+
+# Mark live programme in Firestore (without full re-seed):
+npm run set-current-cohort -- --cohort=cohort-september-2026
+
+# Fix stale users.activeCohortId + enrol organisers/staff on live cohort:
+npm run migrate-users-active-cohort -- --dry-run
+npm run migrate-users-active-cohort -- --apply
 ```
+
+Does **not** auto-enrol spring-only alumni — they use Join.
 
 ---
 

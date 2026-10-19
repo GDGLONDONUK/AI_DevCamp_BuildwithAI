@@ -5,7 +5,8 @@ import {
   getSessionById,
   listSessionsForCohort,
 } from "../../../src/lib/learning-chat/materialsRepoCore";
-import { getActiveCohortId, SPRING_2026_COHORT_ID } from "../../../src/lib/cohorts";
+import { SPRING_2026_COHORT_ID } from "../../../src/lib/cohorts";
+import { resolveActiveCohortIdFromDb } from "../../../src/lib/server/activeCohort";
 import { requireAuthenticated, resolveCaller } from "./auth";
 import { errResult, okResult } from "./json";
 import { LEARNING_HARNESS, LEARNING_CHAT_TOOL_NAMES } from "../../../src/lib/learning-chat/harness";
@@ -95,7 +96,10 @@ export function registerPublicTools(server: McpServer): void {
       try {
         const caller = await resolveCaller();
         requireAuthenticated(caller);
-        const cid = cohortId?.trim() || caller.cohortId || getActiveCohortId();
+        const cid =
+          cohortId?.trim() ||
+          caller.cohortId ||
+          (await resolveActiveCohortIdFromDb());
         const sessions = await listSessionsForCohort(cid);
         return okResult({
           tier: "public",

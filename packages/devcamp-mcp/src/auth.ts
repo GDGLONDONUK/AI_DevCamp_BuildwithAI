@@ -1,9 +1,9 @@
 import { adminAuth } from "../../../src/lib/firebase-admin";
-import { getActiveCohortId } from "../../../src/lib/cohorts";
 import {
   actorEnrolledInCohort,
   isStaffRole,
   loadActiveProgrammeActor,
+  resolveDefaultCohortId,
 } from "../../../src/lib/access/programmeAccess";
 import { resolveMcpAccessToken, type McpTokenScope } from "../../../src/lib/mcp/accessTokens";
 import { getRequestCaller } from "./requestContext";
@@ -62,11 +62,15 @@ async function buildCaller(opts: {
   const actor = await loadActiveProgrammeActor(opts.uid);
   const role = actor.role || "attendee";
   const isAdmin = isStaffRole(role);
+  const cohortIds = actor.cohortIds;
+  // Prefer live programme cohort (Firestore isCurrent) over stale users.activeCohortId.
   const cohortId =
     process.env.DEVCAMP_MCP_COHORT_ID?.trim() ||
-    actor.activeCohortId ||
-    getActiveCohortId();
-  const cohortIds = actor.cohortIds;
+    (await resolveDefaultCohortId({
+      role,
+      cohortIds,
+      activeCohortId: actor.activeCohortId,
+    }));
   const enrolled = actorEnrolledInCohort({ role, cohortIds }, cohortId);
   const scopes = scopesForLiveRole(opts.scopes, role);
 
