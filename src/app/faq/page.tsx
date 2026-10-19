@@ -109,15 +109,68 @@ const FAQS: FaqItem[] = [
             <code className="text-green-300">dcmcp_…</code> (shown once).
           </li>
           <li>
-            In Claude / ChatGPT / Cursor, add DevCamp as an MCP server with that Bearer token
-            (see sections below). Point at the <strong className="text-white">hosted</strong> MCP
-            URL organisers publish — not a local git checkout.
+            In Claude / ChatGPT / Cursor, add a remote MCP connector with server URL{" "}
+            <code className="text-green-300">https://aidevcamp.gdg.london/api/mcp</code> and
+            header <code className="text-green-300">Authorization: Bearer dcmcp_…</code> (see
+            “Which URL do I paste?” below).
           </li>
           <li>
             Ask: “What’s on this week’s agenda?”, “Flashcards for Scale”, “What’s missing from
             my learning tasks?”
           </li>
         </ol>
+      </FaqAnswer>
+    ),
+  },
+  {
+    id: "mcp-urls",
+    category: "start",
+    q: "Which URL do I paste into Claude / ChatGPT? (/mcp vs /api/mcp)",
+    a: (
+      <FaqAnswer>
+        <p>
+          There are <strong className="text-white">two different addresses</strong> — using the
+          wrong one causes errors like <strong className="text-white">307</strong> or “Not
+          found”.
+        </p>
+        <ul className="list-disc list-inside space-y-2">
+          <li>
+            <strong className="text-white">Token page (browser only):</strong>{" "}
+            <Link href="/mcp" className="text-green-400 underline">
+              https://aidevcamp.gdg.london/mcp
+            </Link>
+            <br />
+            <span className="text-gray-400">
+              Sign in here to mint and revoke your <code className="text-green-300">dcmcp_…</code>{" "}
+              token. Do <strong className="text-white">not</strong> use this as the MCP server URL
+              in Claude or ChatGPT — it is a normal website page and will redirect (307) if you
+              are not signed in.
+            </span>
+          </li>
+          <li>
+            <strong className="text-white">MCP connector URL (paste into Claude / ChatGPT / Cursor):</strong>{" "}
+            <code className="text-green-300">https://aidevcamp.gdg.london/api/mcp</code>
+            <br />
+            <span className="text-gray-400">
+              This is the real MCP endpoint. Always send{" "}
+              <code className="text-green-300">Authorization: Bearer dcmcp_YOUR_TOKEN</code>.
+            </span>
+          </li>
+        </ul>
+        <pre className="overflow-x-auto rounded-lg bg-black/50 border border-white/10 p-3 text-xs text-green-200 font-mono whitespace-pre">{`{
+  "mcpServers": {
+    "ai-devcamp": {
+      "url": "https://aidevcamp.gdg.london/api/mcp",
+      "headers": {
+        "Authorization": "Bearer dcmcp_YOUR_TOKEN"
+      }
+    }
+  }
+}`}</pre>
+        <p className="text-gray-500 text-xs">
+          You do not need to run anything on your laptop. Mint the token on the site, then point
+          your LLM at <code className="text-gray-400">/api/mcp</code>.
+        </p>
       </FaqAnswer>
     ),
   },
@@ -165,18 +218,19 @@ const FAQS: FaqItem[] = [
         <p>
           1) Mint a token on{" "}
           <Link href="/mcp" className="text-green-400 underline">
-            aidevcamp.gdg.london/mcp
+            /mcp
           </Link>
-          . 2) Claude → Settings → Developer → MCP. Prefer the{" "}
-          <strong className="text-white">remote / HTTP</strong> connector when organisers
-          publish a DevCamp MCP URL:
+          . 2) In Claude, add a <strong className="text-white">remote / HTTP</strong> MCP
+          connector. Use the <strong className="text-white">API</strong> URL below — not the
+          token page URL (the page at <code className="text-gray-400">/mcp</code> is only for
+          minting tokens).
         </p>
         <pre className="overflow-x-auto rounded-lg bg-black/50 border border-white/10 p-3 text-xs text-green-200 font-mono whitespace-pre">{`{
   "mcpServers": {
     "ai-devcamp": {
-      "url": "https://MCP_HOST_FROM_ORGANISERS/mcp",
+      "url": "https://aidevcamp.gdg.london/api/mcp",
       "headers": {
-        "Authorization": "Bearer dcmcp_YOUR_TOKEN_FROM_/mcp"
+        "Authorization": "Bearer dcmcp_YOUR_TOKEN"
       }
     }
   }
@@ -224,9 +278,10 @@ const FAQS: FaqItem[] = [
           </li>
           <li>
             In ChatGPT, open <strong className="text-white">MCP / Connectors / Custom tools</strong>{" "}
-            (label varies by plan) and add the organisers’{" "}
-            <strong className="text-white">hosted</strong> DevCamp MCP URL with header{" "}
-            <code className="text-green-300">Authorization: Bearer dcmcp_…</code>.
+            (label varies by plan) and add{" "}
+            <code className="text-green-300">https://aidevcamp.gdg.london/api/mcp</code> with
+            header <code className="text-green-300">Authorization: Bearer dcmcp_…</code>. Do not
+            use the <code className="text-gray-400">/mcp</code> token page as the server URL.
           </li>
           <li>
             Or skip MCP and use the Learning Assistant on{" "}
@@ -251,8 +306,9 @@ const FAQS: FaqItem[] = [
     a: (
       <FaqAnswer>
         <p>
-          Cursor Settings → MCP: add the same <strong className="text-white">remote URL +
-          Bearer token</strong> from{" "}
+          Cursor Settings → MCP: URL{" "}
+          <code className="text-green-300">https://aidevcamp.gdg.london/api/mcp</code> and
+          Bearer token from{" "}
           <Link href="/mcp" className="text-green-400 underline">
             /mcp
           </Link>

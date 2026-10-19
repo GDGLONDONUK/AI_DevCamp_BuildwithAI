@@ -74,7 +74,7 @@ npm run dev              # Verify locally
 | Add an API route | `verifyAuth`/`requireAdmin` + `adminDb()`; `docs/07-api-routes.md` |
 | Open / re-seed a cohort | `npm run open-september-2026-cohort` + env; skill **cohorts** / `docs/11-cohort-architecture.md` |
 | Home marketing CMS | `/admin/site` + `siteContent/home`; `npm run seed-site-content` |
-| Learning Assistant / DevCamp MCP | **Attendees:** https://aidevcamp.gdg.london `/faq` + `/mcp`. **Maintainers:** `packages/devcamp-mcp`, `src/lib/learning-chat`, skill **learning-chat** (repo only) |
+| Learning Assistant / DevCamp MCP | **Attendees:** mint token on `/mcp`; connector URL **`/api/mcp`** (not the token page). FAQ `/faq`. **Maintainers:** `packages/devcamp-mcp`, skill **learning-chat** |
 | MCP attendee role probe | `npm run mcp:probe-attendee` — requires `DEVCAMP_MCP_PROBE_EMAIL` in `.env.local` (never hardcode emails/passwords in repo). Skill **learning-chat** |
 | Optimise / harness / ADK agents | `docs/15-agent-harnessing-optimisation.md`; `examples/adk-harnessed-agent/` |
 | Add speakers / sessions | `src/data/speakers.ts`, `src/data/sessions.ts` → sync + `upload-speaker-photos` |
