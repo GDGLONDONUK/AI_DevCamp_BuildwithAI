@@ -78,22 +78,40 @@ export function proxy(request: NextRequest) {
   // ── 1. CORS ──────────────────────────────────────────────────────────────
   // Regular browser page navigations don't include an Origin header — they
   // pass through freely. Only cross-origin fetch/XHR requests have one.
+  // Hosted MCP (/api/mcp) authenticates via Bearer token — allow connector Origins
+  // (Claude / ChatGPT) so remote MCP clients are not blocked by the site allowlist.
+  const isMcpApi = pathname.startsWith("/api/mcp");
+
   if (origin) {
-    const isAllowed = isAllowedOrigin(origin);
+    const isAllowed = isMcpApi || isAllowedOrigin(origin);
 
     // Respond to CORS preflight (OPTIONS) requests
     if (request.method === "OPTIONS") {
       const preflight = new NextResponse(null, { status: isAllowed ? 204 : 403 });
       if (isAllowed) {
-        preflight.headers.set("Access-Control-Allow-Origin",  origin);
-        preflight.headers.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-        preflight.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
-        preflight.headers.set("Access-Control-Max-Age",       "86400");
+        preflight.headers.set("Access-Control-Allow-Origin", origin);
+        preflight.headers.set(
+          "Access-Control-Allow-Methods",
+          "GET, POST, PUT, DELETE, OPTIONS"
+        );
+        preflight.headers.set(
+          "Access-Control-Allow-Headers",
+          isMcpApi
+            ? "Content-Type, Authorization, mcp-session-id, Last-Event-ID, mcp-protocol-version, Accept"
+            : "Content-Type, Authorization"
+        );
+        if (isMcpApi) {
+          preflight.headers.set(
+            "Access-Control-Expose-Headers",
+            "mcp-session-id, mcp-protocol-version"
+          );
+        }
+        preflight.headers.set("Access-Control-Max-Age", "86400");
       }
       return applySecurityHeaders(preflight);
     }
 
-    // Block cross-origin requests from unknown origins
+    // Block cross-origin requests from unknown origins (except hosted MCP)
     if (!isAllowed) {
       return applySecurityHeaders(
         new NextResponse(

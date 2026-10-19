@@ -149,7 +149,9 @@ export default function McpTokensPage() {
     );
   }
 
-  const hostedMcpUrl = process.env.NEXT_PUBLIC_MCP_HTTP_URL?.trim() || "";
+  const connectorUrl =
+    process.env.NEXT_PUBLIC_MCP_HTTP_URL?.trim() ||
+    `${(process.env.NEXT_PUBLIC_SITE_URL || "https://aidevcamp.gdg.london").replace(/\/+$/, "")}/api/mcp`;
 
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100 pt-24 pb-16 px-4">
@@ -160,8 +162,8 @@ export default function McpTokensPage() {
             <KeyRound className="text-green-400" /> MCP access tokens
           </h1>
           <p className="text-gray-400 text-sm leading-relaxed">
-            Mint a personal learning token, then connect Claude, ChatGPT, or Cursor using the
-            steps in the FAQ. You do not need the GitHub repo or a local MCP server.
+            Mint a personal learning token, then paste it into Claude, ChatGPT, or Cursor with
+            the connector URL below. You do not need the GitHub repo or a local MCP server.
           </p>
           <p className="text-gray-500 text-xs">
             Setup guides:{" "}
@@ -174,6 +176,23 @@ export default function McpTokensPage() {
             </Link>
           </p>
         </header>
+
+        <section className="rounded-2xl border border-white/10 bg-white/5 p-6 space-y-3">
+          <h2 className="font-semibold text-lg">Connector URL (for Claude / ChatGPT)</h2>
+          <p className="text-sm text-gray-400">
+            Use this as the MCP server address — <strong className="text-white">not</strong>{" "}
+            this page’s address. Add header{" "}
+            <code className="text-gray-200">Authorization: Bearer &lt;your token&gt;</code>.
+          </p>
+          <code className="block text-xs break-all text-green-300">{connectorUrl}</code>
+          <Button
+            variant="secondary"
+            className="gap-2"
+            onClick={() => copy(connectorUrl)}
+          >
+            <Copy size={16} /> Copy connector URL
+          </Button>
+        </section>
 
         <section className="rounded-2xl border border-white/10 bg-white/5 p-6 space-y-4">
           <h2 className="font-semibold text-lg">Mint your token</h2>
@@ -220,22 +239,6 @@ export default function McpTokensPage() {
             </div>
           )}
         </section>
-
-        {hostedMcpUrl ? (
-          <section className="rounded-2xl border border-white/10 bg-white/5 p-6 space-y-3">
-            <h2 className="font-semibold text-lg">Hosted MCP endpoint</h2>
-            <p className="text-sm text-gray-400">
-              Use this URL in Claude / ChatGPT / Cursor with header{" "}
-              <code className="text-gray-200">Authorization: Bearer &lt;your token&gt;</code>.
-              Full client steps are on the{" "}
-              <Link href="/faq" className="text-green-400 underline">
-                FAQ
-              </Link>
-              .
-            </p>
-            <code className="block text-xs break-all text-green-300">{hostedMcpUrl}</code>
-          </section>
-        ) : null}
 
         <section className="rounded-2xl border border-white/10 bg-white/5 p-6 space-y-3">
           <h2 className="font-semibold text-lg">Your tokens</h2>
