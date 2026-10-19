@@ -36,6 +36,24 @@ function readEnvToken(): string {
   return raw.startsWith("Bearer ") ? raw.slice(7) : raw;
 }
 
+/** Scopes allowed for this live role — never trust client-requested admin without staff role. */
+export function scopesForLiveRole(
+  requested: McpTokenScope[],
+  role: string
+): McpTokenScope[] {
+  const isAdmin = isStaffRole(role);
+  let scopes = [...new Set(requested)].filter(
+    (s): s is McpTokenScope => s === "learning" || s === "admin"
+  );
+  if (scopes.includes("admin") && !isAdmin) {
+    scopes = scopes.filter((s) => s !== "admin");
+  }
+  if (scopes.length === 0) {
+    scopes = ["learning"];
+  }
+  return scopes;
+}
+
 async function buildCaller(opts: {
   uid: string;
   email?: string;
@@ -50,14 +68,7 @@ async function buildCaller(opts: {
     getActiveCohortId();
   const cohortIds = actor.cohortIds;
   const enrolled = actorEnrolledInCohort({ role, cohortIds }, cohortId);
-
-  let scopes = [...opts.scopes];
-  if (scopes.includes("admin") && !isAdmin) {
-    scopes = scopes.filter((s) => s !== "admin");
-  }
-  if (!scopes.includes("learning") && !scopes.includes("admin")) {
-    scopes = ["learning"];
-  }
+  const scopes = scopesForLiveRole(opts.scopes, role);
 
   return {
     uid: opts.uid,
@@ -67,7 +78,7 @@ async function buildCaller(opts: {
     cohortIds,
     isAdmin,
     enrolled,
-    scopes: [...new Set(scopes)],
+    scopes,
   };
 }
 
@@ -80,11 +91,17 @@ async function callerFromBearer(token: string): Promise<McpCaller> {
       scopes: opaque.scopes,
     });
   }
+  // Firebase ID token: scopes from *live* role only (attendees never get admin).
   const decoded = await adminAuth().verifyIdToken(token);
+  const actor = await loadActiveProgrammeActor(decoded.uid);
+  const role = actor.role || "attendee";
+  const scopes: McpTokenScope[] = isStaffRole(role)
+    ? ["learning", "admin"]
+    : ["learning"];
   return buildCaller({
     uid: decoded.uid,
     email: decoded.email,
-    scopes: ["learning", "admin"],
+    scopes,
   });
 }
 
@@ -132,7 +149,8 @@ export function requireAttendee(caller: McpCaller): void {
 }
 
 export function requireAdmin(caller: McpCaller): void {
-  if (!caller.isAdmin || !caller.scopes.includes("admin")) {
+  // Defence in depth: live role AND admin scope (never trust stale token scopes alone).
+  if (!caller.isAdmin || !isStaffRole(caller.role) || !caller.scopes.includes("admin")) {
     throw new Error(
       "Forbidden — admin MCP scope required (mint an admin token on /mcp as admin/moderator)."
     );

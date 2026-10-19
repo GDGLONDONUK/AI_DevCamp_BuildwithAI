@@ -102,3 +102,4 @@ At the **top** of the handler, before any privileged read/write:
 - Client code importing `firebase-admin` or a service-account key.
 - A new collection read client-side with no `match` block (it's silently denied — or worse, someone "fixes" it with an over-broad allow).
 - Opening Storage public read to make a token URL "work" — the token already works.
+- Hardcoded probe/test emails, passwords, or MCP `dcmcp_` tokens in repo scripts — use `.env.local` (`DEVCAMP_MCP_PROBE_*`) only; see `AGENTS.md` / learning-chat skill.

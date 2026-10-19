@@ -92,6 +92,19 @@ Three different “agents” — do **not** merge them into one prompt or one to
 - **Don’t** commit third-party workshop slide images into the repo.
 - **Don’t** tell attendees to open `.claude/skills` to learn the curriculum.
 
+### Access tiers (API + MCP — same rules)
+
+| Tier | Who | What |
+|------|-----|------|
+| public | Valid token | Schedule only (`list_public_sessions`) |
+| attendee | Enrolled + learning scope | Materials, study aids, **own** tasks |
+| admin | Live `role` admin\|moderator **and** admin scope | Users, all assignments, corpus writes |
+
+- Opaque `dcmcp_` tokens: hash-only in Firestore; admin scope stripped if live role is not staff.
+- Firebase ID tokens: attendees get `learning` only; staff get `learning` + `admin`.
+- HTTP MCP re-checks `Authorization` on every request (session id alone is not enough).
+- Probe: set `DEVCAMP_MCP_PROBE_EMAIL` in `.env.local` (never commit credentials), then `npm run mcp:probe-attendee` — see `AGENTS.md` / learning-chat skill.
+
 ---
 
 ## Related

@@ -28,7 +28,8 @@
     "fix-organiser-admins": "tsx --env-file=.env.local scripts/fix-organiser-admins.ts",
     "mcp:devcamp": "tsx --env-file=.env.local packages/devcamp-mcp/src/index.ts",
     "mcp:http": "tsx --env-file=.env.local packages/devcamp-mcp/src/http.ts",
-    "mcp:mint-token": "tsx --env-file=.env.local scripts/mcp-mint-id-token.ts"
+    "mcp:mint-token": "tsx --env-file=.env.local scripts/mcp-mint-id-token.ts",
+    "mcp:probe-attendee": "tsx --env-file=.env.local scripts/mcp-probe-attendee-access.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.76",
