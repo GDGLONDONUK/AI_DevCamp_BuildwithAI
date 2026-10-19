@@ -516,6 +516,7 @@ export const SEPTEMBER_2026_SESSIONS: Session[] = [
     videoUrl: "https://www.youtube.com/watch?v=860gVUhsSuw",
   },
   {
+    /** Firestore id kept for existing materials/attendance; this is Govern (week 3), not Optimise. */
     id: "sept-2026-optimise-thu",
     number: 7,
     title: "Govern — Workshop",
@@ -526,7 +527,7 @@ export const SEPTEMBER_2026_SESSIONS: Session[] = [
     cohortId: SEPTEMBER_2026_COHORT_ID,
     topic: "Govern",
     description:
-      "Hands-on Govern with Renuka Kelkar (moved here after the 10 October Saturday was cancelled). Simple blog-writer agent (root orchestrator, search sub-agent, image sub-agent) used to show Model Armor templates in us-central1, ingress/egress guards, DLP for sensitive data, Agent Identity before Registry, access vs business policies, and Agent Gateway as the check-post.\n\nCodelab feedback: copy-paste prompts give a skeleton; learn by building your own agent step by step. Use the governance lab site for guided lessons. Submit demos as video or screenshots if you do not want a public URL that keeps Cloud spend open. Optimisation deep-dive continues on 17 October; further sessions planned for 22 October and the 31 October hackathon.",
+      "Hands-on Govern with Renuka Kelkar (moved here after the 10 October Saturday was cancelled). Simple blog-writer agent (root orchestrator, search sub-agent, image sub-agent) used to show Model Armor templates in us-central1, ingress/egress guards, DLP for sensitive data, Agent Identity before Registry, access vs business policies, and Agent Gateway as the check-post.\n\nCodelab feedback: copy-paste prompts give a skeleton; learn by building your own agent step by step. Use the governance lab site for guided lessons. Submit demos as video or screenshots if you do not want a public URL that keeps Cloud spend open. Optimise week continues Saturday 17 October and Thursday 22 October; Agentic Hackathon closes the cohort on 31 October.",
     speakerIds: ["renuka-kelkar"],
     tags: ["Govern", "Workshop", "Model Armor", "DLP", "Registry", "Hands-on"],
     whatYouWillLearn: [
@@ -574,25 +575,33 @@ export const SEPTEMBER_2026_SESSIONS: Session[] = [
     /** Closing / demo day / graduation is the 31 Oct hackathon — not this workshop. */
     isClosing: false,
     description:
-      "Optimise workshop with Renuka Kelkar, plus programme wrap notes from Sumith Damodaran. Building an agent is easy; harnessing it for production is the hard part — track tokens, tool calls, and retries, validate outputs, and measure before you spend.\n\nPatterns: split multi-agent work; put deterministic steps in tools and skills (not repeated LLM calls); dry-run with mocks or on-device models; right-size models per sub-agent; shrink context with memory/DB; structure outputs; cache; turn off unnecessary “thought” tokens in Agent Studio. Renuka’s video-agent experiment hit about £100 in a day before those changes cut usage sharply (example: ~492 tokens after tool-based stitching).\n\nDemo day, pitching, certificates, and the award ceremony are on the cohort closing Agentic Hackathon — Saturday 31 October (see /hackathon and Luma).",
+      "Optimise workshop with Renuka Kelkar, plus programme wrap notes from Sumith Damodaran. Building an agent is easy; harnessing it for production is the hard part — the harness sits between user and agent/tools (validate in, track tokens/tools/retries, validate out, report).\n\nPrefer Google ADK + Gemini for cohort agents: Agents, Tools, Sessions, State, Memory, Artifacts, Callbacks. Patterns: no giant agents; don’t ask AI what code already knows (Skills/config); AI decides / tools execute; dry-run before expensive APIs; measure every run; right-size models (Flash for routing/validation); shrink context; structured JSON outputs. Renuka’s video-agent experiment hit about £100 in a day before those changes cut usage sharply (example: ~492 tokens after tool-based stitching).\n\nFollow-up Thursday 22 October (18:00–19:00): Optimisation and Q&A. Demo day, pitching, certificates, and awards are on the Agentic Hackathon — Saturday 31 October (see /hackathon and Luma).",
     speakerIds: ["renuka-kelkar", "sumith-damodaran"],
-    tags: ["Optimise", "Cost", "Harnessing", "Hands-on"],
+    tags: ["Optimise", "Cost", "Harnessing", "ADK", "Hands-on"],
     whatYouWillLearn: [
-      "Separate building an agent from harnessing it in production",
-      "Measure tokens, tool calls, retries, and failures",
-      "Cut cost with tools/skills, right-sized models, smaller context, and caching",
-      "Use dry runs and mocks before live Vertex calls",
-      "Leave ready to continue polishing for the 31 October hackathon",
+      "Separate building an agent from harnessing it (supervisor: input → track → output → report)",
+      "Map harness controls onto Google ADK (agents, tools, state, memory, artifacts, callbacks)",
+      "Apply patterns: config over prompts, tools over LLM busywork, dry-run, measure, right-size models, shrink context, structured outputs",
+      "Use the cost formula: prompt + response + tools + retries + testing runs",
+      "Leave ready to continue polishing an ADK agent for the 31 October hackathon",
     ],
     buildIdeas: [
-      "Apply at least three optimisation patterns to your agent",
-      "Keep refining your project toward the 31 October hackathon",
-      "Register on the hackathon Luma page when ready",
+      "Apply at least three optimisation patterns to your ADK agent",
+      "Add dry_run in state and a post-run metrics report before live Vertex spend",
+      "Keep refining toward the 31 October hackathon; register on Luma when ready",
     ],
     resources: [
       {
         title: "Session recording (YouTube)",
         url: "https://www.youtube.com/watch?v=xLBJ1k_kh5o",
+      },
+      {
+        title: "Google Agent Development Kit (ADK)",
+        url: "https://google.github.io/adk-docs/",
+      },
+      {
+        title: "ADK live",
+        url: "https://adk.dev/live/",
       },
       {
         title: "Agentic Hackathon (Luma)",
@@ -610,8 +619,52 @@ export const SEPTEMBER_2026_SESSIONS: Session[] = [
     videoUrl: "https://www.youtube.com/watch?v=xLBJ1k_kh5o",
   },
   {
-    id: "sept-2026-hackathon",
+    id: "sept-2026-optimise-thu-22",
     number: 9,
+    title: "22 Oct Workshop · Optimisation and Q&A",
+    date: "22 October 2026",
+    time: "6:00 PM",
+    duration: "1 hour",
+    week: 4,
+    cohortId: SEPTEMBER_2026_COHORT_ID,
+    topic: "Optimise",
+    description:
+      "Thursday workshop with Renuka Kelkar (18:00–19:00): optimisation follow-up after the 17 October harnessing session — right-sizing models, analytics and traces, evaluation — plus open Q&A so your ADK agent is pitch-ready for the 31 October Agentic Hackathon.",
+    speakerIds: ["renuka-kelkar"],
+    tags: ["Optimise", "Workshop", "Q&A", "Evals", "Traces", "Models", "ADK"],
+    whatYouWillLearn: [
+      "Right-size models (Flash for routing/validation; stronger models only when needed)",
+      "Use traces and analytics to see where tokens and tool calls go",
+      "Evaluate agent quality and failure modes before the hackathon",
+      "Get answers on your project blockers in live Q&A",
+    ],
+    buildIdeas: [
+      "Pick a cheaper model for at least one sub-agent or validation step",
+      "Capture a short trace or metrics report from a dry-run of your agent",
+      "Bring questions for Q&A; list what you will demo on 31 October",
+    ],
+    resources: [
+      {
+        title: "Google ADK docs",
+        url: "https://google.github.io/adk-docs/",
+      },
+      {
+        title: "Vertex AI Evaluation",
+        url: "https://cloud.google.com/vertex-ai/generative-ai/docs/models/evaluation-overview",
+      },
+      {
+        title: "Optimise workshop recording (17 Oct)",
+        url: "https://www.youtube.com/watch?v=xLBJ1k_kh5o",
+      },
+      {
+        title: "Agentic Hackathon (Luma)",
+        url: "https://luma.com/wz7509ty",
+      },
+    ],
+  },
+  {
+    id: "sept-2026-hackathon",
+    number: 10,
     title: "Agentic Hackathon · Closing & Certificates",
     date: "31 October 2026",
     time: "9:00 AM",
@@ -749,19 +802,19 @@ export const CURRICULUM_WEEKS = [
   {
     week: 4,
     title: "Optimise",
-    subtitle: "Cost · Harnessing · Hackathon closing 31 Oct",
+    subtitle: "Sat 17 Oct · Thu 22 Oct Q&A · Hackathon 31 Oct",
     color: "from-orange-500 to-orange-700",
     learn: [
       "Harnessing vs building: measure tokens and tool calls",
       "Tools/skills, right-sized models, smaller context, caching",
-      "Dry runs before live Vertex spend",
+      "Dry runs, traces, evals before live Vertex spend",
       "31 Oct Agentic Hackathon — show-and-tell, pitch, certificates",
     ],
     build: [
       "Optimised agent ready to demo or pitch",
       "Hackathon + portal final project submission",
     ],
-    timePerDay: "Sat 17 Oct · Sat 31 Oct hackathon 9–5",
+    timePerDay: "Sat 17 Oct 2hrs · Thu 22 Oct 1hr · Sat 31 Oct hackathon 9–5",
     resources: [
       {
         title: "Agentic Hackathon (Luma)",

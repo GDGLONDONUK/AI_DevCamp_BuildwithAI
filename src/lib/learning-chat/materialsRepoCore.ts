@@ -7,6 +7,7 @@
 import { adminDb } from "@/lib/firebase-admin";
 import { SPRING_2026_COHORT_ID } from "@/lib/cohorts";
 import { SESSION_LEARNING_MATERIALS_COLLECTION } from "@/lib/learning-chat/constants";
+import { LEARNING_HARNESS } from "@/lib/learning-chat/harness";
 import type { Session, SessionLearningMaterial } from "@/types";
 
 function scoreText(haystack: string, query: string): number {
@@ -88,7 +89,11 @@ export async function searchLearningMaterials(opts: {
 }): Promise<
   Array<SessionLearningMaterial & { score: number; excerpt: string }>
 > {
-  const limit = Math.min(Math.max(opts.limit ?? 6, 1), 12);
+  const limit = Math.min(
+    Math.max(opts.limit ?? 6, 1),
+    LEARNING_HARNESS.maxSearchHits
+  );
+  const excerptLen = LEARNING_HARNESS.excerptChars;
   let materials = opts.sessionId
     ? await listMaterialsForSession(opts.sessionId)
     : await listMaterialsForCohort(opts.cohortId);
@@ -110,12 +115,12 @@ export async function searchLearningMaterials(opts: {
       const score = scoreText(blob, opts.query);
       const lower = m.textContent.toLowerCase();
       const q = opts.query.toLowerCase().split(/\s+/).find((t) => t.length > 3);
-      let excerpt = m.textContent.slice(0, 500);
+      let excerpt = m.textContent.slice(0, excerptLen);
       if (q) {
         const idx = lower.indexOf(q);
         if (idx >= 0) {
           const start = Math.max(0, idx - 80);
-          excerpt = m.textContent.slice(start, start + 500);
+          excerpt = m.textContent.slice(start, start + excerptLen);
         }
       }
       return { ...m, score, excerpt };
@@ -128,7 +133,7 @@ export async function searchLearningMaterials(opts: {
     return materials.slice(0, limit).map((m) => ({
       ...m,
       score: 0,
-      excerpt: m.textContent.slice(0, 500),
+      excerpt: m.textContent.slice(0, excerptLen),
     }));
   }
 

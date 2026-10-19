@@ -5,6 +5,7 @@
 
 import { SPRING_2026_COHORT_ID } from "@/lib/cohorts";
 import type { LearningChatContext } from "@/lib/learning-chat/constants";
+import { LEARNING_HARNESS } from "@/lib/learning-chat/harness";
 import {
   getSessionById,
   listMaterialsForSession,
@@ -129,7 +130,7 @@ export async function execListSessionMaterials(
       kind: m.kind,
       url: m.url,
       concepts: m.concepts,
-      textPreview: m.textContent.slice(0, 280),
+      textPreview: m.textContent.slice(0, LEARNING_HARNESS.listPreviewChars),
     })),
   };
 }

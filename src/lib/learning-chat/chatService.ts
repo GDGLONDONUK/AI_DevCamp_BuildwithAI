@@ -13,13 +13,16 @@ import type {
 } from "@/lib/learning-chat/constants";
 import { buildLearningChatTools } from "@/lib/learning-chat/tools";
 import {
+  buildLearningChatDryRunPlan,
+  LEARNING_HARNESS,
+  trimHistoryTurns,
+  type LearningHarnessDryRunPlan,
+} from "@/lib/learning-chat/harness";
+import {
   buildLearningChatSystemPrompt,
   isLikelyOutOfScopeLearningQuery,
   LEARNING_CHAT_REFUSE_MESSAGE,
 } from "@/lib/learning-chat/scope";
-
-const MAX_TOOL_STEPS = 8;
-const MAX_HISTORY_TURNS = 8;
 
 let providerSingleton: ReturnType<typeof createGoogleGenerativeAI> | null = null;
 
@@ -47,13 +50,35 @@ function extractToolNames(result: {
 export type ProcessLearningChatOutcome = LearningChatResult & {
   refusedOutOfScope?: boolean;
   toolsUsed?: string[];
+  stepCount?: number;
+  promptTokens?: number;
+  completionTokens?: number;
+  dryRunPlan?: LearningHarnessDryRunPlan;
 };
 
 export async function processLearningChat(
   message: string,
-  context: LearningChatContext
+  context: LearningChatContext,
+  opts?: { dryRun?: boolean }
 ): Promise<ProcessLearningChatOutcome> {
-  if (isLikelyOutOfScopeLearningQuery(message)) {
+  const refused = isLikelyOutOfScopeLearningQuery(message);
+
+  if (opts?.dryRun) {
+    return {
+      text: refused ? LEARNING_CHAT_REFUSE_MESSAGE : undefined,
+      refusedOutOfScope: refused,
+      toolsUsed: [],
+      dryRunPlan: buildLearningChatDryRunPlan({
+        message,
+        cohortId: context.cohortId,
+        focusSessionId: context.focusSessionId,
+        historyTurns: context.history?.length ?? 0,
+        refusedOutOfScope: refused,
+      }),
+    };
+  }
+
+  if (refused) {
     return {
       text: LEARNING_CHAT_REFUSE_MESSAGE,
       refusedOutOfScope: true,
@@ -63,9 +88,7 @@ export async function processLearningChat(
 
   try {
     const provider = getProvider();
-    const history = (context.history ?? [])
-      .filter((m) => m.content.trim().length > 0)
-      .slice(-MAX_HISTORY_TURNS);
+    const history = trimHistoryTurns(context.history);
 
     const result = await generateText({
       model: provider(getLearningGeminiModelId()),
@@ -84,14 +107,21 @@ export async function processLearningChat(
         },
       ],
       tools: buildLearningChatTools(context),
-      stopWhen: stepCountIs(MAX_TOOL_STEPS),
+      stopWhen: stepCountIs(LEARNING_HARNESS.maxToolSteps),
     });
+
+    const usage = result.usage as
+      | { promptTokens?: number; completionTokens?: number; inputTokens?: number; outputTokens?: number }
+      | undefined;
 
     return {
       text:
         result.text ||
         "I looked at the materials but have nothing further to add. Try a more specific session or concept.",
       toolsUsed: extractToolNames(result),
+      stepCount: result.steps?.length ?? 0,
+      promptTokens: usage?.promptTokens ?? usage?.inputTokens,
+      completionTokens: usage?.completionTokens ?? usage?.outputTokens,
     };
   } catch (err: unknown) {
     console.error("processLearningChat error:", err);

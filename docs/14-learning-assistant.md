@@ -229,5 +229,6 @@ src/lib/learning-chat/
 
 - Home marketing CMS (`siteContent/home`) is separate — [08](./08-site-deployment-and-admin.md).
 - Security boundaries — [04](./04-auth-and-security.md), skill `.claude/skills/firebase-security/SKILL.md`.
+- Harness concepts + kitchen sink (Learning Chat / MCP / skills) — [15](./15-agent-harnessing-optimisation.md); cohort ADK sample `examples/adk-harnessed-agent/`.
 
 Next → [docs/README.md](./README.md)

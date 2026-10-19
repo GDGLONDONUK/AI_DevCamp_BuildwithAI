@@ -75,6 +75,7 @@ npm run dev              # Verify locally
 | Open / re-seed a cohort | `npm run open-september-2026-cohort` + env; skill **cohorts** / `docs/11-cohort-architecture.md` |
 | Home marketing CMS | `/admin/site` + `siteContent/home`; `npm run seed-site-content` |
 | Learning Assistant / DevCamp MCP | **Attendees:** https://aidevcamp.gdg.london `/faq` + `/mcp`. **Maintainers:** `packages/devcamp-mcp`, `src/lib/learning-chat`, skill **learning-chat** (repo only) |
+| Optimise / harness / ADK agents | `docs/15-agent-harnessing-optimisation.md`; `examples/adk-harnessed-agent/` |
 | Add speakers / sessions | `src/data/speakers.ts`, `src/data/sessions.ts` → sync + `upload-speaker-photos` |
 | Open/close registration | `NEXT_PUBLIC_REGISTRATION_OPEN`; join via `POST /api/me/join-cohort` |
 | Certifier links | `CERTIFIER_API_TOKEN`; public URL via `src/lib/certifierLinks.ts` (Credsverse) |
@@ -122,6 +123,9 @@ npm run dev              # Verify locally
 | `.claude/skills/learning-chat/SKILL.md` | Maintainer checklist when editing learning/MCP code (not for attendees) |
 | `src/app/faq/page.tsx` | Public LLM/MCP FAQ for Claude / ChatGPT users |
 | `docs/14-learning-assistant.md` | How the chatbot + MCP are built |
+| `docs/15-agent-harnessing-optimisation.md` | Harness concepts + Learning Chat / MCP / skills kitchen sink |
+| `src/lib/learning-chat/harness.ts` | Limits, dry-run plan, tool surface for in-app chat |
+| `examples/adk-harnessed-agent/` | ADK-first harness skeleton for cohort agents |
 
 ---
 

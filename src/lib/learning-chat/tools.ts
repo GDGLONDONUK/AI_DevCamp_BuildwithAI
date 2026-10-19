@@ -3,6 +3,7 @@ import "server-only";
 import { tool } from "ai";
 import { z } from "zod";
 import type { LearningChatContext } from "@/lib/learning-chat/constants";
+import { LEARNING_HARNESS } from "@/lib/learning-chat/harness";
 import {
   execGetFocusHint,
   execGetSessionDetail,
@@ -55,7 +56,12 @@ export function buildLearningChatTools(ctx: LearningChatContext) {
             "resource",
           ])
           .optional(),
-        limit: z.number().int().min(1).max(12).optional(),
+        limit: z
+          .number()
+          .int()
+          .min(1)
+          .max(LEARNING_HARNESS.maxSearchHits)
+          .optional(),
       }),
       execute: async ({ query, sessionId, kind, limit }) =>
         execSearchSessionMaterials(ctx, { query, sessionId, kind, limit }),

@@ -95,4 +95,11 @@ export const LEARNING_QUICK_PROMPTS: Array<{
     message:
       "Act as a Learning Guide: ask probing questions to help me understand this lesson step by step instead of lecturing.",
   },
+  {
+    id: "harness-adk",
+    label: "Harness + ADK",
+    category: "ask",
+    message:
+      "Explain agent harnessing and the Optimise patterns using Google ADK. How should I apply dry-run, tools vs prompts, and right-sized models to my project?",
+  },
 ];
