@@ -4,25 +4,20 @@
  * URL: https://aidevcamp.gdg.london/api/mcp
  * Auth: Authorization: Bearer <dcmcp_… or Firebase ID token>
  *
+ * Stateless (required on Vercel): each request gets a fresh transport + server.
+ * In-memory session maps break across serverless instances and cause
+ * "Server not initialized" when Claude reuses mcp-session-id on another isolate.
+ *
  * Note: the page /mcp is only for minting tokens (HTML). Connectors must use /api/mcp.
  */
 
-import { randomUUID } from "node:crypto";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { createDevcampMcpServer } from "../../../../packages/devcamp-mcp/src/createServer";
-import {
-  resolveCallerFromBearer,
-  type McpCaller,
-} from "../../../../packages/devcamp-mcp/src/auth";
+import { resolveCallerFromBearer } from "../../../../packages/devcamp-mcp/src/auth";
 import { runWithCaller } from "../../../../packages/devcamp-mcp/src/requestContext";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
-
-const sessions = new Map<
-  string,
-  { transport: WebStandardStreamableHTTPServerTransport; caller: McpCaller }
->();
 
 function corsHeaders(req: Request): HeadersInit {
   const origin = req.headers.get("origin");
@@ -70,7 +65,7 @@ async function handle(req: Request): Promise<Response> {
     return withCors(req, new Response(null, { status: 204 }));
   }
 
-  let caller: McpCaller;
+  let caller;
   try {
     caller = await resolveCallerFromBearer(req.headers.get("authorization") ?? undefined);
   } catch (e) {
@@ -78,34 +73,15 @@ async function handle(req: Request): Promise<Response> {
     return jsonError(req, 401, message);
   }
 
-  const sessionId = req.headers.get("mcp-session-id") ?? undefined;
+  // Stateless: never reuse transport across requests (Vercel / multi-instance safe).
+  // sessionIdGenerator omitted → SDK skips session validation ("Server not initialized").
+  const transport = new WebStandardStreamableHTTPServerTransport({
+    sessionIdGenerator: undefined,
+    enableJsonResponse: true,
+  });
+  const server = createDevcampMcpServer();
 
   try {
-    if (sessionId && sessions.has(sessionId)) {
-      const session = sessions.get(sessionId)!;
-      if (session.caller.uid !== caller.uid) {
-        return jsonError(req, 403, "Forbidden — Authorization does not match this MCP session");
-      }
-      session.caller = caller;
-      const res = await runWithCaller(caller, () =>
-        session.transport.handleRequest(req)
-      );
-      return withCors(req, res);
-    }
-
-    // Fresh transport + server (stateless-friendly; session map helps same-instance clients).
-    const transport = new WebStandardStreamableHTTPServerTransport({
-      sessionIdGenerator: () => randomUUID(),
-      enableJsonResponse: true,
-      onsessioninitialized: (id) => {
-        sessions.set(id, { transport, caller });
-      },
-    });
-    transport.onclose = () => {
-      if (transport.sessionId) sessions.delete(transport.sessionId);
-    };
-
-    const server = createDevcampMcpServer();
     await server.connect(transport);
     const res = await runWithCaller(caller, () => transport.handleRequest(req));
     return withCors(req, res);
@@ -113,6 +89,17 @@ async function handle(req: Request): Promise<Response> {
     const message = e instanceof Error ? e.message : String(e);
     console.error("[api/mcp]", message);
     return jsonError(req, 500, message);
+  } finally {
+    try {
+      await transport.close();
+    } catch {
+      /* ignore */
+    }
+    try {
+      await server.close();
+    } catch {
+      /* ignore */
+    }
   }
 }
 
