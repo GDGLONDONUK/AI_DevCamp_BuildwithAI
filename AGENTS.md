@@ -74,7 +74,7 @@ npm run dev              # Verify locally
 | Add an API route | `verifyAuth`/`requireAdmin` + `adminDb()`; `docs/07-api-routes.md` |
 | Open / re-seed a cohort | `npm run open-september-2026-cohort` + env; skill **cohorts** / `docs/11-cohort-architecture.md` |
 | Home marketing CMS | `/admin/site` + `siteContent/home`; `npm run seed-site-content` |
-| Learning Assistant / future MCP | `docs/14-learning-assistant.md`; skill **learning-chat** |
+| Learning Assistant / DevCamp MCP | **Attendees:** https://aidevcamp.gdg.london `/faq` + `/mcp`. **Maintainers:** `packages/devcamp-mcp`, `src/lib/learning-chat`, skill **learning-chat** (repo only) |
 | Add speakers / sessions | `src/data/speakers.ts`, `src/data/sessions.ts` → sync + `upload-speaker-photos` |
 | Open/close registration | `NEXT_PUBLIC_REGISTRATION_OPEN`; join via `POST /api/me/join-cohort` |
 | Certifier links | `CERTIFIER_API_TOKEN`; public URL via `src/lib/certifierLinks.ts` (Credsverse) |
@@ -119,8 +119,9 @@ npm run dev              # Verify locally
 | `.cursor/rules/typescript-firebase.mdc` | TypeScript/React/Firebase patterns |
 | `.claude/skills/cohorts/SKILL.md` | Cohort open/seed/join checklist |
 | `.claude/skills/firebase-security/SKILL.md` | Firebase security checklist |
-| `.claude/skills/learning-chat/SKILL.md` | Learning Assistant RAG + future MCP |
-| `docs/14-learning-assistant.md` | How the chatbot is built; MCP / BYO-LLM / key cycling |
+| `.claude/skills/learning-chat/SKILL.md` | Maintainer checklist when editing learning/MCP code (not for attendees) |
+| `src/app/faq/page.tsx` | Public LLM/MCP FAQ for Claude / ChatGPT users |
+| `docs/14-learning-assistant.md` | How the chatbot + MCP are built |
 
 ---
 

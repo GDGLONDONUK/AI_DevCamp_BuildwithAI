@@ -74,4 +74,25 @@ export const LEARNING_QUICK_PROMPTS: Array<{
     category: "ask",
     message: "List available PDFs, transcripts, and videos for the active cohort sessions.",
   },
+  {
+    id: "flashcards",
+    label: "Flashcards",
+    category: "ask",
+    message:
+      "Make flashcards for this session so I can memorise key terms and outcomes. Quiz me one card at a time.",
+  },
+  {
+    id: "quiz",
+    label: "Quiz me",
+    category: "ask",
+    message:
+      "Give me a short quiz on this session's materials. One question at a time, then explain if I get it wrong.",
+  },
+  {
+    id: "learning-guide",
+    label: "Learning Guide",
+    category: "ask",
+    message:
+      "Act as a Learning Guide: ask probing questions to help me understand this lesson step by step instead of lecturing.",
+  },
 ];

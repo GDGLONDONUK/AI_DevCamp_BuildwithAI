@@ -242,7 +242,7 @@ export default function SessionsPage() {
                                       )}
                                       {session.isClosing && (
                                         <span className="text-xs bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 px-2.5 py-0.5 rounded-full font-mono font-bold">
-                                          🏆 CLOSING
+                                          🏆 HACKATHON
                                         </span>
                                       )}
                                     </div>

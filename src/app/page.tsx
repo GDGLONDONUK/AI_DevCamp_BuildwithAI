@@ -216,7 +216,7 @@ export default function HomePage() {
           <div className="flex flex-wrap items-center justify-center gap-3 mb-10 font-mono text-sm">
             <span className="flex items-center gap-2 bg-blue-900/40 border border-blue-500/50 text-blue-100 px-4 py-2 rounded-full">
               <Calendar size={16} className="text-blue-400" />
-              Sept 3 – Oct 1, 2026 (Coming Soon)
+              23 Sept – 31 Oct 2026 · Hackathon closing
             </span>
             <span className="flex items-center gap-2 bg-amber-900/40 border border-amber-500/50 text-amber-100 px-4 py-2 rounded-full">
               <Archive size={16} className="text-amber-400" />
@@ -422,7 +422,7 @@ export default function HomePage() {
                     )}
                     {session.isClosing && (
                       <span className="font-mono text-xs bg-yellow-500/20 text-yellow-300 border border-yellow-400/40 px-2.5 py-1 rounded-full">
-                        🏆 DEMO DAY
+                        🏆 HACKATHON
                       </span>
                     )}
                     <span className="font-mono text-xs bg-white/8 text-gray-400 border border-white/15 px-2.5 py-1 rounded-full">

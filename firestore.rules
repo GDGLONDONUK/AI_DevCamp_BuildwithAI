@@ -209,6 +209,11 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // ── MCP access tokens (hashed secrets) — /api/mcp/tokens + Admin SDK only. ──
+    match /mcpAccessTokens/{tokenId} {
+      allow read, write: if false;
+    }
+
     // ── Speaker call submissions — written by /api/speaker-call (Admin SDK). ──
     // Public form input; never client-readable (contains submitter email).
     match /speakerCallSubmissions/{document=**} {

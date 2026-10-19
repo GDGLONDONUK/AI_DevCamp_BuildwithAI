@@ -6,6 +6,7 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { verifyAuth, isErrorResponse, ok, err } from "@/lib/api-helpers";
+import { requireAttendeeForCohort } from "@/lib/access/programmeAccess";
 import { processLearningChat } from "@/lib/learning-chat/chatService";
 import { logLearningChatCall } from "@/lib/learning-chat/chatLog";
 import { getActiveCohortId } from "@/lib/cohorts";
@@ -66,11 +67,29 @@ export async function POST(request: NextRequest) {
     focusSessionId = focus;
     pathname = path;
 
+    const gate = await requireAttendeeForCohort(auth.uid, auth.role, cohortId);
+    if (!gate.ok) {
+      await logLearningChatCall({
+        userId: auth.uid,
+        userEmail: auth.email,
+        cohortId,
+        messagePreview: message.slice(0, 200),
+        messageLength,
+        historyTurns,
+        focusSessionId,
+        pathname,
+        ok: false,
+        error: gate.error,
+        durationMs: Date.now() - started,
+      }).catch(() => undefined);
+      return err(gate.error, gate.status);
+    }
+
     const result = await processLearningChat(message, {
       uid: auth.uid,
       email: auth.email,
-      role: auth.role,
-      cohortId,
+      role: gate.actor.role,
+      cohortId: gate.cohortId,
       focusSessionId,
       pathname,
       history,

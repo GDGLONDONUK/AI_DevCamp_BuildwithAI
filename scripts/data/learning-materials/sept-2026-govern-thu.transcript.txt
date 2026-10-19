@@ -1,0 +1,32 @@
+Govern — Theory transcript notes
+Recording: https://www.youtube.com/watch?v=frr_WZcqb54
+Slides: https://canva.link/g56lm40w274w9ee
+AI DevCamp Session 05 Govern Theory, 8 October 2026. Speaker Nishi Ajmera. Closed group. Condensed organiser summary.
+
+Stage three of build, scale, govern, deploy. Recap of Scale: Agent Runtime, Agent Identity at deploy, sessions, Memory Bank. Ankur: without a trail you cannot see what the agent did — observability is part of govern.
+
+Why it matters: chatbots leave humans to act; agents act. Gartner prediction cited: about 40% of agentic AI projects cancelled by end of 2027 — rising costs, unclear value, inadequate risk controls. Wrong LinkedIn post = reputation and credibility.
+
+Threats: (1) prompt injection via hidden page text; (2) PII leakage from notes/transcriptions; (3) off-brand or unsafe drafts; (4) post/commit without approval (coding agents ignoring “do not push”).
+
+Multi-layer defence: input screening; tool-call policy (CRUD permissions); output screening; human-in-the-loop early on.
+
+Five needs to control any actor: identity; what exists around it; rules; enforcement place; record of what happened. Maps to Agent Identity, Registry, Policy, Gateway, Observability.
+
+Identity: each agent needs its own identity, not a shared service token. SPIFFE-style name; mTLS + DPoP (proof of possession); context-aware access; OAuth manager so agents never see raw third-party secrets.
+
+Registry: central catalogue for agents, MCP servers, endpoints, skills (preview). Unregistered shadow agents fail governance. Gateway checks the directory. Social Spark needs the agent and the LinkedIn publishing MCP registered.
+
+Policies: IAM deterministic default-deny, CEL to narrow; Model Armor statistical content screens; semantic governance (preview) in natural language — test it. Prefer deterministic, then statistical, then semantic.
+
+Gateway: ingress (into agent) and egress (out). Protocols MCP/REST/gRPC. Social Spark orchestrator on Cloud Run vs specialist on Runtime — gateway placement matters. Start dry-run / inspect-only, then enforce. Order: identity → registry → IAM → Model Armor → semantic → gateway.
+
+ADK callbacks: before model, after model, tool-result screening, fail closed.
+
+Cloud DLP: inspect + de-identify; run on input and on final draft.
+
+Approval gate: tool refuses without approval; hash of draft; re-screen edits; timeout fails closed; idempotent publish. Markdown skills for soft brand rules — progressive disclosure — not a substitute for hard controls. Example: long skills + small context windows cause ignored tool schemas.
+
+After prevention: agent threat detection, anomaly detection, security dashboard, gateway telemetry into observability.
+
+Saturday lab agenda as stated that night: fresh deploy, Model Armor, Cloud DLP, try to break it. (That Saturday was later cancelled; hands-on moved to 15 October.)

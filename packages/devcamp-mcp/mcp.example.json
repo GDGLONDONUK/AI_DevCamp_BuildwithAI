@@ -1,0 +1,22 @@
+{
+  "mcpServers": {
+    "ai-devcamp-stdio": {
+      "command": "npx",
+      "args": [
+        "tsx",
+        "--env-file=.env.local",
+        "packages/devcamp-mcp/src/index.ts"
+      ],
+      "cwd": "C:/code/react/AI_DevCamp_BuildwithAI",
+      "env": {
+        "DEVCAMP_MCP_ACCESS_TOKEN": "dcmcp_REPLACE_FROM_SITE_/mcp"
+      }
+    },
+    "ai-devcamp-http": {
+      "url": "http://127.0.0.1:3100/mcp",
+      "headers": {
+        "Authorization": "Bearer dcmcp_REPLACE_FROM_SITE_/mcp"
+      }
+    }
+  }
+}

@@ -7,7 +7,9 @@ import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { getActiveCohortSessions, CURRICULUM_WEEKS } from "@/data/sessions";
 import { useSessions } from "@/hooks/useSessions";
-import { BookOpen, Code2, Link2, FileText, Globe } from "lucide-react";
+import { BookOpen, Code2, Link2, FileText, Globe, Trophy, ExternalLink } from "lucide-react";
+import Link from "next/link";
+import { HACKATHON_EVENT } from "@/lib/hackathon";
 
 const STATIC_SESSIONS = getActiveCohortSessions();
 
@@ -181,6 +183,37 @@ export default function SubmitPage() {
           <p className="text-gray-400">
             Share your weekly assignments or final projects with mentors.
           </p>
+        </div>
+
+        <div className="mb-8 rounded-2xl border border-yellow-500/30 bg-yellow-500/[0.07] p-5 sm:p-6">
+          <div className="flex items-start gap-3">
+            <Trophy className="text-yellow-400 shrink-0 mt-0.5" size={22} />
+            <div className="min-w-0">
+              <h2 className="text-white font-semibold mb-1">
+                Cohort closing — {HACKATHON_EVENT.shortTitle}
+              </h2>
+              <p className="text-gray-300 text-sm mb-3">
+                {HACKATHON_EVENT.dateLabel} · {HACKATHON_EVENT.timeLabel} ·{" "}
+                {HACKATHON_EVENT.modeLabel}. Use <strong className="text-white">Final Project</strong>{" "}
+                below for the portal submission mentors review. Register for the day on Luma
+                (in person or online).
+              </p>
+              <div className="flex flex-wrap gap-3 text-sm font-semibold">
+                <Link href="/hackathon" className="text-yellow-300 hover:text-yellow-200">
+                  Hackathon details →
+                </Link>
+                <a
+                  href={HACKATHON_EVENT.lumaUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-green-400 hover:text-green-300"
+                >
+                  Luma registration
+                  <ExternalLink size={14} />
+                </a>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Type Toggle */}

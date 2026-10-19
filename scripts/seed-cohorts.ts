@@ -40,11 +40,11 @@ const COHORTS = [
     name: "September 2026 Cohort",
     displayName: "AI DevCamp September 2026",
     status: "planning",
-    startDate: new Date("2026-09-03"),
-    endDate: new Date("2026-10-01"),
-    numberOfSessions: 4,
+    startDate: new Date("2026-09-23"),
+    endDate: new Date("2026-10-31"),
+    numberOfSessions: 9,
     description:
-      "Autumn 2026 cohort. A 4-week beginner AI programme coming soon! Call for speakers and mentors now open.",
+      "Autumn 2026 cohort: Build → Scale → Govern → Optimise. Closes 31 October 2026 with the Agentic Hackathon, pitching, and certificate ceremony (https://luma.com/wz7509ty).",
     stats: {
       totalRegistered: 0,
       totalApproved: 0,

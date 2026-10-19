@@ -1,0 +1,10 @@
+{
+  "name": "@aidevcamp/mcp",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AI DevCamp MCP server — learning tools + admin users/sessions/assignments",
+  "scripts": {
+    "start": "tsx --env-file=../../.env.local ./src/index.ts",
+    "http": "tsx --env-file=../../.env.local ./src/http.ts"
+  }
+}

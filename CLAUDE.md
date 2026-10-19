@@ -26,6 +26,9 @@ npm run open-september-2026-cohort   # Upsert cohorts + Sept agenda; tag spring 
 npm run import-luma-guests           # Luma CSV → pending users / enrol linked accounts
 npm run seed-site-content            # Seed siteContent/home marketing defaults
 npm run seed-learning-materials      # Seed Learning Assistant RAG corpus from sessions
+npm run mcp:devcamp                  # DevCamp MCP stdio (DEVCAMP_MCP_ACCESS_TOKEN)
+npm run mcp:http                     # DevCamp MCP Streamable HTTP server (:3100/mcp)
+npm run mcp:mint-token               # Legacy Firebase ID token mint (--email=…)
 npm run fix-organiser-admins         # Dry-run organiser admin roles; add -- --apply to promote
 npm run delete-legacy-speaker-docs   # Clean up old speaker data structures
 npm run backfill-registration-map-coords  # Populate location data for users

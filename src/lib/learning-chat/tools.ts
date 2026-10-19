@@ -2,42 +2,19 @@ import "server-only";
 
 import { tool } from "ai";
 import { z } from "zod";
-import { SPRING_2026_COHORT_ID } from "@/lib/cohorts";
 import type { LearningChatContext } from "@/lib/learning-chat/constants";
 import {
-  getSessionById,
-  listMaterialsForSession,
-  listSessionsForCohort,
-  searchLearningMaterials,
-} from "@/lib/learning-chat/materialsRepo";
-
-/** Session fields safe for the learning assistant (no PII beyond public speaker names). */
-function publicSessionPayload(session: Awaited<ReturnType<typeof getSessionById>>) {
-  if (!session) return null;
-  return {
-    id: session.id,
-    number: session.number,
-    title: session.title,
-    date: session.date,
-    time: session.time,
-    week: session.week,
-    topic: session.topic,
-    description: session.description,
-    whatYouWillLearn: session.whatYouWillLearn,
-    buildIdeas: session.buildIdeas,
-    resources: session.resources,
-    videoUrl: session.videoUrl,
-    resourcesFolderUrl: session.resourcesFolderUrl,
-    isKickoff: session.isKickoff,
-    isClosing: session.isClosing,
-    /** Public roster names only — never emails or user profile ids. */
-    speakers: (session.speakers || []).map((s) => ({
-      name: s.name,
-      title: s.title,
-    })),
-    speakerIds: session.speakerIds,
-  };
-}
+  execGetFocusHint,
+  execGetSessionDetail,
+  execListCohortSessions,
+  execListSessionMaterials,
+  execSearchSessionMaterials,
+} from "@/lib/learning-chat/toolExecutors";
+import {
+  buildFlashcards,
+  buildLearningGuide,
+  buildQuiz,
+} from "@/lib/learning-chat/studyAids";
 
 export function buildLearningChatTools(ctx: LearningChatContext) {
   return {
@@ -45,26 +22,7 @@ export function buildLearningChatTools(ctx: LearningChatContext) {
       description:
         "List programme sessions for the active cohort (titles, dates, topics, weeks). Use for schedule overview. Does NOT return user or attendance data.",
       inputSchema: z.object({}),
-      execute: async () => {
-        const sessions = await listSessionsForCohort(ctx.cohortId);
-        return {
-          cohortId: ctx.cohortId,
-          count: sessions.length,
-          sessions: sessions.map((s) => ({
-            id: s.id,
-            number: s.number,
-            title: s.title,
-            date: s.date,
-            time: s.time,
-            week: s.week,
-            topic: s.topic,
-            isKickoff: s.isKickoff,
-            isClosing: s.isClosing,
-            hasVideo: Boolean(s.videoUrl),
-            resourceCount: s.resources?.length ?? 0,
-          })),
-        };
-      },
+      execute: async () => execListCohortSessions(ctx),
     }),
 
     get_session_detail: tool({
@@ -73,15 +31,7 @@ export function buildLearningChatTools(ctx: LearningChatContext) {
       inputSchema: z.object({
         sessionId: z.string().min(1).describe("Firestore sessions document id"),
       }),
-      execute: async ({ sessionId }) => {
-        const session = await getSessionById(sessionId);
-        if (!session) return { error: `Session not found: ${sessionId}` };
-        const sessionCohort = session.cohortId || SPRING_2026_COHORT_ID;
-        if (sessionCohort !== ctx.cohortId) {
-          return { error: "Session is not in the active cohort." };
-        }
-        return publicSessionPayload(session);
-      },
+      execute: async ({ sessionId }) => execGetSessionDetail(ctx, sessionId),
     }),
 
     search_session_materials: tool({
@@ -107,30 +57,8 @@ export function buildLearningChatTools(ctx: LearningChatContext) {
           .optional(),
         limit: z.number().int().min(1).max(12).optional(),
       }),
-      execute: async ({ query, sessionId, kind, limit }) => {
-        const hits = await searchLearningMaterials({
-          cohortId: ctx.cohortId,
-          query,
-          sessionId: sessionId || ctx.focusSessionId,
-          kind,
-          limit,
-        });
-        return {
-          query,
-          hitCount: hits.length,
-          results: hits.map((h) => ({
-            materialId: h.id,
-            title: h.title,
-            kind: h.kind,
-            sessionId: h.sessionId,
-            sessionTitle: h.sessionTitle,
-            concepts: h.concepts,
-            url: h.url,
-            score: h.score,
-            excerpt: h.excerpt,
-          })),
-        };
-      },
+      execute: async ({ query, sessionId, kind, limit }) =>
+        execSearchSessionMaterials(ctx, { query, sessionId, kind, limit }),
     }),
 
     list_session_materials: tool({
@@ -139,40 +67,59 @@ export function buildLearningChatTools(ctx: LearningChatContext) {
       inputSchema: z.object({
         sessionId: z.string().min(1),
       }),
-      execute: async ({ sessionId }) => {
-        const session = await getSessionById(sessionId);
-        if (!session) return { error: `Session not found: ${sessionId}` };
-        const sessionCohort = session.cohortId || SPRING_2026_COHORT_ID;
-        if (sessionCohort !== ctx.cohortId) {
-          return { error: "Session is not in the active cohort." };
-        }
-        const materials = (await listMaterialsForSession(sessionId)).filter(
-          (m) => m.cohortId === ctx.cohortId
-        );
-        return {
-          sessionId,
-          count: materials.length,
-          materials: materials.map((m) => ({
-            id: m.id,
-            title: m.title,
-            kind: m.kind,
-            url: m.url,
-            concepts: m.concepts,
-            textPreview: m.textContent.slice(0, 280),
-          })),
-        };
-      },
+      execute: async ({ sessionId }) => execListSessionMaterials(ctx, sessionId),
     }),
 
     get_focus_hint: tool({
       description:
         "Return the UI focus session id and page path only (no user profile fields).",
       inputSchema: z.object({}),
-      execute: async () => ({
-        focusSessionId: ctx.focusSessionId ?? null,
-        pathname: ctx.pathname ?? null,
-        cohortId: ctx.cohortId,
+      execute: async () => execGetFocusHint(ctx),
+    }),
+
+    prepare_flashcards: tool({
+      description:
+        "Build recall flashcards (terms, outcomes, dates) from programme materials for a session. Present one card at a time.",
+      inputSchema: z.object({
+        sessionId: z.string().min(1),
+        topic: z.string().max(200).optional(),
+        limit: z.number().int().min(1).max(24).optional(),
       }),
+      execute: async ({ sessionId, topic, limit }) => {
+        const sid = sessionId || ctx.focusSessionId;
+        if (!sid) return { error: "sessionId required (or open a session page for focus)." };
+        return buildFlashcards({ cohortId: ctx.cohortId, sessionId: sid, topic, limit });
+      },
+    }),
+
+    prepare_quiz: tool({
+      description:
+        "Build a short multiple-choice quiz grounded in session materials. Ask one question at a time.",
+      inputSchema: z.object({
+        sessionId: z.string().min(1),
+        limit: z.number().int().min(1).max(12).optional(),
+        difficulty: z.enum(["easy", "medium", "hard"]).optional(),
+      }),
+      execute: async ({ sessionId, limit, difficulty }) => {
+        const sid = sessionId || ctx.focusSessionId;
+        if (!sid) return { error: "sessionId required (or open a session page for focus)." };
+        return buildQuiz({ cohortId: ctx.cohortId, sessionId: sid, limit, difficulty });
+      },
+    }),
+
+    start_learning_guide: tool({
+      description:
+        "Start Learning Guide mode: Socratic tutoring with probing questions grounded in materials. Prefer questions over lectures.",
+      inputSchema: z.object({
+        sessionId: z.string().optional(),
+        focusTopic: z.string().max(200).optional(),
+      }),
+      execute: async ({ sessionId, focusTopic }) =>
+        buildLearningGuide({
+          cohortId: ctx.cohortId,
+          sessionId: sessionId || ctx.focusSessionId,
+          focusTopic,
+        }),
     }),
   };
 }
