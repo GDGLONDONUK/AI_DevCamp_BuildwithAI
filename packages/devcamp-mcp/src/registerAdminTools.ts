@@ -2,7 +2,8 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { FieldValue } from "firebase-admin/firestore";
 import { z } from "zod";
 import { adminDb } from "../../../src/lib/firebase-admin";
-import { getActiveCohortId, SPRING_2026_COHORT_ID } from "../../../src/lib/cohorts";
+import { SPRING_2026_COHORT_ID } from "../../../src/lib/cohorts";
+import { resolveActiveCohortIdFromDb } from "../../../src/lib/server/activeCohort";
 import {
   listMaterialsForCohort,
   upsertLearningMaterial,
@@ -59,7 +60,7 @@ export function registerAdminTools(server: McpServer): void {
           scopes: caller.scopes,
           cohortId: caller.cohortId,
           cohortIds: caller.cohortIds,
-          activeCohortDefault: getActiveCohortId(),
+          activeCohortDefault: await resolveActiveCohortIdFromDb(),
           tiers: {
             public: true,
             attendee: caller.enrolled,

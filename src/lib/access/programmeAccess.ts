@@ -12,7 +12,8 @@
  */
 
 import { adminDb } from "@/lib/firebase-admin";
-import { getActiveCohortId, userInCohort } from "@/lib/cohorts";
+import { userInCohort } from "@/lib/cohorts";
+import { resolveActiveCohortIdFromDb } from "@/lib/server/activeCohort";
 
 export type ProgrammeActor = {
   uid: string;
@@ -33,6 +34,22 @@ export function actorEnrolledInCohort(
 ): boolean {
   if (isStaffRole(actor.role)) return true;
   return userInCohort(actor.cohortIds, cohortId);
+}
+
+/**
+ * Default cohort for learning chat / MCP when the client does not pass one.
+ * Prefer the live programme cohort from Firestore (`cohorts.isCurrent`) when the
+ * user is staff or enrolled there — do not stick on a stale users.activeCohortId
+ * from a past cohort (e.g. spring / June).
+ */
+export async function resolveDefaultCohortId(
+  actor: Pick<ProgrammeActor, "role" | "cohortIds" | "activeCohortId">
+): Promise<string> {
+  const programmeActive = await resolveActiveCohortIdFromDb();
+  if (isStaffRole(actor.role) || userInCohort(actor.cohortIds, programmeActive)) {
+    return programmeActive;
+  }
+  return (actor.activeCohortId || programmeActive).trim();
 }
 
 /**
@@ -85,7 +102,7 @@ export async function requireAttendeeForCohort(
   try {
     const actor = await loadActiveProgrammeActor(uid);
     actor.role = actor.role || roleFromAuth;
-    const cid = (cohortId || actor.activeCohortId || getActiveCohortId()).trim();
+    const cid = (cohortId || (await resolveDefaultCohortId(actor))).trim();
     if (!actorEnrolledInCohort(actor, cid)) {
       return {
         ok: false,

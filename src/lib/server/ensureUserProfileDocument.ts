@@ -7,6 +7,7 @@ import { applyPendingRowToEnsureProfileData } from "@/lib/server/mergePendingUse
 import type { UserProfile } from "@/types";
 import { isRegistrationOpen } from "@/lib/registrationOpen";
 import { getActiveCohortId } from "@/lib/cohorts";
+import { resolveActiveCohortIdFromDb } from "@/lib/server/activeCohort";
 import { isOrganiserAdminEmail } from "@/lib/organiserAdmins";
 
 export type EnsureUserProfileResult = {
@@ -31,13 +32,34 @@ export async function ensureUserProfileForUid(uid: string): Promise<EnsureUserPr
     if (existing.data()?.programOptOut === true) {
       throw new Error("PROGRAM_OPT_OUT");
     }
-    // Keep known organisers as admin even if an import demoted them.
-    const email = String(existing.data()?.email || "").trim();
-    if (isOrganiserAdminEmail(email) && existing.data()?.role !== "admin") {
-      await userRef.set(
-        { role: "admin", updatedAt: FieldValue.serverTimestamp() },
-        { merge: true }
-      );
+    // Keep known organisers as admin + enrolled in the live programme cohort.
+    const data = existing.data()!;
+    const email = String(data.email || "").trim();
+    if (isOrganiserAdminEmail(email)) {
+      const programmeActive = await resolveActiveCohortIdFromDb();
+      const nowIso = new Date().toISOString();
+      const patch: Record<string, unknown> = {
+        updatedAt: FieldValue.serverTimestamp(),
+      };
+      if (data.role !== "admin") patch.role = "admin";
+      if (data.activeCohortId !== programmeActive) {
+        patch.activeCohortId = programmeActive;
+      }
+      const ids = Array.isArray(data.cohortIds) ? data.cohortIds : [];
+      if (!ids.includes(programmeActive)) {
+        patch.cohortIds = FieldValue.arrayUnion(programmeActive);
+        patch.cohortParticipation = {
+          ...(typeof data.cohortParticipation === "object" && data.cohortParticipation
+            ? data.cohortParticipation
+            : {}),
+          [programmeActive]: {
+            status: "participated",
+            joinedAt: nowIso,
+            role: "admin",
+          },
+        };
+      }
+      await userRef.set(patch, { merge: true });
     }
     return {
       profileExists: true,
@@ -102,7 +124,7 @@ export async function ensureUserProfileForUid(uid: string): Promise<EnsureUserPr
   const isGoogle = record.providerData?.some((p) => p.providerId === "google.com") ?? false;
   const authProviderIds = record.providerData?.map((p) => p.providerId) ?? [];
 
-  const activeCohortId = getActiveCohortId();
+  const activeCohortId = await resolveActiveCohortIdFromDb();
   const nowIso = new Date().toISOString();
   const organiserAdmin = isOrganiserAdminEmail(email);
 
