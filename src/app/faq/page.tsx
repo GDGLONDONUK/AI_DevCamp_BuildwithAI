@@ -17,7 +17,7 @@ import { useAuth } from "@/contexts/AuthContext";
 type FaqItem = {
   id: string;
   q: string;
-  category: "start" | "claude" | "chatgpt" | "cursor" | "tasks" | "access" | "admin";
+  category: "start" | "claude" | "chatgpt" | "cursor" | "tasks" | "access";
   a: ReactNode;
 };
 
@@ -28,7 +28,6 @@ const CATEGORIES: { id: FaqItem["category"]; label: string }[] = [
   { id: "chatgpt", label: "ChatGPT" },
   { id: "cursor", label: "Cursor & others" },
   { id: "tasks", label: "Tasks & lessons" },
-  { id: "admin", label: "Admins" },
 ];
 
 function FaqAnswer({ children }: { children: ReactNode }) {
@@ -125,52 +124,34 @@ const FAQS: FaqItem[] = [
   {
     id: "tiers",
     category: "access",
-    q: "Public vs attendee vs admin — what can my LLM see?",
+    q: "What can my LLM see with a learning token?",
     a: (
       <FaqAnswer>
-        <p>Everything is loaded from the <strong className="text-white">database</strong>, not hardcoded seed files.</p>
-        <ul className="space-y-2 list-disc list-inside">
-          <li>
-            <strong className="text-white">Public</strong> — schedule (titles, dates, topics)
-            from Firestore <code className="text-gray-400">sessions</code>. Tool:{" "}
-            <code className="text-green-300">list_public_sessions</code>.
-          </li>
-          <li>
-            <strong className="text-white">Attendee</strong> (enrolled + learning token) —
-            lesson materials / transcripts, flashcards, quizzes, Learning Guide,{" "}
-            <em>your</em> tasks only.
-          </li>
-          <li>
-            <strong className="text-white">Admin</strong> (staff role + admin-scoped token) —
-            query/update users, sessions, assignments. Never available to attendee tokens.
-          </li>
-        </ul>
+        <p>
+          With a normal learning token (minted on{" "}
+          <Link href="/mcp" className="text-green-400 underline">
+            /mcp
+          </Link>
+          ), your LLM can use programme schedule, lesson materials for your cohort,
+          flashcards / quizzes / Learning Guide, and <em>your own</em> learning tasks — not
+          other people’s data.
+        </p>
+        <p>
+          Prefer the in-app Learning Assistant if you only need help on the site.
+        </p>
       </FaqAnswer>
     ),
   },
   {
     id: "data-source",
     category: "access",
-    q: "Where do sessions, materials, and tasks live?",
+    q: "Where does my LLM get programme content from?",
     a: (
       <FaqAnswer>
-        <ul className="list-disc list-inside space-y-1">
-          <li>
-            Sessions &amp; speakers → Firestore (synced by organisers; public schedule on the
-            site)
-          </li>
-          <li>
-            Lesson corpus (notes, transcripts) →{" "}
-            <code className="text-gray-400">sessionLearningMaterials</code> (server-only; via
-            chat API / MCP)
-          </li>
-          <li>
-            Your checklist → <code className="text-gray-400">learningTasks</code> (owner only)
-          </li>
-        </ul>
         <p>
-          Seed files under <code className="text-gray-400">src/data/</code> are for ops sync
-          only — runtime APIs and MCP always read Firestore.
+          From this website’s live programme data — the same sessions, materials, and your
+          personal learning tasks you already see when signed in. Your LLM only receives what
+          your token is allowed to use; it cannot browse other people’s checklists.
         </p>
       </FaqAnswer>
     ),
@@ -357,44 +338,7 @@ const FAQS: FaqItem[] = [
           <Link href="/mcp" className="text-green-400 underline">
             /mcp
           </Link>
-          . Don’t commit tokens to git or paste them into public chats. Prefer short-lived
-          admin tokens.
-        </p>
-      </FaqAnswer>
-    ),
-  },
-  {
-    id: "admin",
-    category: "admin",
-    q: "I’m an organiser — how do admin MCP tools work?",
-    a: (
-      <FaqAnswer>
-        <p>
-          On <Link href="/mcp" className="text-green-400 underline">/mcp</Link>, mint an{" "}
-          <strong className="text-white">admin</strong> scope token (your account must be
-          admin/moderator). You can also mint learning or admin tokens for another user by
-          email.
-        </p>
-        <p>
-          Admin tools (<code className="text-green-300">admin_list_users</code>,{" "}
-          <code className="text-green-300">admin_upsert_session</code>,{" "}
-          <code className="text-green-300">admin_update_assignment</code>, …) require both staff
-          role and admin scope. Attendee tokens cannot escalate.
-        </p>
-      </FaqAnswer>
-    ),
-  },
-  {
-    id: "http-server",
-    category: "start",
-    q: "Can MCP run on a server instead of my laptop?",
-    a: (
-      <FaqAnswer>
-        <p>
-          Yes. Organisers can run <code className="text-green-300">npm run mcp:http</code>{" "}
-          (default <code className="text-gray-400">http://host:3100/mcp</code>). Clients send{" "}
-          <code className="text-green-300">Authorization: Bearer dcmcp_…</code>. Use a small
-          always-on host — not Vercel serverless — for long-lived MCP streams.
+          . Don’t commit tokens to git or paste them into public chats.
         </p>
       </FaqAnswer>
     ),
@@ -528,7 +472,8 @@ export default function FaqPage() {
             </li>
             <li className="flex gap-2">
               <Shield size={16} className="shrink-0 mt-0.5 text-gray-500" />
-              Attendee tools never return other users’ data. Admin tools need an admin token.
+              Your token only unlocks your programme content and your own tasks — not other
+              people’s data.
             </li>
             <li className="flex gap-2">
               <KeyRound size={16} className="shrink-0 mt-0.5 text-gray-500" />

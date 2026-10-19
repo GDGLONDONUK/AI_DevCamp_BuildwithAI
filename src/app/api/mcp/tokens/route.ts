@@ -29,7 +29,9 @@ export async function GET(request: NextRequest) {
   if (isErrorResponse(auth)) return auth;
 
   try {
-    const tokens = await listMcpAccessTokensForUid(auth.uid);
+    const includeRevoked =
+      new URL(request.url).searchParams.get("includeRevoked") === "1";
+    const tokens = await listMcpAccessTokensForUid(auth.uid, { includeRevoked });
     return ok({ tokens });
   } catch (e) {
     logServerRouteException("GET /api/mcp/tokens", e);
@@ -52,12 +54,16 @@ export async function POST(request: NextRequest) {
       ? parsed.data.scopes
       : [parsed.data.scope || "learning"];
 
-    if (scopes.includes("admin") && !["admin", "moderator"].includes(auth.role)) {
+    // Live Firestore role only — never trust a stale client claim for admin mint.
+    const userSnap = await adminDb().collection("users").doc(auth.uid).get();
+    if (!userSnap.exists) {
+      return err("User profile not found — complete registration first", 404);
+    }
+    const role = (userSnap.data()?.role as string) || "attendee";
+
+    if (scopes.includes("admin") && !["admin", "moderator"].includes(role)) {
       return err("Only admins/moderators can mint admin-scoped MCP tokens", 403);
     }
-
-    const userSnap = await adminDb().collection("users").doc(auth.uid).get();
-    const role = (userSnap.data()?.role as string) || auth.role;
 
     const minted = await mintMcpAccessToken({
       uid: auth.uid,

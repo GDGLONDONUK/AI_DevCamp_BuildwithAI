@@ -152,7 +152,10 @@ export async function revokeMcpAccessToken(
   return true;
 }
 
-export async function listMcpAccessTokensForUid(uid: string) {
+export async function listMcpAccessTokensForUid(
+  uid: string,
+  opts?: { includeRevoked?: boolean }
+) {
   const snap = await adminDb()
     .collection(MCP_ACCESS_TOKENS_COLLECTION)
     .where("uid", "==", uid)
@@ -160,7 +163,28 @@ export async function listMcpAccessTokensForUid(uid: string) {
     .get();
   return snap.docs
     .map((d) => serializeTokenMeta(d.id, d.data()))
+    .filter((t) => (opts?.includeRevoked ? true : !t.revoked))
     .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
+}
+
+/** Remove leftover probe tokens (label starts with `probe-`) for a uid. */
+export async function deleteProbeMcpTokensForUid(uid: string): Promise<number> {
+  const snap = await adminDb()
+    .collection(MCP_ACCESS_TOKENS_COLLECTION)
+    .where("uid", "==", uid)
+    .limit(100)
+    .get();
+  const batch = adminDb().batch();
+  let n = 0;
+  for (const doc of snap.docs) {
+    const label = String(doc.data().label || "");
+    if (label.startsWith("probe-")) {
+      batch.delete(doc.ref);
+      n += 1;
+    }
+  }
+  if (n > 0) await batch.commit();
+  return n;
 }
 
 /**

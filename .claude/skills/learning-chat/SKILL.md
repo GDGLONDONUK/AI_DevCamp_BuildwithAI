@@ -63,6 +63,22 @@ LEARNING_GEMINI_API_KEY=...
 
 Never `NEXT_PUBLIC_*`. BYO-LLM MCP does **not** use this key.
 
+## MCP attendee role probe (maintainers)
+
+Asserts a normal enrolled attendee gets learning scope only and **cannot** pass admin gates (including forged admin scope on the token doc).
+
+```bash
+# .env.local — never commit these values
+DEVCAMP_MCP_PROBE_EMAIL=your-throwaway-attendee@example.com
+# DEVCAMP_MCP_PROBE_PASSWORD=optional-if-omitted-random
+
+npx tsx --env-file=.env.local scripts/mcp-probe-attendee-access.ts
+# or: npm run mcp:probe-attendee
+# optional once: --keep-password  (prints password; do not paste into git/chat logs)
+```
+
+**Do not** hardcode probe emails, passwords, or MCP tokens in `scripts/`, docs, or skills. Use env/CLI only.
+
 ## When editing this feature
 
 1. Prefer a **new tool** (or MCP pack registration) over bloating the system prompt.
@@ -77,5 +93,7 @@ Never `NEXT_PUBLIC_*`. BYO-LLM MCP does **not** use this key.
 - **Do** ground answers with Firestore tools; do not invent session coverage.
 - **Do** keep Optimise / harness concepts in RAG notes + `docs/15` (text only).
 - **Do** log `/api/learning-chat` to `learning_chat_logs`.
+- **Do** keep MCP/API tiers aligned: attendees never get admin tools; probe via `DEVCAMP_MCP_PROBE_EMAIL` + `npm run mcp:probe-attendee`.
 - **Don't** tell attendees to clone the repo or open `.claude/skills` to learn.
-- **Don't** put platform API keys in attendee MCP configs.
+- **Don't** put platform API keys, probe emails/passwords, or `dcmcp_` tokens in source or committed docs.
+- **Don't** bind MCP HTTP to `0.0.0.0` without a trusted reverse proxy + TLS.

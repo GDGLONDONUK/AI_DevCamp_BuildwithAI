@@ -75,6 +75,7 @@ npm run dev              # Verify locally
 | Open / re-seed a cohort | `npm run open-september-2026-cohort` + env; skill **cohorts** / `docs/11-cohort-architecture.md` |
 | Home marketing CMS | `/admin/site` + `siteContent/home`; `npm run seed-site-content` |
 | Learning Assistant / DevCamp MCP | **Attendees:** https://aidevcamp.gdg.london `/faq` + `/mcp`. **Maintainers:** `packages/devcamp-mcp`, `src/lib/learning-chat`, skill **learning-chat** (repo only) |
+| MCP attendee role probe | `npm run mcp:probe-attendee` — requires `DEVCAMP_MCP_PROBE_EMAIL` in `.env.local` (never hardcode emails/passwords in repo). Skill **learning-chat** |
 | Optimise / harness / ADK agents | `docs/15-agent-harnessing-optimisation.md`; `examples/adk-harnessed-agent/` |
 | Add speakers / sessions | `src/data/speakers.ts`, `src/data/sessions.ts` → sync + `upload-speaker-photos` |
 | Open/close registration | `NEXT_PUBLIC_REGISTRATION_OPEN`; join via `POST /api/me/join-cohort` |
@@ -101,6 +102,7 @@ npm run dev              # Verify locally
 - Don't let clients patch privileged / server-maintained user fields
 - Don't overwrite spring programme docs when seeding a new cohort
 - Don't edit **`docs/`** unless the user asks (this request is an exception)
+- Don't commit probe / test account emails, passwords, or `dcmcp_` tokens — use `.env.local` only (`DEVCAMP_MCP_PROBE_*`)
 
 ---
 
@@ -138,6 +140,7 @@ npm run dev              # Verify locally
 - **Learning tasks are private:** `learningTasks/{userId}/{taskId}` scoped to owner; `/api/learning-tasks/` enforces Bearer token + userId check.
 - **Cohorts:** Active programme is `NEXT_PUBLIC_ACTIVE_COHORT_ID` (default `cohort-september-2026`). Users need that id in `cohortIds` to count as enrolled; registration gate is `NEXT_PUBLIC_REGISTRATION_OPEN`.
 - **Learning Assistant:** Signed-in only; `LEARNING_GEMINI_API_KEY` server-side; corpus `sessionLearningMaterials` is Admin-SDK-only.
+- **MCP role probe:** Set `DEVCAMP_MCP_PROBE_EMAIL` (and optional `DEVCAMP_MCP_PROBE_PASSWORD`) in `.env.local`, then `npm run mcp:probe-attendee`. Script refuses to run without an email from env/CLI — no defaults in source.
 - **Organiser admins:** Emails in `src/lib/organiserAdmins.ts` are re-promoted to `role: admin` on ensure-profile.
 
 ---

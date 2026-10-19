@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { KeyRound, Shield, Trash2, Copy, Server } from "lucide-react";
+import { KeyRound, Shield, Trash2, Copy } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import Button from "@/components/ui/Button";
@@ -149,7 +149,7 @@ export default function McpTokensPage() {
     );
   }
 
-  const mcpHttpUrl = process.env.NEXT_PUBLIC_MCP_HTTP_URL || "http://127.0.0.1:3100/mcp";
+  const hostedMcpUrl = process.env.NEXT_PUBLIC_MCP_HTTP_URL?.trim() || "";
 
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100 pt-24 pb-16 px-4">
@@ -160,10 +160,8 @@ export default function McpTokensPage() {
             <KeyRound className="text-green-400" /> MCP access tokens
           </h1>
           <p className="text-gray-400 text-sm leading-relaxed">
-            Tokens for Claude, ChatGPT, or Cursor against{" "}
-            <strong className="text-white">this website’s</strong> learning data (sessions,
-            materials, your tasks). You do not need the GitHub repo. Your role decides
-            scope: learning vs admin.
+            Mint a personal learning token, then connect Claude, ChatGPT, or Cursor using the
+            steps in the FAQ. You do not need the GitHub repo or a local MCP server.
           </p>
           <p className="text-gray-500 text-xs">
             Setup guides:{" "}
@@ -174,7 +172,6 @@ export default function McpTokensPage() {
             <Link href="/dashboard/tasks" className="text-green-400 underline">
               learning tasks
             </Link>
-            . Server HTTP: <code className="text-gray-300">npm run mcp:http</code>
           </p>
         </header>
 
@@ -185,19 +182,26 @@ export default function McpTokensPage() {
               <span className="text-gray-400">Label</span>
               <Input value={label} onChange={(e) => setLabel(e.target.value)} />
             </label>
-            <label className="text-sm space-y-1">
-              <span className="text-gray-400">Scope</span>
-              <select
-                className="w-full rounded-lg bg-gray-900 border border-white/10 px-3 py-2"
-                value={scope}
-                onChange={(e) => setScope(e.target.value as "learning" | "admin")}
-              >
-                <option value="learning">learning (sessions, study, my tasks)</option>
-                {isStaff && (
-                  <option value="admin">admin (users, sessions, assignments)</option>
-                )}
-              </select>
-            </label>
+            {isStaff ? (
+              <label className="text-sm space-y-1">
+                <span className="text-gray-400">Scope</span>
+                <select
+                  className="w-full rounded-lg bg-gray-900 border border-white/10 px-3 py-2"
+                  value={scope}
+                  onChange={(e) => setScope(e.target.value as "learning" | "admin")}
+                >
+                  <option value="learning">learning (sessions, study, my tasks)</option>
+                  <option value="admin">admin (staff only)</option>
+                </select>
+              </label>
+            ) : (
+              <div className="text-sm space-y-1">
+                <span className="text-gray-400">Scope</span>
+                <p className="rounded-lg bg-gray-900 border border-white/10 px-3 py-2 text-gray-300">
+                  learning (sessions, study, your tasks)
+                </p>
+              </div>
+            )}
           </div>
           <Button onClick={() => void mintSelf()} disabled={busy}>
             Create token
@@ -217,20 +221,21 @@ export default function McpTokensPage() {
           )}
         </section>
 
-        <section className="rounded-2xl border border-white/10 bg-white/5 p-6 space-y-3">
-          <h2 className="font-semibold text-lg flex items-center gap-2">
-            <Server size={18} /> Connect
-          </h2>
-          <p className="text-sm text-gray-400">
-            Local stdio: set <code className="text-gray-200">DEVCAMP_MCP_ACCESS_TOKEN</code>{" "}
-            then <code className="text-gray-200">npm run mcp:devcamp</code>.
-          </p>
-          <p className="text-sm text-gray-400">
-            Server HTTP URL: <code className="text-gray-200">{mcpHttpUrl}</code>
-            {" — "}
-            header <code className="text-gray-200">Authorization: Bearer &lt;token&gt;</code>
-          </p>
-        </section>
+        {hostedMcpUrl ? (
+          <section className="rounded-2xl border border-white/10 bg-white/5 p-6 space-y-3">
+            <h2 className="font-semibold text-lg">Hosted MCP endpoint</h2>
+            <p className="text-sm text-gray-400">
+              Use this URL in Claude / ChatGPT / Cursor with header{" "}
+              <code className="text-gray-200">Authorization: Bearer &lt;your token&gt;</code>.
+              Full client steps are on the{" "}
+              <Link href="/faq" className="text-green-400 underline">
+                FAQ
+              </Link>
+              .
+            </p>
+            <code className="block text-xs break-all text-green-300">{hostedMcpUrl}</code>
+          </section>
+        ) : null}
 
         <section className="rounded-2xl border border-white/10 bg-white/5 p-6 space-y-3">
           <h2 className="font-semibold text-lg">Your tokens</h2>

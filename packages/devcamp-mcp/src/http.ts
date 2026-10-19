@@ -5,10 +5,11 @@
  *
  * Env:
  *   DEVCAMP_MCP_PORT=3100
- *   DEVCAMP_MCP_HOST=0.0.0.0          # for remote bind
+ *   DEVCAMP_MCP_HOST=127.0.0.1   # keep localhost-only unless behind auth proxy
  *   DEVCAMP_MCP_ALLOWED_HOSTS=aidevcamp.gdg.london,localhost
  *
  * Clients send: Authorization: Bearer <dcmcp_… or Firebase ID token>
+ * Every request re-validates the Bearer and binds it to the session uid.
  */
 
 import { randomUUID } from "node:crypto";
@@ -38,20 +39,31 @@ const app = createMcpExpressApp({
   ...(allowedHosts && allowedHosts.length > 0 ? { allowedHosts } : {}),
 });
 
+async function bindCaller(req: Request, sessionUid?: string): Promise<McpCaller> {
+  const caller = await resolveCallerFromBearer(req.headers.authorization);
+  if (sessionUid && caller.uid !== sessionUid) {
+    throw new Error("Forbidden — Authorization does not match this MCP session");
+  }
+  return caller;
+}
+
 async function handleMcp(req: Request, res: Response) {
   const sessionId = req.headers["mcp-session-id"] as string | undefined;
 
   try {
     if (sessionId && sessions.has(sessionId)) {
       const session = sessions.get(sessionId)!;
-      await runWithCaller(session.caller, () =>
+      // Re-auth every call (prevents session hijack with a stolen mcp-session-id alone).
+      const caller = await bindCaller(req, session.caller.uid);
+      session.caller = caller;
+      await runWithCaller(caller, () =>
         session.transport.handleRequest(req, res, req.body)
       );
       return;
     }
 
     if (!sessionId && isInitializeRequest(req.body)) {
-      const caller = await resolveCallerFromBearer(req.headers.authorization);
+      const caller = await bindCaller(req);
       const transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: () => randomUUID(),
         onsessioninitialized: (id) => {
@@ -84,7 +96,7 @@ async function handleMcp(req: Request, res: Response) {
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
-    const status = /Missing Authorization|Invalid|expired|revoked|disabled|opt-out|Forbidden/i.test(
+    const status = /Missing Authorization|Invalid|expired|revoked|disabled|opt-out|Forbidden|Authentication/i.test(
       message
     )
       ? 401
@@ -111,4 +123,5 @@ app.get("/health", (_req, res) => {
 app.listen(port, host, () => {
   console.error(`AI DevCamp MCP HTTP listening on http://${host}:${port}/mcp`);
   console.error("Clients must send Authorization: Bearer <dcmcp_… or Firebase ID token>");
+  console.error(`Bound host=${host} (use 127.0.0.1 unless behind a trusted reverse proxy)`);
 });
