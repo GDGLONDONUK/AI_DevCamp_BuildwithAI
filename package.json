@@ -28,6 +28,7 @@
     "seed-learning-materials": "tsx --env-file=.env.local scripts/seed-learning-materials.ts",
     "seed-learning-task-templates": "tsx --env-file=.env.local scripts/seed-learning-task-templates-cohort.ts",
     "fix-organiser-admins": "tsx --env-file=.env.local scripts/fix-organiser-admins.ts",
+    "code-review:try": "tsx --env-file=.env.local scripts/try-code-review.ts",
     "mcp:devcamp": "tsx --env-file=.env.local packages/devcamp-mcp/src/index.ts",
     "mcp:http": "tsx --env-file=.env.local packages/devcamp-mcp/src/http.ts",
     "mcp:mint-token": "tsx --env-file=.env.local scripts/mcp-mint-id-token.ts",

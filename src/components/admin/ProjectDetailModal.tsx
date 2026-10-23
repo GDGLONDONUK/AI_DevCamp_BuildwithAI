@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { X, ExternalLink } from "lucide-react";
 import type { Project } from "@/types";
 import { formatAdminDateTime } from "@/lib/admin/format";
+import CodeReviewPanel, { type CodeReviewSource } from "@/components/admin/CodeReviewPanel";
 
 const STATUS_OPTIONS: { value: Project["status"]; label: string }[] = [
   { value: "submitted", label: "Submitted" },
@@ -18,9 +19,11 @@ interface ProjectDetailModalProps {
   project: Project;
   onClose: () => void;
   onSave: (id: string, data: { status: Project["status"]; feedback: string }) => Promise<void>;
+  /** Local preview only: supply the code review without Firebase. */
+  codeReviewSource?: CodeReviewSource;
 }
 
-export default function ProjectDetailModal({ project, onClose, onSave }: ProjectDetailModalProps) {
+export default function ProjectDetailModal({ project, onClose, onSave, codeReviewSource }: ProjectDetailModalProps) {
   const [status, setStatus] = useState<Project["status"]>(project.status);
   const [feedback, setFeedback] = useState(project.feedback ?? "");
   const [saving, setSaving] = useState(false);
@@ -56,7 +59,7 @@ export default function ProjectDetailModal({ project, onClose, onSave }: Project
       onClick={() => !saving && onClose()}
     >
       <div
-        className="bg-gray-900 border border-white/10 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl"
+        className={`bg-gray-900 border border-white/10 rounded-2xl ${project.githubUrl ? "max-w-4xl" : "max-w-2xl"} w-full max-h-[90vh] overflow-y-auto shadow-2xl`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3 p-5 border-b border-white/8">
@@ -133,6 +136,8 @@ export default function ProjectDetailModal({ project, onClose, onSave }: Project
               </a>
             )}
           </div>
+
+          {project.id && project.githubUrl && <CodeReviewPanel projectId={project.id} source={codeReviewSource} />}
 
           {project.screenshotUrls && project.screenshotUrls.length > 0 && (
             <div>
