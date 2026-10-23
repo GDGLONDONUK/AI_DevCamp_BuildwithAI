@@ -22,6 +22,7 @@ import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
 import toast from "react-hot-toast";
 import { trackActivity } from "@/lib/activityApi";
+import { requestCodeReview } from "@/lib/codeReviewApi";
 
 type SubmitType = "assignment" | "project";
 
@@ -150,6 +151,7 @@ export default function SubmitPage() {
         projectId: docRef.id,
         sessionTitle: projectForm.title,
       });
+      if (projectForm.githubUrl.trim()) void requestCodeReview(docRef.id);
       toast.success("Project submitted successfully! 🚀");
       setProjectForm({
         title: "",
