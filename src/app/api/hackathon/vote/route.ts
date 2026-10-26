@@ -13,6 +13,7 @@ import { parseJsonBody } from "@/lib/api/parseJsonBody";
 import { DEVCAMP_HACKATHON_ID } from "@/lib/hackathon";
 import {
   listVoteableProjects,
+  listPublicHackathonIdeas,
   bumpProjectVoteTotal,
 } from "@/lib/server/programmeProjects";
 import { resolveActiveCohortIdFromDb } from "@/lib/server/activeCohort";
@@ -77,13 +78,21 @@ export async function GET(req: NextRequest) {
 
   try {
     const cohortId = await resolveActiveCohortIdFromDb();
-    const [projects, settings, allocations] = await Promise.all([
+    const [voteable, gallery, settings, allocations] = await Promise.all([
       listVoteableProjects(cohortId),
+      listPublicHackathonIdeas(cohortId),
       readVotingSettings(),
       loadUserVotes(auth.uid),
     ]);
+    // Always show gallery on the vote screen (incl. drafts) so the page is not empty
+    // when voting is closed; casting still restricted to shipped projects in POST.
+    const byId = new Map(gallery.map((p) => [p.id, p]));
+    for (const p of voteable) byId.set(p.id, p);
     return ok({
-      projects,
+      projects: [...byId.values()].sort((a, b) =>
+        a.title.localeCompare(b.title)
+      ),
+      voteableIds: voteable.map((p) => p.id),
       ...settings,
       allocations,
       budget: budgetForRole(auth.role),

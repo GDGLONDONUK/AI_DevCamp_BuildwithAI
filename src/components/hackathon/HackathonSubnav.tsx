@@ -18,8 +18,14 @@ export default function HackathonSubnav() {
   const pathname = usePathname();
 
   return (
-    <nav className="hh-nav border-b border-[var(--hh-line)] bg-[rgba(12,7,18,0.65)] backdrop-blur-md">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 flex gap-1 overflow-x-auto py-2 items-center">
+    <nav
+      className="hh-nav sticky top-16 z-20 border-b backdrop-blur-md"
+      style={{
+        borderColor: "#3a2452",
+        background: "rgba(12, 7, 18, 0.78)",
+      }}
+    >
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 flex gap-1 overflow-x-auto py-2.5 items-center">
         {LINKS.map((l) => {
           const active = l.exact
             ? pathname === l.href
@@ -28,11 +34,18 @@ export default function HackathonSubnav() {
             <Link
               key={l.href}
               href={l.href}
-              className={`shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors border ${
-                active
-                  ? "hh-nav-active border-[rgba(255,122,26,0.45)]"
-                  : "border-transparent"
+              className={`shrink-0 rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors border ${
+                active ? "hh-nav-active" : "border-transparent"
               }`}
+              style={
+                active
+                  ? {
+                      background: "rgba(255, 122, 26, 0.2)",
+                      color: "#ffb347",
+                      borderColor: "rgba(255, 122, 26, 0.5)",
+                    }
+                  : { color: "#b7a5cf" }
+              }
             >
               {l.label}
             </Link>
@@ -43,6 +56,16 @@ export default function HackathonSubnav() {
           target="_blank"
           rel="noopener noreferrer"
           className="hh-badge shrink-0 ml-auto"
+          style={{
+            fontSize: "0.8rem",
+            padding: "0.35rem 0.85rem",
+            borderRadius: 999,
+            border: "1px solid #ff7a1a",
+            color: "#ffb347",
+            background: "rgba(255, 122, 26, 0.1)",
+            textDecoration: "none",
+            fontWeight: 600,
+          }}
         >
           🎃 Build lab
         </a>

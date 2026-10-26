@@ -60,7 +60,12 @@ export default function HackathonPage() {
               href={e.lumaUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 rounded-xl bg-green-600 hover:bg-green-500 text-white font-semibold px-5 py-3 transition-colors"
+              className="inline-flex items-center gap-2 rounded-full font-bold px-5 py-3 transition-transform hover:-translate-y-0.5"
+              style={{
+                background: "linear-gradient(135deg, #ffb347, #ff7a1a)",
+                color: "#1a0b00",
+                boxShadow: "0 8px 28px rgba(255, 122, 26, 0.35)",
+              }}
             >
               Register on Luma
               <ExternalLink size={16} />
@@ -68,30 +73,42 @@ export default function HackathonPage() {
             {user ? (
               <Link
                 href="/hackathon/my-projects"
-                className="inline-flex items-center gap-2 rounded-xl border border-white/20 hover:border-green-500/50 bg-white/[0.04] hover:bg-green-500/10 text-white font-semibold px-5 py-3 transition-colors"
+                className="inline-flex items-center gap-2 rounded-full border font-semibold px-5 py-3"
+                style={{
+                  borderColor: "#ff7a1a",
+                  color: "#ffb347",
+                  background: "rgba(255, 122, 26, 0.08)",
+                }}
               >
-                <Upload size={16} className="text-green-400" />
+                <Upload size={16} />
                 Submit hackathon project
               </Link>
             ) : (
               <Link
                 href="/register"
-                className="inline-flex items-center gap-2 rounded-xl border border-white/20 hover:border-green-500/50 bg-white/[0.04] text-white font-semibold px-5 py-3 transition-colors"
+                className="inline-flex items-center gap-2 rounded-full border font-semibold px-5 py-3"
+                style={{
+                  borderColor: "#ff7a1a",
+                  color: "#ffb347",
+                  background: "rgba(255, 122, 26, 0.08)",
+                }}
               >
                 Register to take part
               </Link>
             )}
             <Link
               href="/hackathon/ideas"
-              className="inline-flex items-center gap-2 rounded-xl border border-white/15 text-gray-200 font-semibold px-5 py-3 hover:bg-white/5"
+              className="inline-flex items-center gap-2 rounded-full border font-semibold px-5 py-3"
+              style={{ borderColor: "#3a2452", color: "#f4ecff" }}
             >
               Idea gallery
             </Link>
             <Link
               href="/hackathon/prizes"
-              className="inline-flex items-center gap-2 rounded-xl border border-white/15 text-gray-200 font-semibold px-5 py-3 hover:bg-white/5"
+              className="inline-flex items-center gap-2 rounded-full border font-semibold px-5 py-3"
+              style={{ borderColor: "#3a2452", color: "#f4ecff" }}
             >
-              <Trophy size={16} className="text-yellow-400" />
+              <Trophy size={16} className="text-amber-300" />
               Prizes
             </Link>
           </div>

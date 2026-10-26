@@ -102,16 +102,22 @@
 }
 
 .hackathon-haunt .hh-title {
-  font-family: var(--font-creepster), cursive;
+  font-family: var(--font-creepster), "Creepster", cursive !important;
   font-weight: 400;
   font-size: clamp(2.4rem, 8vw, 4.5rem);
   line-height: 1;
   letter-spacing: 0.04em;
-  background: linear-gradient(180deg, var(--hh-pumpkin-2), var(--hh-pumpkin) 60%, #c2410c);
+  background: linear-gradient(180deg, #ffb347, #ff7a1a 60%, #c2410c);
   -webkit-background-clip: text;
   background-clip: text;
-  color: transparent;
+  color: transparent !important;
   filter: drop-shadow(0 6px 24px rgba(255, 122, 26, 0.35));
+}
+
+/* Fallback when Creepster variable missing */
+.hackathon-haunt h1.hh-title,
+.hackathon-haunt .hh-title {
+  -webkit-text-fill-color: transparent;
 }
 
 .hackathon-haunt .hh-badge {
