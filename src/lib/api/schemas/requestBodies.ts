@@ -96,7 +96,9 @@ export const projectCreateSchema = z.object({
 
 export const projectAdminPatchSchema = z
   .object({
-    status: z.enum(["submitted", "reviewed", "shortlisted", "winner", "passed", "failed"]).optional(),
+    status: z
+      .enum(["draft", "submitted", "reviewed", "shortlisted", "winner", "passed", "failed"])
+      .optional(),
     feedback: z.string().max(20000).optional(),
   })
   .strict()
@@ -104,6 +106,13 @@ export const projectAdminPatchSchema = z
     (d) => d.status !== undefined || d.feedback !== undefined,
     { message: "At least one of status or feedback is required" }
   );
+
+/** POST /api/projects/[id]/code-review — force re-review (admins only; ignored for owners). */
+export const projectCodeReviewRequestSchema = z
+  .object({
+    force: z.boolean().optional(),
+  })
+  .strict();
 
 function normalizeLearningTaskCategoryInput(raw: string): string {
   return raw.trim().replace(/\s+/g, " ").slice(0, 80);

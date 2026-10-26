@@ -46,7 +46,9 @@ service cloud.firestore {
         'certifierSyncedAt',
         'cohortIds',
         'activeCohortId',
-        'cohortParticipation'
+        'cohortParticipation',
+        'hackathonParticipant',
+        'hackathonJoinedAt'
       ]);
     }
 
@@ -134,25 +136,36 @@ service cloud.firestore {
     }
 
     // ── Projects ──────────────────────────────────────────────────────────────
+    // Hackathon idea gallery + voting use Admin SDK APIs (emails stripped).
+    // Client: owner or admin/mod only. Owners cannot change status / voteTotal.
     match /projects/{projectId} {
-      // Owner or admins/mods only — do not expose submitter email via world-readable queries.
       allow read: if isSignedIn() && (
         resource.data.userId == request.auth.uid || isAdminOrMod()
       );
 
       allow create: if isSignedIn()
-                    && request.resource.data.userId == request.auth.uid;
+                    && request.resource.data.userId == request.auth.uid
+                    && !('voteTotal' in request.resource.data);
 
       allow update: if isSignedIn() && (
         (
           resource.data.userId == request.auth.uid &&
           request.resource.data.userId == resource.data.userId &&
-          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['status', 'userId'])
+          !request.resource.data.diff(resource.data).affectedKeys()
+            .hasAny(['status', 'userId', 'voteTotal', 'hackathonId'])
         ) ||
         isAdminOrMod()
       );
 
       allow delete: if isAdmin();
+    }
+
+    // ── Hackathon votes / settings — Admin SDK only (/api/hackathon/*) ────────
+    match /hackathonVotes/{voteId} {
+      allow read, write: if false;
+    }
+    match /hackathonSettings/{docId} {
+      allow read, write: if false;
     }
 
     // ── Learning tasks (private per user) ────────────────────────────────────
@@ -217,6 +230,18 @@ service cloud.firestore {
     // ── Speaker call submissions — written by /api/speaker-call (Admin SDK). ──
     // Public form input; never client-readable (contains submitter email).
     match /speakerCallSubmissions/{document=**} {
+      allow read, write: if false;
+    }
+
+    // ── Hackathon code reviews — /api/projects/[id]/code-review + /api/admin/code-reviews only. ──
+    // Judges read reviews through the API (admin/moderator); teams never see them.
+    match /projectCodeReviews/{projectId} {
+      allow read, write: if false;
+    }
+    match /projectCodeFingerprints/{projectId} {
+      allow read, write: if false;
+    }
+    match /codeReviewMeta/{docId} {
       allow read, write: if false;
     }
 

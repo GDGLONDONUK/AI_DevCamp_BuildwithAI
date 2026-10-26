@@ -22,6 +22,7 @@ import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
 import toast from "react-hot-toast";
 import { trackActivity } from "@/lib/activityApi";
+import { requestCodeReview } from "@/lib/codeReviewApi";
 
 type SubmitType = "assignment" | "project";
 
@@ -46,15 +47,6 @@ export default function SubmitPage() {
     demoUrl: "",
   });
 
-  const [projectForm, setProjectForm] = useState({
-    title: "",
-    description: "",
-    techStack: "",
-    githubUrl: "",
-    demoUrl: "",
-    weekCompleted: 4,
-  });
-
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -67,15 +59,6 @@ export default function SubmitPage() {
     const e: Record<string, string> = {};
     if (!assignmentForm.title.trim()) e.title = "Title is required";
     if (!assignmentForm.description.trim())
-      e.description = "Description is required";
-    setErrors(e);
-    return Object.keys(e).length === 0;
-  };
-
-  const validateProject = () => {
-    const e: Record<string, string> = {};
-    if (!projectForm.title.trim()) e.title = "Title is required";
-    if (!projectForm.description.trim())
       e.description = "Description is required";
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -150,6 +133,7 @@ export default function SubmitPage() {
         projectId: docRef.id,
         sessionTitle: projectForm.title,
       });
+      if (projectForm.githubUrl.trim()) void requestCodeReview(docRef.id);
       toast.success("Project submitted successfully! 🚀");
       setProjectForm({
         title: "",
@@ -194,12 +178,18 @@ export default function SubmitPage() {
               </h2>
               <p className="text-gray-300 text-sm mb-3">
                 {HACKATHON_EVENT.dateLabel} · {HACKATHON_EVENT.timeLabel} ·{" "}
-                {HACKATHON_EVENT.modeLabel}. Use <strong className="text-white">Final Project</strong>{" "}
-                below for the portal submission mentors review. Register for the day on Luma
-                (in person or online).
+                {HACKATHON_EVENT.modeLabel}. Your <strong className="text-white">final project</strong>{" "}
+                is the same database record as your hackathon entry — edit it once under My project.
+                Register for the day on Luma (in person or online).
               </p>
               <div className="flex flex-wrap gap-3 text-sm font-semibold">
-                <Link href="/hackathon" className="text-yellow-300 hover:text-yellow-200">
+                <Link
+                  href="/hackathon/my-projects"
+                  className="text-yellow-300 hover:text-yellow-200"
+                >
+                  Open my project (hackathon) →
+                </Link>
+                <Link href="/hackathon" className="text-yellow-300/80 hover:text-yellow-200">
                   Hackathon details →
                 </Link>
                 <a
@@ -233,6 +223,7 @@ export default function SubmitPage() {
             Weekly Assignment
           </button>
           <button
+            type="button"
             onClick={() => {
               setSubmitType("project");
               setErrors({});
@@ -388,104 +379,22 @@ export default function SubmitPage() {
             </Button>
           </form>
         ) : (
-          <form
-            onSubmit={handleSubmitProject}
-            className="bg-gray-900 border border-white/10 rounded-2xl p-6 sm:p-8 space-y-5"
-          >
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1.5">
-                Week Completed
-              </label>
-              <div className="grid grid-cols-4 gap-2">
-                {[1, 2, 3, 4].map((w) => (
-                  <button
-                    key={w}
-                    type="button"
-                    onClick={() =>
-                      setProjectForm({ ...projectForm, weekCompleted: w })
-                    }
-                    className={`py-2.5 rounded-lg text-sm font-semibold border transition-all ${
-                      projectForm.weekCompleted === w
-                        ? "bg-green-600 border-green-500 text-white"
-                        : "border-white/10 text-gray-400 hover:border-white/20 hover:text-white"
-                    }`}
-                  >
-                    Week {w}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <Input
-              id="proj-title"
-              label="Project Title *"
-              placeholder="e.g. Handwritten Digit Classifier"
-              icon={<FileText size={16} />}
-              value={projectForm.title}
-              onChange={(e) =>
-                setProjectForm({ ...projectForm, title: e.target.value })
-              }
-              error={errors.title}
-            />
-
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1.5">
-                Project Description *
-              </label>
-              <textarea
-                rows={5}
-                placeholder="Describe your project — what it does, how it works, and what you're proud of..."
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-white placeholder:text-gray-500 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
-                value={projectForm.description}
-                onChange={(e) =>
-                  setProjectForm({
-                    ...projectForm,
-                    description: e.target.value,
-                  })
-                }
-              />
-              {errors.description && (
-                <p className="text-xs text-red-400 mt-1">{errors.description}</p>
-              )}
-            </div>
-
-            <Input
-              id="proj-tech"
-              label="Tech Stack"
-              placeholder="TypeScript, Google ADK, Vertex AI, LangChain (comma-separated)"
-              icon={<Code2 size={16} />}
-              value={projectForm.techStack}
-              onChange={(e) =>
-                setProjectForm({ ...projectForm, techStack: e.target.value })
-              }
-            />
-
-            <Input
-              id="proj-github"
-              label="GitHub Repository"
-              placeholder="https://github.com/yourname/project"
-              icon={<GithubIcon />}
-              value={projectForm.githubUrl}
-              onChange={(e) =>
-                setProjectForm({ ...projectForm, githubUrl: e.target.value })
-              }
-            />
-
-            <Input
-              id="proj-demo"
-              label="Demo / Live URL"
-              placeholder="https://your-demo.com"
-              icon={<Globe size={16} />}
-              value={projectForm.demoUrl}
-              onChange={(e) =>
-                setProjectForm({ ...projectForm, demoUrl: e.target.value })
-              }
-            />
-
-            <Button type="submit" loading={submitting} className="w-full" size="lg">
-              Submit Project
-            </Button>
-          </form>
+          <div className="bg-gray-900 border border-white/10 rounded-2xl p-6 sm:p-8 space-y-4">
+            <h2 className="text-xl font-semibold text-white">One project record</h2>
+            <p className="text-gray-300 text-sm leading-relaxed">
+              For this cohort, your final project and hackathon submission are the{" "}
+              <strong className="text-white">same</strong> Firestore{" "}
+              <code className="text-green-300">projects</code> document. Edit and ship it on
+              the hackathon My project page so ideas, voting, and admin review stay in sync.
+            </p>
+            <Link
+              href="/hackathon/my-projects"
+              className="inline-flex items-center justify-center gap-2 w-full rounded-lg bg-green-600 hover:bg-green-500 text-white font-semibold py-3"
+            >
+              <Code2 size={16} />
+              Continue to My project
+            </Link>
+          </div>
         )}
       </div>
     </div>

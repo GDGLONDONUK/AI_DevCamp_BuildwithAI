@@ -135,6 +135,13 @@ export interface UserProfile {
   programOptOut?: boolean;
   /** ISO time when {@link programOptOut} was set to true. */
   programOptOutAt?: string;
+  /**
+   * Joined the Agentic Hackathon without (or in addition to) DevCamp cohort enrolment.
+   * Server-maintained via `POST /api/me/join-hackathon`.
+   */
+  hackathonParticipant?: boolean;
+  /** ISO time when {@link hackathonParticipant} was set. */
+  hackathonJoinedAt?: string;
   /** Submitted the Google Form (imported or matched at sign-up). */
   preRegistered?: boolean;
   /** Has a Firebase account (app sign-up complete). */
@@ -346,9 +353,33 @@ export interface Project {
   screenshotUrls?: string[];
   submittedAt: Date | string;
   submittedAtClient?: string;
-  status: "submitted" | "reviewed" | "shortlisted" | "winner" | "passed" | "failed";
+  status:
+    | "draft"
+    | "submitted"
+    | "reviewed"
+    | "shortlisted"
+    | "winner"
+    | "passed"
+    | "failed";
   feedback?: string;
   weekCompleted: number;
+  /**
+   * Active cohort this programme project belongs to.
+   * One logical final project per user per cohort (hackathon UI edits this same doc).
+   */
+  cohortId?: string;
+  /**
+   * Optional closing-event tag (e.g. Agentic Hackathon). Same document — not a
+   * separate schema. Next cohort can omit this and use plain project submissions.
+   */
+  hackathonId?: string;
+  /** Optional team display name (defaults to title). */
+  teamName?: string;
+  projectType?: "solo" | "team";
+  /** Visible in idea gallery for others to request to join. */
+  openToMembers?: boolean;
+  /** Audience vote tally (server-maintained; never client-writable). */
+  voteTotal?: number;
 }
 
 /** Row in Firestore `error_logs` (written only via Admin SDK / API). */
@@ -498,3 +529,14 @@ export interface SessionLearningMaterial {
   updatedByUid?: string;
 }
 
+
+/** Hackathon code reviews (`projectCodeReviews/{projectId}`, server-only; read via `/api/projects/[id]/code-review`). */
+export type {
+  CodeReviewCheck,
+  CodeReviewListItem,
+  CodeReviewResult,
+  CodeReviewStats,
+  CodeReviewStatus,
+  CodeReviewWritten,
+  ProjectCodeReview,
+} from "@/lib/code-review/schema";
