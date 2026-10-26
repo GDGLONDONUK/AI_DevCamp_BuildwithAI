@@ -23,6 +23,8 @@ export type PublicProjectCard = {
   demoUrl?: string;
   screenshotUrls: string[];
   userName: string;
+  /** Owner uid — used to ban self-votes; not an email. */
+  userId: string;
   voteTotal: number;
   status: string;
   cohortId?: string;
@@ -48,6 +50,7 @@ export function toPublicProjectCard(
       ? data.screenshotUrls.map(String).slice(0, 5)
       : [],
     userName: String(data.userName || "Builder"),
+    userId: String(data.userId || ""),
     voteTotal: Number(data.voteTotal) || 0,
     status: String(data.status || "draft"),
     cohortId: typeof data.cohortId === "string" ? data.cohortId : undefined,

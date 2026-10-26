@@ -20,6 +20,7 @@ export default function VotePage() {
   const [submitting, setSubmitting] = useState(false);
   const [projects, setProjects] = useState<HackathonIdea[]>([]);
   const [voteableIds, setVoteableIds] = useState<Set<string>>(new Set());
+  const [ownProjectIds, setOwnProjectIds] = useState<Set<string>>(new Set());
   const [allocations, setAllocations] = useState<Record<string, number>>({});
   const [votingOpen, setVotingOpen] = useState(false);
   const [message, setMessage] = useState<string | undefined>();
@@ -49,7 +50,8 @@ export default function VotePage() {
     try {
       const state = await fetchVoteState();
       setProjects(state.projects);
-      setVoteableIds(new Set(state.voteableIds || state.projects.map((p) => p.id)));
+      setVoteableIds(new Set(state.voteableIds || []));
+      setOwnProjectIds(new Set(state.ownProjectIds || []));
       setAllocations(state.allocations || {});
       setVotingOpen(state.votingOpen);
       setMessage(state.message);
@@ -114,7 +116,7 @@ export default function VotePage() {
           </h1>
           <p className="text-gray-400 text-sm mt-2">
             Pick your favourites. Up to <strong className="text-white">{maxPer}</strong> votes per
-            project. Winners by total audience votes.
+            project. You cannot vote for your own project. Winners by total audience votes.
           </p>
         </div>
 
@@ -151,7 +153,8 @@ export default function VotePage() {
         <div className="space-y-3">
           {filtered.map((p) => {
             const n = allocations[p.id] || 0;
-            const canVote = voteableIds.has(p.id) && p.status !== "draft";
+            const isOwn = ownProjectIds.has(p.id) || (user?.uid != null && p.userId === user.uid);
+            const canVote = !isOwn && voteableIds.has(p.id) && p.status !== "draft";
             return (
               <div
                 key={p.id}
@@ -161,27 +164,37 @@ export default function VotePage() {
                   <p className="text-white font-semibold truncate">{p.title}</p>
                   <p className="text-xs text-gray-500">
                     {p.teamName} · {p.userName} · {p.voteTotal} votes
-                    {p.status === "draft" ? " · draft (not voteable yet)" : ""}
+                    {isOwn
+                      ? " · your project (not voteable)"
+                      : p.status === "draft"
+                        ? " · draft (not voteable yet)"
+                        : ""}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    disabled={!votingOpen || !canVote || n <= 0}
-                    onClick={() => setCount(p.id, n - 1)}
-                    className="w-8 h-8 rounded-lg border border-white/20 text-white disabled:opacity-40"
-                  >
-                    −
-                  </button>
-                  <span className="w-6 text-center text-white font-mono">{n}</span>
-                  <button
-                    type="button"
-                    disabled={!votingOpen || !canVote || n >= maxPer || remaining <= 0}
-                    onClick={() => setCount(p.id, n + 1)}
-                    className="w-8 h-8 rounded-lg border border-white/20 text-white disabled:opacity-40"
-                  >
-                    +
-                  </button>
+                  {isOwn ? (
+                    <span className="text-xs font-mono text-amber-300/80">Own entry</span>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        disabled={!votingOpen || !canVote || n <= 0}
+                        onClick={() => setCount(p.id, n - 1)}
+                        className="w-8 h-8 rounded-lg border border-white/20 text-white disabled:opacity-40"
+                      >
+                        −
+                      </button>
+                      <span className="w-6 text-center text-white font-mono">{n}</span>
+                      <button
+                        type="button"
+                        disabled={!votingOpen || !canVote || n >= maxPer || remaining <= 0}
+                        onClick={() => setCount(p.id, n + 1)}
+                        className="w-8 h-8 rounded-lg border border-white/20 text-white disabled:opacity-40"
+                      >
+                        +
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             );

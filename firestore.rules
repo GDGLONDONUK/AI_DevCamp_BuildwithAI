@@ -48,7 +48,9 @@ service cloud.firestore {
         'activeCohortId',
         'cohortParticipation',
         'hackathonParticipant',
-        'hackathonJoinedAt'
+        'hackathonJoinedAt',
+        'lastHackathonVoteAt',
+        'lastHackathonVoteEdition'
       ]);
     }
 

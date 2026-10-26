@@ -38,6 +38,7 @@ export type HackathonIdea = {
   demoUrl?: string;
   screenshotUrls: string[];
   userName: string;
+  userId?: string;
   voteTotal: number;
   status: string;
 };
@@ -92,6 +93,7 @@ export async function fetchVoteState() {
   return parseJson<{
     projects: HackathonIdea[];
     voteableIds?: string[];
+    ownProjectIds?: string[];
     votingOpen: boolean;
     message?: string;
     allocations: Record<string, number>;
