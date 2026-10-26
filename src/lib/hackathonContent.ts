@@ -37,6 +37,9 @@ export type HackathonPrizeEntry = {
   imageSrc: string;
   featured?: boolean;
   sortOrder: number;
+  /** in-person day prizes vs online-only awards */
+  audience?: "in-person" | "online" | "all";
+  note?: string;
 };
 
 export const HACKATHON_TECH_TAGS = [
@@ -61,6 +64,7 @@ export const DEFAULT_HACKATHON_PRIZES: HackathonPrizeEntry[] = [
     imageSrc: "/hackathon/prizes/JBL_Tune_720BT.png",
     featured: true,
     sortOrder: 0,
+    audience: "in-person",
   },
   {
     id: "jbl-go",
@@ -68,6 +72,7 @@ export const DEFAULT_HACKATHON_PRIZES: HackathonPrizeEntry[] = [
     imageSrc: "/hackathon/prizes/JBL_Go.png",
     featured: true,
     sortOrder: 1,
+    audience: "in-person",
   },
   {
     id: "wireless-keyboard",
@@ -75,24 +80,30 @@ export const DEFAULT_HACKATHON_PRIZES: HackathonPrizeEntry[] = [
     imageSrc: "/hackathon/prizes/Wireless mechanical gaming keyboard.png",
     featured: true,
     sortOrder: 2,
+    audience: "in-person",
   },
   {
     id: "bag",
     name: "Bag",
     imageSrc: "/hackathon/prizes/Google_bags.png",
     sortOrder: 3,
+    audience: "in-person",
   },
   {
     id: "google-socks",
     name: "Google socks",
     imageSrc: "/hackathon/prizes/Google_Socks.png",
     sortOrder: 4,
+    audience: "in-person",
   },
   {
-    id: "earbuds",
-    name: "Google earbuds",
-    imageSrc: "/hackathon/prizes/Google_Ear_buds.png",
+    id: "amazon-voucher-online",
+    name: "Amazon voucher",
+    imageSrc: "/hackathon/prizes/Amazon_voucher.svg",
+    featured: true,
     sortOrder: 5,
+    audience: "online",
+    note: "One Amazon voucher for online participants — claim rules announced on the day.",
   },
 ];
 
@@ -206,10 +217,18 @@ export const DEFAULT_RULES_SECTIONS: RulesSection[] = [
     id: "prizes",
     kind: "card",
     title: "Winning prizes — important",
-    body: "Prizes are handed out live on event day — be there in person to claim them. No mail, no exceptions.\n\nFor team projects, the prize goes to the project leader. How you share it with your team is up to you.",
+    body: "Physical prizes (headphones, speaker, keyboard, bag, socks) are handed out live on event day — be there in person to claim them.\n\nOnline participants: one Amazon voucher is awarded (details announced on the day).\n\nFor team projects, the prize goes to the project leader. How you share it with your team is up to you.",
     variant: "amber",
     icon: "gift",
     sortOrder: 8,
+  },
+  {
+    id: "voting",
+    kind: "card",
+    title: "Audience voting",
+    body: "Signed-in eligible participants only. Fixed vote budget, max votes per project, no voting for your own project. Votes are recorded server-side; totals are recomputed from the ballot log. Voting opens only when organisers enable it.",
+    icon: "award",
+    sortOrder: 9,
   },
   {
     id: "data",
@@ -218,7 +237,7 @@ export const DEFAULT_RULES_SECTIONS: RulesSection[] = [
     body: "Submission data is kept for judging and event purposes and is not shared outside the competition.",
     variant: "emerald",
     icon: "database",
-    sortOrder: 9,
+    sortOrder: 10,
   },
   {
     id: "deadline",
@@ -227,7 +246,7 @@ export const DEFAULT_RULES_SECTIONS: RulesSection[] = [
     body: "Saturday, 31 October 2026 — during the Agentic Hackathon (show-and-tell before awards).",
     variant: "violet",
     icon: "clock",
-    sortOrder: 10,
+    sortOrder: 11,
   },
 ];
 
