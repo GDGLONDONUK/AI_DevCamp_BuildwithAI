@@ -7,6 +7,7 @@ import { formatAdminDateTime } from "@/lib/admin/format";
 import CodeReviewPanel, { type CodeReviewSource } from "@/components/admin/CodeReviewPanel";
 
 const STATUS_OPTIONS: { value: Project["status"]; label: string }[] = [
+  { value: "draft", label: "Draft" },
   { value: "submitted", label: "Submitted" },
   { value: "reviewed", label: "Reviewed" },
   { value: "shortlisted", label: "Shortlisted" },

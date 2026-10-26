@@ -219,10 +219,22 @@ export async function setAssignmentStatus(
 // ── Projects ──────────────────────────────────────────────────────────────────
 
 export async function fetchAllProjects(): Promise<Project[]> {
-  const snap = await getDocs(
-    query(collection(db, "projects"), orderBy("submittedAt", "desc"))
-  );
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Project));
+  try {
+    const snap = await getDocs(
+      query(collection(db, "projects"), orderBy("submittedAt", "desc"))
+    );
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Project));
+  } catch {
+    // Missing submittedAt / index — still load every project for admin.
+    const snap = await getDocs(collection(db, "projects"));
+    return snap.docs
+      .map((d) => ({ id: d.id, ...d.data() } as Project))
+      .sort((a, b) => {
+        const ta = String(a.submittedAtClient || a.submittedAt || "");
+        const tb = String(b.submittedAtClient || b.submittedAt || "");
+        return tb.localeCompare(ta);
+      });
+  }
 }
 
 export async function setProjectStatus(

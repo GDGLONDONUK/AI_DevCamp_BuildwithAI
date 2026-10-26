@@ -673,7 +673,7 @@ export const SEPTEMBER_2026_SESSIONS: Session[] = [
     cohortId: SEPTEMBER_2026_COHORT_ID,
     topic: "Hackathon",
     description:
-      "Cohort closing day: AI DevCamp 2026 Agentic AI Hackathon with Google ADK, hosted by GDG London. In person at Encode Hub, London, and online. Solo or team. Build from idea toward an end-to-end agent, join expert sessions, then show-and-tell, pitch, and receive certificates.\n\nDay plan: 9:00–12:00 kick-off and build · 12:00–2:00 expert sessions · 2:00–4:00 continue building and polish demos · 4:00–5:00 showcases, pitching, closing and certificate ceremony. Bring a laptop and charger. Hackathon rules and submission criteria are emailed; submit your final project on the portal as well as registering on Luma.",
+      "Cohort closing day: AI DevCamp 2026 Agentic AI Hackathon with Google ADK, hosted by GDG London. In person at Encode Hub, London, and online. Solo or team. Build from idea toward an end-to-end agent, join expert sessions, then show-and-tell, pitch, and receive certificates.\n\nDay plan: 9:00–11:00 registration, kick-off and build · 11:00–1:00 expert sessions (mentors) · 1:00–3:00 continue building and polish demos · 3:00–5:00 showcases, pitching, closing and certificate ceremony. Bring a laptop and charger. Hackathon rules and submission criteria are emailed; submit your final project on the portal as well as registering on Luma.",
     speakerIds: ["sumith-damodaran", "renuka-kelkar"],
     isClosing: true,
     tags: [
@@ -693,7 +693,7 @@ export const SEPTEMBER_2026_SESSIONS: Session[] = [
     buildIdeas: [
       "Register on Luma (in person or online)",
       "Submit your final project on the portal before or on the day",
-      "Prepare a short demo and pitch for 4:00–5:00 PM",
+      "Prepare a short demo and pitch for 3:00–5:00 PM",
     ],
     resources: [
       {

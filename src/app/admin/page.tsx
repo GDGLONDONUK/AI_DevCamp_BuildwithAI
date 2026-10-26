@@ -89,6 +89,7 @@ import {
   Table2,
   Tags,
   Trash2,
+  Trophy,
   Upload,
   UserCheck,
   UserX,
@@ -1157,6 +1158,9 @@ export default function AdminPage() {
               <Plus size={16} />
               <span>Add pending user</span>
             </button>
+            <Link href="/admin/hackathon" className="flex items-center gap-2 text-sm text-amber-300 hover:text-amber-200 border border-amber-500/30 hover:border-amber-500/50 bg-amber-500/10 px-4 py-2 rounded-lg font-mono transition-all">
+              <Trophy size={14} /> Hackathon
+            </Link>
             <Link href="/admin/email" className="flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 border border-blue-500/20 hover:border-blue-500/40 bg-blue-500/10 px-4 py-2 rounded-lg font-mono transition-all">
               <Mail size={14} /> Email
             </Link>
@@ -3056,6 +3060,7 @@ export default function AdminPage() {
                     className="bg-gray-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-white font-mono"
                   >
                     <option value="all">All statuses</option>
+                    <option value="draft">Draft</option>
                     <option value="submitted">Submitted</option>
                     <option value="reviewed">Reviewed</option>
                     <option value="shortlisted">Shortlisted</option>
@@ -3063,6 +3068,12 @@ export default function AdminPage() {
                     <option value="passed">Passed</option>
                     <option value="failed">Failed</option>
                   </select>
+                  <Link
+                    href="/admin/hackathon"
+                    className="text-xs font-mono text-amber-300 hover:text-amber-200 border border-amber-500/30 px-3 py-2 rounded-lg"
+                  >
+                    Hackathon console →
+                  </Link>
                   <span className="text-xs text-gray-600 font-mono">
                     {filteredProjects.length} project{filteredProjects.length === 1 ? "" : "s"}
                   </span>
@@ -3089,11 +3100,18 @@ export default function AdminPage() {
                                   ? "bg-red-500/15 text-red-300 border border-red-500/30"
                                   : p.status === "winner"
                                     ? "bg-amber-500/15 text-amber-300 border border-amber-500/30"
-                                    : "bg-white/5 text-gray-500 border border-white/10"
+                                    : p.status === "draft"
+                                      ? "bg-violet-500/15 text-violet-300 border border-violet-500/30"
+                                      : "bg-white/5 text-gray-500 border border-white/10"
                             }`}
                           >
                             {p.status}
                           </span>
+                          {p.hackathonId && (
+                            <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                              Hackathon
+                            </span>
+                          )}
                           {p.githubUrl && <CodeReviewBadge item={p.id ? codeReviews[p.id] : undefined} />}
                         </div>
                         <p className="text-sm text-gray-400">
@@ -3134,6 +3152,7 @@ export default function AdminPage() {
                         className="bg-gray-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:ring-1 focus:ring-green-500 flex-shrink-0"
                         title="Quick status change"
                       >
+                        <option value="draft">Draft</option>
                         <option value="submitted">Submitted</option>
                         <option value="reviewed">Reviewed</option>
                         <option value="shortlisted">Shortlisted ⭐</option>

@@ -123,12 +123,14 @@ export async function listPublicHackathonIdeas(
   let rows = [...map.values()];
 
   if (opts?.submittedOnly) {
+    // Ballot / showcase: shipped projects (drafts excluded from casting).
     rows = rows.filter(
       (p) =>
         p.status === "submitted" ||
         p.status === "shortlisted" ||
         p.status === "winner" ||
-        p.status === "reviewed"
+        p.status === "reviewed" ||
+        p.status === "passed"
     );
   } else {
     rows = rows.filter(
@@ -136,7 +138,8 @@ export async function listPublicHackathonIdeas(
         p.status === "draft" ||
         p.status === "submitted" ||
         p.status === "shortlisted" ||
-        p.status === "reviewed"
+        p.status === "reviewed" ||
+        p.status === "passed"
     );
   }
   if (opts?.openOnly) {

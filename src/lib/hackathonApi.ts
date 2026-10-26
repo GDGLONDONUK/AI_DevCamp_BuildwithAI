@@ -91,6 +91,7 @@ export async function fetchVoteState() {
   const res = await fetch("/api/hackathon/vote", { headers });
   return parseJson<{
     projects: HackathonIdea[];
+    voteableIds?: string[];
     votingOpen: boolean;
     message?: string;
     allocations: Record<string, number>;

@@ -28,22 +28,22 @@ export const HACKATHON_EVENT = {
   submissionClosesIso: "2026-10-31T17:00:00+00:00",
   schedule: [
     {
-      time: "9:00 AM–12:00 PM",
-      title: "Kick-off and building",
+      time: "9:00–11:00 AM",
+      title: "Registration, kick-off and building",
       detail: "Open the day, form teams or go solo, and start shipping your agent.",
     },
     {
-      time: "12:00–2:00 PM",
+      time: "11:00 AM–1:00 PM",
       title: "Expert sessions",
-      detail: "Talks and mentoring from the organising team and guests.",
+      detail: "Sessions from mentors.",
     },
     {
-      time: "2:00–4:00 PM",
+      time: "1:00–3:00 PM",
       title: "Build and polish demos",
       detail: "Finish the agent, rehearse the show-and-tell, and prepare your pitch.",
     },
     {
-      time: "4:00–5:00 PM",
+      time: "3:00–5:00 PM",
       title: "Showcases, pitching, closing & award ceremony",
       detail:
         "Project show-and-tell and pitches, then the cohort closing with certificates and awards.",
