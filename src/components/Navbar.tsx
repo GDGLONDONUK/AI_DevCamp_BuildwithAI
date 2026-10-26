@@ -50,13 +50,13 @@ export default function Navbar() {
   const navLinks = [
     { href: "/sessions", label: "Sessions", icon: BookOpen },
     { href: "/hackathon", label: "Hackathon", icon: Trophy },
-    { href: "/faq", label: "LLM FAQ", icon: CircleHelp },
     ...(user ? [{ href: "/dashboard", label: "Dashboard", icon: LayoutDashboard }] : []),
     ...(certUrl
       ? [{ href: certUrl, label: "Certificate", icon: Award, external: certUrl.startsWith("http") }]
       : []),
     ...(user ? [{ href: "/dashboard/tasks", label: "Tasks", icon: ClipboardList }] : []),
     ...(user ? [{ href: "/mcp", label: "MCP", icon: KeyRound }] : []),
+    ...(user ? [{ href: "/faq", label: "LLM FAQ", icon: CircleHelp }] : []),
     ...(user ? [{ href: "/submit", label: "Submit", icon: Upload }] : []),
     ...(user ? [{ href: "/buddies", label: "Buddies", icon: UsersRound }] : []),
     ...(userProfile?.role === "admin"
