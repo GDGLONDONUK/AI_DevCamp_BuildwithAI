@@ -54,6 +54,8 @@ import PreRegisteredDetailModal from "@/features/admin/components/PreRegisteredD
 import SessionEditor from "@/components/admin/SessionEditor";
 import UserEditor from "@/components/admin/UserEditor";
 import ProjectDetailModal from "@/components/admin/ProjectDetailModal";
+import CodeReviewBadge from "@/components/admin/CodeReviewBadge";
+import { useCodeReviewList } from "@/hooks/useCodeReviewList";
 import StatusDropdown, { STATUS_CONFIG, ALL_STATUSES } from "@/components/admin/StatusDropdown";
 import { certifierCredentialViewUrl } from "@/lib/certifierLinks";
 import {
@@ -119,6 +121,7 @@ export default function AdminPage() {
   const router = useRouter();
 
   const [activeTab, setActiveTab] = useState<AdminConsoleTab>("attendance");
+  const codeReviews = useCodeReviewList(activeTab === "projects");
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -3091,6 +3094,7 @@ export default function AdminPage() {
                           >
                             {p.status}
                           </span>
+                          {p.githubUrl && <CodeReviewBadge item={p.id ? codeReviews[p.id] : undefined} />}
                         </div>
                         <p className="text-sm text-gray-400">
                           {p.userName}

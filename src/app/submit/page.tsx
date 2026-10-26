@@ -22,6 +22,7 @@ import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
 import toast from "react-hot-toast";
 import { trackActivity } from "@/lib/activityApi";
+import { requestCodeReview } from "@/lib/codeReviewApi";
 
 type SubmitType = "assignment" | "project";
 
@@ -97,6 +98,50 @@ export default function SubmitPage() {
         githubUrl: "",
         notebookUrl: "",
         demoUrl: "",
+      });
+      setErrors({});
+    } catch {
+      toast.error("Failed to submit. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleSubmitProject = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validateProject()) return;
+    setSubmitting(true);
+    try {
+      const docRef = await addDoc(collection(db, "projects"), {
+        userId: user!.uid,
+        userName: userProfile?.displayName || user!.email,
+        title: projectForm.title,
+        description: projectForm.description,
+        techStack: projectForm.techStack
+          .split(",")
+          .map((t) => t.trim())
+          .filter(Boolean),
+        githubUrl: projectForm.githubUrl,
+        demoUrl: projectForm.demoUrl,
+        weekCompleted: projectForm.weekCompleted,
+        status: "submitted",
+        submittedAt: serverTimestamp(),
+        submittedAtClient: new Date().toISOString(),
+      });
+      trackActivity({
+        type: "project_submitted",
+        projectId: docRef.id,
+        sessionTitle: projectForm.title,
+      });
+      if (projectForm.githubUrl.trim()) void requestCodeReview(docRef.id);
+      toast.success("Project submitted successfully! 🚀");
+      setProjectForm({
+        title: "",
+        description: "",
+        techStack: "",
+        githubUrl: "",
+        demoUrl: "",
+        weekCompleted: 4,
       });
       setErrors({});
     } catch {

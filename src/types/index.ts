@@ -529,3 +529,14 @@ export interface SessionLearningMaterial {
   updatedByUid?: string;
 }
 
+
+/** Hackathon code reviews (`projectCodeReviews/{projectId}`, server-only; read via `/api/projects/[id]/code-review`). */
+export type {
+  CodeReviewCheck,
+  CodeReviewListItem,
+  CodeReviewResult,
+  CodeReviewStats,
+  CodeReviewStatus,
+  CodeReviewWritten,
+  ProjectCodeReview,
+} from "@/lib/code-review/schema";

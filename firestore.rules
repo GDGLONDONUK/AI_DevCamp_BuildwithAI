@@ -233,6 +233,18 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // ── Hackathon code reviews — /api/projects/[id]/code-review + /api/admin/code-reviews only. ──
+    // Judges read reviews through the API (admin/moderator); teams never see them.
+    match /projectCodeReviews/{projectId} {
+      allow read, write: if false;
+    }
+    match /projectCodeFingerprints/{projectId} {
+      allow read, write: if false;
+    }
+    match /codeReviewMeta/{docId} {
+      allow read, write: if false;
+    }
+
     // ── Default deny ─────────────────────────────────────────────────────────
     // Any collection not matched above is server-only (Admin SDK) by default.
     // Explicit catch-all documents intent; add a specific match before granting
