@@ -1,21 +1,23 @@
 /**
- * GET  /api/projects  — list projects
- *   - Admin/moderator: all projects
- *   - Attendee: own projects only
+ * GET  /api/projects  — list projects (admin: all; attendee: own)
+ * POST /api/projects  — upsert caller's programme project (same doc as hackathon entry)
  *
- * POST /api/projects  — submit a final project (authenticated users)
- *
- * POST body:
- *   { title, description, techStack[], githubUrl?, demoUrl?, weekCompleted }
+ * Body: { title, description, techStack[], githubUrl?, demoUrl?, weekCompleted,
+ *         teamName?, projectType?, openToMembers? }
  */
 
 import { NextRequest } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
 import { ok, created, err, verifyAuth, isErrorResponse } from "@/lib/api-helpers";
 import { logServerRouteException } from "@/lib/server/appErrorLog";
-import { FieldValue } from "firebase-admin/firestore";
 import { parseJsonBody } from "@/lib/api/parseJsonBody";
 import { projectCreateSchema } from "@/lib/api/schemas/requestBodies";
+import { resolveActiveCohortIdFromDb } from "@/lib/server/activeCohort";
+import {
+  DEVCAMP_HACKATHON_ID,
+  hackathonSubmissionsOpen,
+} from "@/lib/hackathon";
+import { upsertUserCohortProject } from "@/lib/server/programmeProjects";
 
 export async function GET(request: NextRequest) {
   const auth = await verifyAuth(request);
@@ -45,26 +47,31 @@ export async function POST(request: NextRequest) {
   try {
     const parsed = await parseJsonBody(request, projectCreateSchema);
     if (!parsed.ok) return parsed.response;
-    const { title, description, techStack, weekCompleted, githubUrl, demoUrl } = parsed.data;
+    const { title, description, techStack, weekCompleted, githubUrl, demoUrl } =
+      parsed.data;
 
     const userSnap = await adminDb().collection("users").doc(auth.uid).get();
     const userData = userSnap.data();
+    const cohortId = await resolveActiveCohortIdFromDb();
 
-    const project = {
-      userId:        auth.uid,
-      userName:      userData?.displayName ?? "",
+    const result = await upsertUserCohortProject({
+      uid: auth.uid,
+      userName: userData?.displayName ?? "",
+      cohortId,
+      // During the closing hackathon window, stamp the edition tag on the same doc.
+      hackathonId: hackathonSubmissionsOpen() ? DEVCAMP_HACKATHON_ID : null,
       title,
       description,
       techStack,
       githubUrl,
       demoUrl,
       weekCompleted,
-      status:        "submitted",
-      submittedAt:   FieldValue.serverTimestamp(),
-    };
+      status: "submitted",
+      ship: true,
+    });
 
-    const ref = await adminDb().collection("projects").add(project);
-    return created({ id: ref.id, ...project });
+    const body = { id: result.id, ...result.data };
+    return result.created ? created(body) : ok(body);
   } catch (e) {
     logServerRouteException("POST /api/projects", e);
     return err("Failed to submit project", 500);

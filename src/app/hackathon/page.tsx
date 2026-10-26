@@ -14,29 +14,25 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { HACKATHON_EVENT } from "@/lib/hackathon";
+import {
+  DEFAULT_RESOURCE_LINKS,
+  HAUNTED_KIOSK_BUILD_URL,
+  HAUNTED_KIOSK_URL,
+} from "@/lib/hackathonContent";
 
 export default function HackathonPage() {
   const { user } = useAuth();
   const e = HACKATHON_EVENT;
 
   return (
-    <div className="min-h-screen bg-gray-950">
+    <div>
       <section className="relative overflow-hidden border-b border-white/10">
-        <div
-          className="pointer-events-none absolute inset-0 opacity-40"
-          style={{
-            background:
-              "radial-gradient(ellipse 80% 60% at 50% -10%, rgba(34,197,94,0.22), transparent 55%), radial-gradient(ellipse 50% 40% at 90% 20%, rgba(234,179,8,0.12), transparent 50%)",
-          }}
-        />
-        <div className="relative max-w-4xl mx-auto px-4 sm:px-6 py-16 sm:py-20">
-          <p className="font-mono text-sm text-green-400/80 tracking-widest mb-3">
-            <span className="text-green-500/40">{"// "}</span>COHORT CLOSING
+        <div className="relative max-w-4xl mx-auto px-4 sm:px-6 py-16 sm:py-20 text-center sm:text-left">
+          <p className="font-mono text-sm tracking-widest mb-3 text-[var(--hh-pumpkin-2)]">
+            🎃 COHORT CLOSING · HALLOWEEN HACK
           </p>
-          <h1 className="text-4xl sm:text-5xl font-extrabold text-white tracking-tight mb-4">
-            {e.shortTitle}
-          </h1>
-          <p className="text-lg text-gray-300 max-w-2xl mb-6">
+          <h1 className="hh-title mb-4">{e.shortTitle}</h1>
+          <p className="text-lg text-gray-300 max-w-2xl mb-6 mx-auto sm:mx-0">
             Official cohort finish: Agentic Hackathon with Google ADK — show and tell, pitch,
             then the closing certificate and award ceremony. Hosted by GDG London. In person in
             London and online.
@@ -71,25 +67,83 @@ export default function HackathonPage() {
             </a>
             {user ? (
               <Link
-                href="/submit"
+                href="/hackathon/my-projects"
                 className="inline-flex items-center gap-2 rounded-xl border border-white/20 hover:border-green-500/50 bg-white/[0.04] hover:bg-green-500/10 text-white font-semibold px-5 py-3 transition-colors"
               >
                 <Upload size={16} className="text-green-400" />
-                Submit final project
+                Submit hackathon project
               </Link>
             ) : (
               <Link
-                href="/sessions"
+                href="/register"
                 className="inline-flex items-center gap-2 rounded-xl border border-white/20 hover:border-green-500/50 bg-white/[0.04] text-white font-semibold px-5 py-3 transition-colors"
               >
-                View programme sessions
+                Register to take part
               </Link>
             )}
+            <Link
+              href="/hackathon/ideas"
+              className="inline-flex items-center gap-2 rounded-xl border border-white/15 text-gray-200 font-semibold px-5 py-3 hover:bg-white/5"
+            >
+              Idea gallery
+            </Link>
+            <Link
+              href="/hackathon/prizes"
+              className="inline-flex items-center gap-2 rounded-xl border border-white/15 text-gray-200 font-semibold px-5 py-3 hover:bg-white/5"
+            >
+              <Trophy size={16} className="text-yellow-400" />
+              Prizes
+            </Link>
           </div>
         </div>
       </section>
 
       <section className="max-w-4xl mx-auto px-4 sm:px-6 py-12 space-y-12">
+        <div className="rounded-2xl border border-[var(--hh-line)] bg-[var(--hh-card)] p-6 space-y-3">
+          <h2 className="text-xl font-bold text-white flex items-center gap-2">
+            🎃 Haunted Kiosk
+          </h2>
+          <p className="text-gray-300 text-sm leading-relaxed">
+            Warm up with the AI DevCamp Halloween Hack booth — snap a photo, pick a scene, and
+            ship a spooky demo. Use the build lab as a hands-on resource while you work on your
+            hackathon project.
+          </p>
+          <div className="flex flex-wrap gap-3 pt-1">
+            <a
+              href={HAUNTED_KIOSK_BUILD_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 rounded-full bg-[linear-gradient(135deg,var(--hh-pumpkin-2),var(--hh-pumpkin))] text-[#1a0b00] font-bold px-5 py-2.5 text-sm"
+            >
+              Open build lab
+              <ExternalLink size={14} />
+            </a>
+            <a
+              href={HAUNTED_KIOSK_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hh-badge inline-flex items-center gap-2"
+            >
+              Photo booth
+              <ExternalLink size={12} />
+            </a>
+          </div>
+          <ul className="pt-2 space-y-1.5 text-sm">
+            {DEFAULT_RESOURCE_LINKS.slice(0, 4).map((r) => (
+              <li key={r.href}>
+                <a
+                  href={r.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline underline-offset-2"
+                >
+                  {r.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+
         <div>
           <h2 className="text-2xl font-bold text-white mb-2 flex items-center gap-2">
             <Trophy size={22} className="text-yellow-400" />
@@ -161,9 +215,11 @@ export default function HackathonPage() {
             Register and submit
           </h2>
           <p className="text-gray-300 text-sm mb-4">
-            Use Luma for the event ticket (in person or online). Use{" "}
-            <strong className="text-white font-semibold">Submit → Final Project</strong> on this
-            portal for the cohort closing submission mentors review.
+            <strong className="text-white">DevCamp attendees:</strong> your final project is the
+            hackathon entry — ship it under My project.{" "}
+            <strong className="text-white">Everyone else:</strong> register on this site, join the
+            hackathon, then submit. RSVP on Luma for the in-person / online day. Audience voting
+            opens on event day at <Link href="/vote" className="text-green-400 underline">/vote</Link>.
           </p>
           <div className="flex flex-wrap gap-3">
             <a
@@ -175,12 +231,18 @@ export default function HackathonPage() {
               {e.lumaUrl.replace("https://", "")}
               <ExternalLink size={14} />
             </a>
+            <Link
+              href="/hackathon/rules"
+              className="inline-flex items-center gap-2 text-sm font-semibold text-gray-300 hover:text-white"
+            >
+              Rules
+            </Link>
             {user && (
               <Link
-                href="/submit"
+                href="/hackathon/my-projects"
                 className="inline-flex items-center gap-2 text-sm font-semibold text-yellow-300 hover:text-yellow-200"
               >
-                Open submit form
+                Open my project
                 <Upload size={14} />
               </Link>
             )}
