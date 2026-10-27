@@ -49,6 +49,7 @@ const PROTECTED_ROUTES = [
   "/profile",
   "/buddies",
   "/mcp",
+  "/faq",
   "/vote",
   "/hackathon/my-projects",
 ];

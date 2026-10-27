@@ -629,21 +629,27 @@ export const SEPTEMBER_2026_SESSIONS: Session[] = [
     cohortId: SEPTEMBER_2026_COHORT_ID,
     topic: "Optimise",
     description:
-      "Thursday workshop with Renuka Kelkar (18:00–19:00): optimisation follow-up after the 17 October harnessing session — right-sizing models, analytics and traces, evaluation — plus open Q&A so your ADK agent is pitch-ready for the 31 October Agentic Hackathon.",
+      "Thursday Optimisation and Q&A with Renuka Kelkar (and guest demo). Live walkthrough of the Optimise code lab: golden evals, env placeholders vs real values, ADK web traces, and breaking tests on purpose so guardrails fail closed. Open Q&A covered certificate tasks, hackathon video demos (30–60 seconds for online; in-person slots on 31 Oct), reusing your camp project as the hackathon entry, isolating agents so you can right-size models, and Cursor walkthrough videos (Stitch / ChatGPT for UI, then a Cursor prompt).\n\nHalloween-themed Agentic Hackathon is Saturday 31 October. Beginners are welcome (AI Studio is enough). Finish Build / Scale / Govern portal tasks for the certificate, then polish and record your demo.",
     speakerIds: ["renuka-kelkar"],
     tags: ["Optimise", "Workshop", "Q&A", "Evals", "Traces", "Models", "ADK"],
     whatYouWillLearn: [
-      "Right-size models (Flash for routing/validation; stronger models only when needed)",
-      "Use traces and analytics to see where tokens and tool calls go",
-      "Evaluate agent quality and failure modes before the hackathon",
-      "Get answers on your project blockers in live Q&A",
+      "Run golden evals (evals.sh / ADK web) and pick a medium-fast model as a cost–speed–quality tradeoff",
+      "Replace backend env placeholders with real values (and us-central1 for Model Armor) so tests pass",
+      "Break tests on purpose to confirm guardrail blocks and judge-score drops",
+      "Isolate agents in folders so each can use a cheaper or stronger model",
+      "Use agents only to evaluate or create data; keep the rest deterministic to cut tokens",
+      "Hackathon: camp project can be the entry; 30–60s video (online); Halloween UI welcome",
     ],
     buildIdeas: [
-      "Pick a cheaper model for at least one sub-agent or validation step",
-      "Capture a short trace or metrics report from a dry-run of your agent",
-      "Bring questions for Q&A; list what you will demo on 31 October",
+      "Watch the recording, then run the next Optimise lab step on a small agent before your main project",
+      "Record a 30–60 second demo of the agent in your app (screen capture + what the agent does)",
+      "Submit the same camp project on /submit as your hackathon entry and register on Luma",
     ],
     resources: [
+      {
+        title: "Session recording (YouTube)",
+        url: "https://www.youtube.com/watch?v=I6v39T7HUN8",
+      },
       {
         title: "Google ADK docs",
         url: "https://google.github.io/adk-docs/",
@@ -657,10 +663,15 @@ export const SEPTEMBER_2026_SESSIONS: Session[] = [
         url: "https://www.youtube.com/watch?v=xLBJ1k_kh5o",
       },
       {
+        title: "Google Stitch (UI / icons)",
+        url: "https://stitch.withgoogle.com/",
+      },
+      {
         title: "Agentic Hackathon (Luma)",
         url: "https://luma.com/wz7509ty",
       },
     ],
+    videoUrl: "https://www.youtube.com/watch?v=I6v39T7HUN8",
   },
   {
     id: "sept-2026-hackathon",
@@ -816,6 +827,10 @@ export const CURRICULUM_WEEKS = [
     ],
     timePerDay: "Sat 17 Oct 2hrs · Thu 22 Oct 1hr · Sat 31 Oct hackathon 9–5",
     resources: [
+      {
+        title: "22 Oct Optimisation and Q&A (YouTube)",
+        url: "https://www.youtube.com/watch?v=I6v39T7HUN8",
+      },
       {
         title: "Agentic Hackathon (Luma)",
         url: "https://luma.com/wz7509ty",

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   BookOpen,
   ChevronDown,
@@ -411,12 +412,27 @@ const FAQS: FaqItem[] = [
 ];
 
 export default function FaqPage() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+  const router = useRouter();
   const [openId, setOpenId] = useState<string | null>("steps");
   const [filter, setFilter] = useState<FaqItem["category"] | "all">("all");
 
+  useEffect(() => {
+    if (!loading && !user) {
+      router.replace("/?login=1");
+    }
+  }, [loading, user, router]);
+
   const visible =
     filter === "all" ? FAQS : FAQS.filter((f) => f.category === filter);
+
+  if (loading || !user) {
+    return (
+      <div className="min-h-screen bg-gray-950 text-gray-100 pt-24 pb-20 px-4 flex items-center justify-center">
+        <p className="font-mono text-sm text-gray-500">Sign in required…</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100 pt-24 pb-20 px-4">
@@ -439,7 +455,7 @@ export default function FaqPage() {
             >
               aidevcamp.gdg.london
             </a>
-            ): sign in, mint a token on{" "}
+            ): mint a token on{" "}
             <Link href="/mcp" className="text-green-400 underline">
               /mcp
             </Link>
@@ -449,11 +465,11 @@ export default function FaqPage() {
           </p>
           <div className="flex flex-wrap gap-3 pt-2">
             <Link
-              href={user ? "/mcp" : "/"}
+              href="/mcp"
               className="inline-flex items-center gap-2 rounded-lg bg-green-500/15 border border-green-500/30 px-4 py-2 text-sm text-green-300 hover:bg-green-500/25"
             >
               <KeyRound size={16} />
-              {user ? "Mint MCP token" : "Sign in to mint a token"}
+              Mint MCP token
             </Link>
             <Link
               href="/sessions"
