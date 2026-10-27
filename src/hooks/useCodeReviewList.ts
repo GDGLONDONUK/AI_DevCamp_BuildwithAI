@@ -7,7 +7,7 @@ import { fetchCodeReviewList } from "@/lib/codeReviewApi";
 /**
  * Code review status for every project, keyed by projectId. Polls while `enabled`
  * (the Projects tab is open): every 20s while reviews are running, otherwise every minute.
- * Each poll also nudges the server to work through waiting reviews.
+ * Read-only: reviews are written by the background agent.
  */
 export function useCodeReviewList(enabled: boolean): Record<string, CodeReviewListItem> {
   const [byId, setById] = useState<Record<string, CodeReviewListItem>>({});

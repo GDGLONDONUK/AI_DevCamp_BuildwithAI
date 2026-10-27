@@ -10,7 +10,6 @@ import type { CodeReviewCheck } from "./schema";
 import type { EventWindow } from "./config";
 import type { RepoFile, RepoSnapshot } from "./github";
 
-const START_GRACE_MS = 15 * 60_000;
 const LATE_WINDOW_MS = 30 * 60_000;
 const LATE_SHARE = 0.6;
 
@@ -58,57 +57,54 @@ function check(
   return { key, title, level, summary, details };
 }
 
-// ── Built on the day / on time ───────────────────────────────────────────────
+// ── Repo history (information) / on time ─────────────────────────────────────
 
+/**
+ * When the repo was created and worked on. Always information, never a warning: DevCamp final
+ * projects are built over several weeks, so an older repo is normal.
+ */
 export function checkBuildWindow(snap: RepoSnapshot, w: EventWindow): CodeReviewCheck[] {
-  const earliest = new Date(w.start.getTime() - START_GRACE_MS);
   const fmt = (d: Date) => formatLondon(d, w.start);
-  const details: string[] = [];
-
-  if (snap.createdAt < earliest) {
-    details.push(`Repo was created at ${fmt(snap.createdAt)}, before the event started.`);
-  }
-  const earlyPushes = snap.pushes.filter((p) => p.at < earliest);
-  if (earlyPushes.length > 0) {
-    details.push(`${plural(earlyPushes.length, "push", "pushes")} to GitHub before the start, first at ${fmt(earlyPushes[0].at)}.`);
-  }
-  const earlyCommits = snap.commits.filter((c) => c.authoredAt < earliest);
-  if (earlyCommits.length > 0) {
-    details.push(
-      `${plural(earlyCommits.length, "commit")} dated before the event. Commit dates can be set on a laptop, so ask the team.`
-    );
-  }
-
-  const results: CodeReviewCheck[] = [];
   const times = snap.commits.map((c) => c.authoredAt.getTime());
   const first = new Date(Math.min(...times));
   const last = new Date(Math.max(...times));
   const span =
     snap.commits.length === 1
-      ? `1 commit at ${fmt(first)}`
+      ? `1 commit, ${fmt(first)}`
       : `${plural(snap.commits.length, "commit")}, ${fmt(first)} to ${fmt(last)}`;
-  const pushNote =
-    snap.pushes.length === 0
-      ? " GitHub's push records weren't available, so these are the times on the commits."
-      : snap.pushes.length === 1
-        ? ` GitHub received one push, at ${fmt(snap.pushes[0].at)}.`
-        : ` GitHub received ${snap.pushes.length} pushes between ${fmt(snap.pushes[0].at)} and ${fmt(snap.pushes[snap.pushes.length - 1].at)}.`;
 
-  if (details.length > 0) {
-    results.push(check("built-on-day", "Built on the day", "look", "Some work happened before the event", details));
-  } else {
-    results.push(
-      check("built-on-day", "Built on the day", "ok", `Repo created ${fmt(snap.createdAt)} · ${span}`, [
-        `Repo created at ${fmt(snap.createdAt)}. ${span}.${pushNote}`,
-      ])
+  const details = [`Repo created ${fmt(snap.createdAt)}. ${span}.`];
+  if (snap.pushes.length > 0) {
+    const firstPush = snap.pushes[0].at;
+    const lastPush = snap.pushes[snap.pushes.length - 1].at;
+    details.push(
+      snap.pushes.length === 1
+        ? `GitHub received one recent push, at ${fmt(firstPush)}.`
+        : `GitHub received ${snap.pushes.length} recent pushes, ${fmt(firstPush)} to ${fmt(lastPush)}.`
     );
   }
+  const earlyCommits = snap.commits.filter((c) => c.authoredAt < snap.createdAt);
+  if (earlyCommits.length > 0) {
+    details.push(
+      `${plural(earlyCommits.length, "commit")} dated before the repo existed — they were written elsewhere first or their dates were changed.`
+    );
+  }
+
+  const results: CodeReviewCheck[] = [
+    check(
+      "built-on-day",
+      "Repo history",
+      "info",
+      `created ${fmt(snap.createdAt)}, last commit ${fmt(last)}`,
+      details
+    ),
+  ];
 
   const latePushes = snap.pushes.filter((p) => p.at > w.deadline);
   if (latePushes.length > 0) {
     const lastLate = latePushes[latePushes.length - 1];
     results.push(
-      check("on-time", "Submitted on time", "look", `Code pushed after the deadline, last at ${fmt(lastLate.at)}`, [
+      check("on-time", "Pushed after the deadline", "look", `Code pushed after the deadline, last at ${fmt(lastLate.at)}`, [
         snap.lockedToDeadline
           ? "This review uses the last version pushed before the deadline."
           : "We couldn't find the version from before the deadline, so this review uses the latest code.",

@@ -3,12 +3,14 @@ import {
   getAuth,
   initializeAuth,
   browserSessionPersistence,
+  connectAuthEmulator,
   type Auth,
 } from "firebase/auth";
 import {
   getFirestore,
   initializeFirestore,
   memoryLocalCache,
+  connectFirestoreEmulator,
   type Firestore,
 } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
@@ -86,6 +88,20 @@ const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0
 
 export const auth = getOrInitAuth();
 export const db = getOrInitFirestore();
+
+/**
+ * Local development only: talk to the Firebase Emulator (`npm run emulators`) instead of the
+ * real project. Off unless NEXT_PUBLIC_USE_FIREBASE_EMULATORS=true is set in .env.local.
+ */
+const emulatorKey = "__ai_devcamp_emulators__" as const;
+if (process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATORS === "true") {
+  const g = globalThis as typeof globalThis & { [K in typeof emulatorKey]?: boolean };
+  if (!g[emulatorKey]) {
+    connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
+    connectFirestoreEmulator(db, "127.0.0.1", 8080);
+    g[emulatorKey] = true;
+  }
+}
 export const storage = getStorage(app);
 
 // Google Analytics & Performance Monitoring are initialised lazily, ONLY after

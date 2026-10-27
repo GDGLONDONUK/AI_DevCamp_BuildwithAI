@@ -1,0 +1,4 @@
+node_modules/
+lib/
+# Local-only secrets for the emulator. Production secrets live in Secret Manager.
+.secret.local

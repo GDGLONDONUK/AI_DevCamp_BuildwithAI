@@ -26,6 +26,12 @@ function getAdminApp(): App {
   const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL;
   const privateKey  = process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, "\n");
 
+  // Local development with the Firebase Emulator (`npm run emulators`): no credentials needed.
+  // The Admin SDK talks to the emulator when FIRESTORE_EMULATOR_HOST is set.
+  if (process.env.FIRESTORE_EMULATOR_HOST && (!clientEmail || !privateKey)) {
+    return initializeApp({ projectId: projectId || "demo-aidevcamp" });
+  }
+
   if (!projectId || !clientEmail || !privateKey) {
     throw new Error(
       "Missing Firebase Admin environment variables. " +

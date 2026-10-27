@@ -51,3 +51,9 @@ scripts/imports/*.csv
 
 # Third-party workshop slide images (concepts live in docs/15 — do not commit)
 docs/assets/agent-harnessing/
+
+# Firebase Emulator test data (npm run emulators keeps it between restarts)
+.emulator-data/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
