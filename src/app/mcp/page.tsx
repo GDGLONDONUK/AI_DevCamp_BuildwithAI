@@ -286,6 +286,16 @@ export default function McpTokensPage() {
               Mint learning or admin tokens for another account. Admin scope only works
               if that user is already admin or moderator.
             </p>
+            <p className="text-sm text-gray-400">
+              With an <span className="text-amber-200">admin</span> token in Claude or
+              ChatGPT you can fix attendance:{" "}
+              <code className="text-amber-200/90 text-xs">admin_list_users</code>{" "}
+              (search by email) →{" "}
+              <code className="text-amber-200/90 text-xs">admin_get_attendance</code> →{" "}
+              <code className="text-amber-200/90 text-xs">admin_set_attendance</code>{" "}
+              (uid, sessionId, attended). Example: “Mark nayanrathece@gmail.com attended
+              for sept-2026-govern-thu.”
+            </p>
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="text-sm space-y-1 sm:col-span-2">
                 <span className="text-gray-400">User email</span>

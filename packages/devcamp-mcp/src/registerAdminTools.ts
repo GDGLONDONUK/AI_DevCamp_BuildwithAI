@@ -8,6 +8,8 @@ import {
   listMaterialsForCohort,
   upsertLearningMaterial,
 } from "../../../src/lib/learning-chat/materialsRepoCore";
+import { attendancePatchWithAudit } from "../../../src/lib/attendanceAudit";
+import { sessionCohortId } from "../../../src/lib/server/sessionCohortAccess";
 import { requireAdmin, resolveCaller } from "./auth";
 import { errResult, okResult } from "./json";
 import type { DocumentData, Query } from "firebase-admin/firestore";
@@ -285,6 +287,105 @@ export function registerAdminTools(server: McpServer): void {
         }
         const updated = await ref.get();
         return okResult(serializeDoc(updated.id, updated.data()!));
+      } catch (e) {
+        return errResult(e instanceof Error ? e.message : String(e));
+      }
+    }
+  );
+
+  // ── Attendance ─────────────────────────────────────────────────────────
+
+  server.registerTool(
+    "admin_get_attendance",
+    {
+      description:
+        "Admin/moderator only. Get attendance/{uid} (session booleans + sessionAttendanceAudit). Resolve uid via admin_list_users search by email first if needed.",
+      inputSchema: {
+        uid: z.string().min(1).describe("Firebase Auth uid (users doc id)"),
+      },
+      annotations: { readOnlyHint: true },
+    },
+    async ({ uid }) => {
+      try {
+        const caller = await resolveCaller();
+        requireAdmin(caller);
+        const snap = await adminDb().collection("attendance").doc(uid).get();
+        return okResult({
+          uid,
+          exists: snap.exists,
+          attendance: snap.exists ? serializeDoc(snap.id, snap.data()!) : {},
+        });
+      } catch (e) {
+        return errResult(e instanceof Error ? e.message : String(e));
+      }
+    }
+  );
+
+  server.registerTool(
+    "admin_set_attendance",
+    {
+      description:
+        "Admin/moderator only. Mark one session attended/not for a user (same as PATCH /api/attendance/[uid]). Writes sessionAttendanceAudit with source admin. Skips cancelled sessions unless force=true.",
+      inputSchema: {
+        uid: z.string().min(1),
+        sessionId: z.string().min(1),
+        attended: z.boolean(),
+        force: z
+          .boolean()
+          .optional()
+          .describe("Allow marking cancelled sessions (e.g. sept-2026-govern-sat)"),
+      },
+      annotations: { destructiveHint: true },
+    },
+    async ({ uid, sessionId, attended, force }) => {
+      try {
+        const caller = await resolveCaller();
+        requireAdmin(caller);
+
+        const userSnap = await adminDb().collection("users").doc(uid).get();
+        if (!userSnap.exists) return errResult(`User not found: ${uid}`);
+
+        const sessionSnap = await adminDb().collection("sessions").doc(sessionId).get();
+        if (!sessionSnap.exists) return errResult(`Session not found: ${sessionId}`);
+        const sessionData = sessionSnap.data()!;
+        const title = String(sessionData.title ?? "");
+        const tags = Array.isArray(sessionData.tags)
+          ? sessionData.tags.map(String)
+          : [];
+        const cancelled =
+          tags.some((t) => t.toLowerCase() === "cancelled") ||
+          /cancelled/i.test(title);
+        if (cancelled && !force) {
+          return errResult(
+            `Session ${sessionId} looks cancelled — pass force=true to mark anyway`
+          );
+        }
+        const cohortId = sessionCohortId(sessionData);
+
+        const ref = adminDb().collection("attendance").doc(uid);
+        const existing = await ref.get();
+        const existingData = existing.exists
+          ? (existing.data() as Record<string, unknown>)
+          : undefined;
+
+        await ref.set(
+          {
+            ...attendancePatchWithAudit(sessionId, attended, caller.uid, "admin", existingData, {
+              cohortId,
+            }),
+            updatedAt: FieldValue.serverTimestamp(),
+          },
+          { merge: true }
+        );
+
+        const updated = await ref.get();
+        return okResult({
+          uid,
+          sessionId,
+          attended,
+          cohortId,
+          attendance: updated.exists ? serializeDoc(updated.id, updated.data()!) : {},
+        });
       } catch (e) {
         return errResult(e instanceof Error ? e.message : String(e));
       }
