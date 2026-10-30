@@ -41,8 +41,10 @@ export default function HackathonIdeasPage() {
             Idea gallery
           </h1>
           <p className="text-gray-400 text-sm max-w-xl">
-            Browse projects from DevCamp attendees and open hackathon registrants. Looking for a
-            team? Filter open ideas and reach out via Discord or the builder named on the card.
+            Live from the same Firestore <code className="text-green-300">projects</code> collection
+            as My project (this cohort + hackathon-tagged entries — drafts and shipped). Looking
+            for a team? Filter open ideas and reach out via Discord or the builder named on the
+            card.
           </p>
         </div>
         <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">

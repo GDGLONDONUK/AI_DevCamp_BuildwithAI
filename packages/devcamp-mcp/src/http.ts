@@ -74,7 +74,9 @@ async function handleMcp(req: Request, res: Response) {
         if (transport.sessionId) sessions.delete(transport.sessionId);
       };
 
-      const server = createDevcampMcpServer();
+      const server = createDevcampMcpServer({
+        includeAdmin: caller.isAdmin && caller.scopes.includes("admin"),
+      });
       await server.connect(transport);
       await runWithCaller(caller, () => transport.handleRequest(req, res, req.body));
       return;

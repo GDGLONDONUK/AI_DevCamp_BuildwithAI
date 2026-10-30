@@ -9,7 +9,10 @@ import {
   upsertLearningMaterial,
 } from "../../../src/lib/learning-chat/materialsRepoCore";
 import { attendancePatchWithAudit } from "../../../src/lib/attendanceAudit";
+import { DEVCAMP_HACKATHON_ID } from "../../../src/lib/hackathon";
 import { sessionCohortId } from "../../../src/lib/server/sessionCohortAccess";
+import { readHackathonSettings } from "../../../src/lib/server/hackathonSettings";
+import { buildCohortCompletionReport } from "../../../src/lib/server/cohortCompletion";
 import { requireAdmin, resolveCaller } from "./auth";
 import { errResult, okResult } from "./json";
 import type { DocumentData, Query } from "firebase-admin/firestore";
@@ -43,40 +46,57 @@ function serializeDoc(id: string, data: DocumentData): Record<string, unknown> {
 }
 
 export function registerAdminTools(server: McpServer): void {
+  // ── Users ──────────────────────────────────────────────────────────────
+
   server.registerTool(
-    "whoami",
+    "admin_cohort_completion",
     {
-      description: "Return the authenticated MCP caller (uid, email, role, cohort).",
-      inputSchema: {},
+      description:
+        "Admin/moderator only. Cohort completion report: who attended enough sessions, submitted assignment/session work, and shipped a final/hackathon project. Use this instead of looping users. Default: min 6 counted sessions, skip cancelled (e.g. Govern Saturday) and upcoming (e.g. 31 Oct hackathon).",
+      inputSchema: {
+        cohortId: z.string().optional(),
+        minSessions: z.number().int().min(1).max(20).optional(),
+        excludeCancelled: z.boolean().optional(),
+        excludeUpcoming: z.boolean().optional(),
+        includeStaff: z.boolean().optional(),
+        filter: z
+          .enum(["all", "meetsAll", "meetsAttendanceAndWork", "missingProject", "belowAttendance"])
+          .optional(),
+      },
       annotations: { readOnlyHint: true },
     },
-    async () => {
+    async (args) => {
       try {
         const caller = await resolveCaller();
+        requireAdmin(caller);
+        const report = await buildCohortCompletionReport({
+          cohortId: args.cohortId,
+          minSessions: args.minSessions,
+          excludeCancelled: args.excludeCancelled,
+          excludeUpcoming: args.excludeUpcoming,
+          includeStaff: args.includeStaff,
+        });
+        const filter = args.filter || "all";
+        let members = report.members;
+        if (filter === "meetsAll") members = members.filter((m) => m.meetsAll);
+        else if (filter === "meetsAttendanceAndWork") {
+          members = members.filter((m) => m.meetsAttendanceAndWork);
+        } else if (filter === "missingProject") {
+          members = members.filter((m) => m.meetsAttendanceAndWork && !m.meetsProject);
+        } else if (filter === "belowAttendance") {
+          members = members.filter((m) => !m.meetsAttendance);
+        }
         return okResult({
-          uid: caller.uid,
-          email: caller.email ?? null,
-          role: caller.role,
-          isAdmin: caller.isAdmin,
-          enrolled: caller.enrolled,
-          scopes: caller.scopes,
-          cohortId: caller.cohortId,
-          cohortIds: caller.cohortIds,
-          activeCohortDefault: await resolveActiveCohortIdFromDb(),
-          tiers: {
-            public: true,
-            attendee: caller.enrolled,
-            admin: caller.isAdmin && caller.scopes.includes("admin"),
-          },
-          dataSource: "firestore (not seed files)",
+          ...report,
+          filter,
+          members,
+          memberCount: members.length,
         });
       } catch (e) {
         return errResult(e instanceof Error ? e.message : String(e));
       }
     }
   );
-
-  // ── Users ──────────────────────────────────────────────────────────────
 
   server.registerTool(
     "admin_list_users",
@@ -558,6 +578,72 @@ export function registerAdminTools(server: McpServer): void {
           caller.uid
         );
         return okResult(saved);
+      } catch (e) {
+        return errResult(e instanceof Error ? e.message : String(e));
+      }
+    }
+  );
+
+  // ── Hackathon settings ─────────────────────────────────────────────────
+
+  server.registerTool(
+    "admin_get_hackathon_settings",
+    {
+      description:
+        "Admin/moderator only. Current Agentic Hackathon flags (submissionsOpen, votingOpen) from hackathonSettings/main.",
+      inputSchema: {},
+      annotations: { readOnlyHint: true },
+    },
+    async () => {
+      try {
+        const caller = await resolveCaller();
+        requireAdmin(caller);
+        const settings = await readHackathonSettings();
+        return okResult({ hackathonId: DEVCAMP_HACKATHON_ID, ...settings });
+      } catch (e) {
+        return errResult(e instanceof Error ? e.message : String(e));
+      }
+    }
+  );
+
+  server.registerTool(
+    "admin_update_hackathon_settings",
+    {
+      description:
+        "Admin/moderator only. Open/close project submissions and/or audience voting. Example: submissionsOpen=true so attendees can submit on /hackathon/my-projects.",
+      inputSchema: {
+        submissionsOpen: z.boolean().optional(),
+        votingOpen: z.boolean().optional(),
+        votingMessage: z.string().max(500).optional(),
+        winnersAnnounced: z.boolean().optional(),
+      },
+      annotations: { destructiveHint: true },
+    },
+    async (args) => {
+      try {
+        const caller = await resolveCaller();
+        requireAdmin(caller);
+        const { submissionsOpen, votingOpen, votingMessage, winnersAnnounced } = args;
+        if (
+          submissionsOpen === undefined &&
+          votingOpen === undefined &&
+          votingMessage === undefined &&
+          winnersAnnounced === undefined
+        ) {
+          return errResult("Pass submissionsOpen and/or votingOpen");
+        }
+        const payload: Record<string, unknown> = {
+          hackathonId: DEVCAMP_HACKATHON_ID,
+          updatedAt: FieldValue.serverTimestamp(),
+          updatedBy: caller.uid,
+        };
+        if (submissionsOpen !== undefined) payload.submissionsOpen = submissionsOpen;
+        if (votingOpen !== undefined) payload.votingOpen = votingOpen;
+        if (votingMessage !== undefined) payload.votingMessage = votingMessage;
+        if (winnersAnnounced !== undefined) payload.winnersAnnounced = winnersAnnounced;
+        await adminDb().collection("hackathonSettings").doc("main").set(payload, { merge: true });
+        const settings = await readHackathonSettings();
+        return okResult({ updated: true, hackathonId: DEVCAMP_HACKATHON_ID, ...settings });
       } catch (e) {
         return errResult(e instanceof Error ? e.message : String(e));
       }

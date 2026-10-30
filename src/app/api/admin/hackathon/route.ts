@@ -1,6 +1,6 @@
 /**
  * GET  /api/admin/hackathon — all programme/hackathon projects + voting settings
- * PATCH /api/admin/hackathon — { votingOpen?: boolean, votingMessage?: string }
+ * PATCH /api/admin/hackathon — { votingOpen?, submissionsOpen?, votingMessage?, winnersAnnounced? }
  */
 
 import { NextRequest } from "next/server";
@@ -11,11 +11,13 @@ import { requireAdmin, ok, err, isErrorResponse } from "@/lib/api-helpers";
 import { logServerRouteException } from "@/lib/server/appErrorLog";
 import { parseJsonBody } from "@/lib/api/parseJsonBody";
 import { DEVCAMP_HACKATHON_ID } from "@/lib/hackathon";
+import { readHackathonSettings } from "@/lib/server/hackathonSettings";
 import { resolveActiveCohortIdFromDb } from "@/lib/server/activeCohort";
 import { toPublicProjectCard } from "@/lib/server/programmeProjects";
 
 const patchSchema = z.object({
   votingOpen: z.boolean().optional(),
+  submissionsOpen: z.boolean().optional(),
   votingMessage: z.string().max(500).optional(),
   winnersAnnounced: z.boolean().optional(),
 });
@@ -28,10 +30,10 @@ export async function GET(req: NextRequest) {
     const cohortId = await resolveActiveCohortIdFromDb();
     const db = adminDb();
 
-    const [byHack, byCohort, settingsSnap, usersSnap] = await Promise.all([
+    const [byHack, byCohort, settings, usersSnap] = await Promise.all([
       db.collection("projects").where("hackathonId", "==", DEVCAMP_HACKATHON_ID).get(),
       db.collection("projects").where("cohortId", "==", cohortId).get(),
-      db.collection("hackathonSettings").doc("main").get(),
+      readHackathonSettings(),
       db.collection("users").get(),
     ]);
 
@@ -62,17 +64,16 @@ export async function GET(req: NextRequest) {
       return String(a.title).localeCompare(String(b.title));
     });
 
-    const settings = settingsSnap.data() || {};
     return ok({
       cohortId,
       hackathonId: DEVCAMP_HACKATHON_ID,
       count: projects.length,
       projects,
       settings: {
-        votingOpen: settings.votingOpen === true,
-        winnersAnnounced: settings.winnersAnnounced === true,
-        votingMessage:
-          typeof settings.votingMessage === "string" ? settings.votingMessage : "",
+        votingOpen: settings.votingOpen,
+        submissionsOpen: settings.submissionsOpen,
+        winnersAnnounced: settings.winnersAnnounced,
+        votingMessage: settings.votingMessage || "",
       },
     });
   } catch (e) {
@@ -91,6 +92,7 @@ export async function PATCH(req: NextRequest) {
     const body = parsed.data;
     if (
       body.votingOpen === undefined &&
+      body.submissionsOpen === undefined &&
       body.votingMessage === undefined &&
       body.winnersAnnounced === undefined
     ) {
@@ -103,6 +105,7 @@ export async function PATCH(req: NextRequest) {
       updatedBy: auth.uid,
     };
     if (body.votingOpen !== undefined) payload.votingOpen = body.votingOpen;
+    if (body.submissionsOpen !== undefined) payload.submissionsOpen = body.submissionsOpen;
     if (body.votingMessage !== undefined) payload.votingMessage = body.votingMessage;
     if (body.winnersAnnounced !== undefined) {
       payload.winnersAnnounced = body.winnersAnnounced;

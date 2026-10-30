@@ -11,7 +11,8 @@ import { adminDb } from "@/lib/firebase-admin";
 import { verifyAuth, ok, err, isErrorResponse } from "@/lib/api-helpers";
 import { logServerRouteException } from "@/lib/server/appErrorLog";
 import { parseJsonBody } from "@/lib/api/parseJsonBody";
-import { DEVCAMP_HACKATHON_ID, hackathonSubmissionsOpen } from "@/lib/hackathon";
+import { DEVCAMP_HACKATHON_ID } from "@/lib/hackathon";
+import { hackathonSubmissionsAllowed } from "@/lib/server/hackathonSettings";
 import { isHackathonEligible } from "@/lib/hackathon/access";
 import { resolveActiveCohortIdFromDb } from "@/lib/server/activeCohort";
 import {
@@ -40,9 +41,13 @@ export async function GET(req: NextRequest) {
 
   try {
     const cohortId = await resolveActiveCohortIdFromDb();
-    const existing = await findUserCohortProject(auth.uid, cohortId);
-    if (!existing) return ok({ project: null });
+    const [existing, submissionsOpen] = await Promise.all([
+      findUserCohortProject(auth.uid, cohortId),
+      hackathonSubmissionsAllowed(),
+    ]);
+    if (!existing) return ok({ project: null, submissionsOpen });
     return ok({
+      submissionsOpen,
       project: {
         ...toPublicProjectCard(existing.id, existing),
         userId: auth.uid,
@@ -62,7 +67,7 @@ export async function PUT(req: NextRequest) {
   if (isErrorResponse(auth)) return auth;
 
   try {
-    if (!hackathonSubmissionsOpen()) {
+    if (!(await hackathonSubmissionsAllowed())) {
       return err("Submissions are closed for this hackathon", 403);
     }
 

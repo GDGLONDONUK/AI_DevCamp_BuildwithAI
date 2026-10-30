@@ -42,6 +42,7 @@ export default function AdminHackathonPage() {
   const [saving, setSaving] = useState(false);
   const [projects, setProjects] = useState<AdminHackathonProject[]>([]);
   const [votingOpen, setVotingOpen] = useState(false);
+  const [submissionsOpen, setSubmissionsOpen] = useState(true);
   const [winnersAnnounced, setWinnersAnnounced] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [query, setQuery] = useState("");
@@ -62,6 +63,7 @@ export default function AdminHackathonPage() {
       const data = json.data ?? json;
       setProjects(data.projects || []);
       setVotingOpen(Boolean(data.settings?.votingOpen));
+      setSubmissionsOpen(data.settings?.submissionsOpen !== false);
       setWinnersAnnounced(Boolean(data.settings?.winnersAnnounced));
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Load failed");
@@ -73,7 +75,7 @@ export default function AdminHackathonPage() {
   useEffect(() => {
     if (authLoading) return;
     if (!user) {
-      router.push("/?login=1");
+      router.push("/?login=1&redirect=%2Fadmin%2Fhackathon");
       return;
     }
     if (userProfile && !isAdmin) {
@@ -97,7 +99,10 @@ export default function AdminHackathonPage() {
     });
   }, [projects, statusFilter, query]);
 
-  const setVoting = async (open: boolean) => {
+  const patchSettings = async (body: {
+    votingOpen?: boolean;
+    submissionsOpen?: boolean;
+  }) => {
     setSaving(true);
     try {
       const token = await auth.currentUser?.getIdToken();
@@ -107,12 +112,20 @@ export default function AdminHackathonPage() {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ votingOpen: open }),
+        body: JSON.stringify(body),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Update failed");
-      setVotingOpen(open);
-      toast.success(open ? "Voting is now open" : "Voting closed");
+      if (body.votingOpen !== undefined) {
+        setVotingOpen(body.votingOpen);
+        toast.success(body.votingOpen ? "Voting is now open" : "Voting closed");
+      }
+      if (body.submissionsOpen !== undefined) {
+        setSubmissionsOpen(body.submissionsOpen);
+        toast.success(
+          body.submissionsOpen ? "Project submissions are open" : "Submissions closed"
+        );
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Update failed");
     } finally {
@@ -170,6 +183,39 @@ export default function AdminHackathonPage() {
 
         <div className="rounded-xl border border-white/10 bg-gray-900/50 p-4 flex flex-wrap items-center justify-between gap-4">
           <div>
+            <p className="text-xs text-gray-500 uppercase tracking-wide font-mono">
+              Project submissions
+            </p>
+            <p className="text-lg text-white font-semibold">
+              {submissionsOpen ? (
+                <span className="text-green-400">Open</span>
+              ) : (
+                <span className="text-amber-300">Closed</span>
+              )}
+            </p>
+            <p className="text-xs text-gray-500 mt-1">
+              Attendees submit on /hackathon/my-projects (same as Submit → Final Project).
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              disabled={saving || submissionsOpen}
+              onClick={() => void patchSettings({ submissionsOpen: true })}
+            >
+              Open submissions
+            </Button>
+            <Button
+              variant="outline"
+              disabled={saving || !submissionsOpen}
+              onClick={() => void patchSettings({ submissionsOpen: false })}
+            >
+              Close submissions
+            </Button>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-white/10 bg-gray-900/50 p-4 flex flex-wrap items-center justify-between gap-4">
+          <div>
             <p className="text-xs text-gray-500 uppercase tracking-wide font-mono">Audience voting</p>
             <p className="text-lg text-white font-semibold">
               {votingOpen ? (
@@ -186,14 +232,14 @@ export default function AdminHackathonPage() {
           <div className="flex gap-2">
             <Button
               disabled={saving || votingOpen}
-              onClick={() => void setVoting(true)}
+              onClick={() => void patchSettings({ votingOpen: true })}
             >
               Open voting
             </Button>
             <Button
               variant="outline"
               disabled={saving || !votingOpen}
-              onClick={() => void setVoting(false)}
+              onClick={() => void patchSettings({ votingOpen: false })}
             >
               Close voting
             </Button>

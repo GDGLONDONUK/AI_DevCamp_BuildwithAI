@@ -100,7 +100,7 @@ export async function mintMcpAccessToken(opts: {
   }
 
   const ttlHours = Math.min(
-    Math.max(opts.ttlHours ?? (scopes.includes("admin") ? 24 * 7 : 24 * 30), 1),
+    Math.max(opts.ttlHours ?? 24 * 30, 1),
     24 * 90
   );
   const expiresAt = new Date(Date.now() + ttlHours * 60 * 60 * 1000);
@@ -208,18 +208,24 @@ export async function resolveMcpAccessToken(rawToken: string): Promise<{
     .get();
 
   if (snap.empty) {
-    throw new Error("Invalid or unknown MCP access token");
+    throw new Error(
+      "Invalid or unknown MCP access token. Reconnect: sign in at https://aidevcamp.gdg.london/mcp, mint a token, and set Authorization: Bearer dcmcp_…"
+    );
   }
 
   const doc = snap.docs[0];
   const data = doc.data();
   if (data.revoked === true) {
-    throw new Error("MCP access token has been revoked");
+    throw new Error(
+      "MCP access token has been revoked. Reconnect: sign in at https://aidevcamp.gdg.london/mcp and mint a new token."
+    );
   }
 
   const expiresAt = data.expiresAt?.toDate?.() as Date | undefined;
   if (expiresAt && expiresAt.getTime() < Date.now()) {
-    throw new Error("MCP access token has expired");
+    throw new Error(
+      "MCP access token has expired. Reconnect: sign in at https://aidevcamp.gdg.london/mcp (organisers: mint ADMIN scope), copy the new dcmcp_ token, and paste it into Claude as Authorization: Bearer dcmcp_…"
+    );
   }
 
   let scopes = (Array.isArray(data.scopes) ? data.scopes : ["learning"]) as McpTokenScope[];

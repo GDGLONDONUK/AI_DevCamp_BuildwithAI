@@ -10,17 +10,20 @@ import { registerMyTaskTools } from "./registerMyTaskTools";
 import { registerPublicTools } from "./registerPublicTools";
 import { registerStudyTools } from "./registerStudyTools";
 
-export function createDevcampMcpServer(): McpServer {
+export function createDevcampMcpServer(opts?: { includeAdmin?: boolean }): McpServer {
   const server = new McpServer({
     name: "ai-devcamp",
-    version: "1.3.0",
+    version: "1.3.1",
   });
 
   registerPublicTools(server);
   registerLearningTools(server);
   registerStudyTools(server);
   registerMyTaskTools(server);
-  registerAdminTools(server);
+  // Attendee tokens must not even see admin tools (Claude would otherwise try them).
+  if (opts?.includeAdmin !== false) {
+    registerAdminTools(server);
+  }
 
   return server;
 }

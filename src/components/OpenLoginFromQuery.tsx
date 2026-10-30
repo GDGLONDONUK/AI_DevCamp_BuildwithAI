@@ -1,10 +1,19 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext";
+import { setFirebaseSessionCookie } from "@/lib/firebaseSessionCookie";
+import {
+  consumePostLoginRedirect,
+  parseRedirectParam,
+  rememberPostLoginRedirect,
+} from "@/lib/postLoginRedirect";
 
 /**
- * When URL is `/?login=1` (e.g. from /register) opens login; `&reset=1` opens in password-reset mode.
+ * `/?login=1` opens the sign-in modal. `/?redirect=/path` (set by the Edge proxy
+ * when a protected page is hit without the session cookie) is followed once the
+ * user is signed in — including if they were already signed in via Firebase.
  */
 export default function OpenLoginFromQuery({
   onOpen,
@@ -12,13 +21,36 @@ export default function OpenLoginFromQuery({
   onOpen: (options: { forgot: boolean }) => void;
 }) {
   const searchParams = useSearchParams();
-  const handled = useRef(false);
+  const router = useRouter();
+  const { user, loading } = useAuth();
+  const openedLogin = useRef(false);
+  const navigated = useRef(false);
 
   useEffect(() => {
-    if (handled.current) return;
-    if (searchParams.get("login") !== "1") return;
-    handled.current = true;
+    const fromQuery = parseRedirectParam(searchParams.get("redirect"));
+    if (fromQuery) rememberPostLoginRedirect(fromQuery);
+
+    if (loading) return;
+
+    if (user) {
+      setFirebaseSessionCookie();
+      // Follow ?redirect= immediately. Also consume a recent stored dest after
+      // Google returns to `/` with the query stripped.
+      const stored = fromQuery ? null : consumePostLoginRedirect();
+      const target = fromQuery || stored;
+      if (target && !navigated.current) {
+        navigated.current = true;
+        if (fromQuery) consumePostLoginRedirect();
+        router.replace(target);
+      }
+      return;
+    }
+
+    const wantLogin = searchParams.get("login") === "1" || Boolean(fromQuery);
+    if (!wantLogin || openedLogin.current) return;
+    openedLogin.current = true;
     onOpen({ forgot: searchParams.get("reset") === "1" });
+
     if (typeof window !== "undefined") {
       const u = new URL(window.location.href);
       u.searchParams.delete("login");
@@ -26,7 +58,7 @@ export default function OpenLoginFromQuery({
       const next = u.pathname + (u.search || "") + u.hash;
       window.history.replaceState(null, "", next || "/");
     }
-  }, [searchParams, onOpen]);
+  }, [searchParams, onOpen, user, loading, router]);
 
   return null;
 }

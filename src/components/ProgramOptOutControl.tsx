@@ -8,6 +8,7 @@ import { auth } from "@/lib/firebase";
 import { leaveProgramOnServer } from "@/lib/meApi";
 import toast from "react-hot-toast";
 import { BellOff, UserMinus } from "lucide-react";
+import { clearFirebaseSessionCookie } from "@/lib/firebaseSessionCookie";
 
 type Props = {
   variant: "menu" | "dashboard";
@@ -37,7 +38,7 @@ export default function ProgramOptOutControl({ variant, onAfterChange }: Props) 
     try {
       await leaveProgramOnServer();
       await signOut(auth);
-      document.cookie = "firebase-session=; path=/; max-age=0";
+      clearFirebaseSessionCookie();
       toast.success("You have left the programme.");
       onAfterChange?.();
       router.push("/");

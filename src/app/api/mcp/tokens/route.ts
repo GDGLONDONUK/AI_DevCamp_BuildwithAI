@@ -52,7 +52,9 @@ export async function POST(request: NextRequest) {
 
     const scopes: McpTokenScope[] = parsed.data.scopes?.length
       ? parsed.data.scopes
-      : [parsed.data.scope || "learning"];
+      : parsed.data.scope === "admin"
+        ? ["learning", "admin"]
+        : [parsed.data.scope || "learning"];
 
     // Live Firestore role only — never trust a stale client claim for admin mint.
     const userSnap = await adminDb().collection("users").doc(auth.uid).get();

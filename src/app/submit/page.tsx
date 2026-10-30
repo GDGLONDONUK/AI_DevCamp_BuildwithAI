@@ -50,7 +50,7 @@ export default function SubmitPage() {
 
   useEffect(() => {
     if (!loading && !user) {
-      router.push("/");
+      router.push("/?login=1&redirect=%2Fsubmit");
     }
   }, [user, loading, router]);
 

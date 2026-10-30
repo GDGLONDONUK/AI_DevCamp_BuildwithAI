@@ -13,10 +13,8 @@ import { logServerRouteException } from "@/lib/server/appErrorLog";
 import { parseJsonBody } from "@/lib/api/parseJsonBody";
 import { projectCreateSchema } from "@/lib/api/schemas/requestBodies";
 import { resolveActiveCohortIdFromDb } from "@/lib/server/activeCohort";
-import {
-  DEVCAMP_HACKATHON_ID,
-  hackathonSubmissionsOpen,
-} from "@/lib/hackathon";
+import { DEVCAMP_HACKATHON_ID } from "@/lib/hackathon";
+import { hackathonSubmissionsAllowed } from "@/lib/server/hackathonSettings";
 import { upsertUserCohortProject } from "@/lib/server/programmeProjects";
 
 export async function GET(request: NextRequest) {
@@ -59,7 +57,7 @@ export async function POST(request: NextRequest) {
       userName: userData?.displayName ?? "",
       cohortId,
       // During the closing hackathon window, stamp the edition tag on the same doc.
-      hackathonId: hackathonSubmissionsOpen() ? DEVCAMP_HACKATHON_ID : null,
+      hackathonId: (await hackathonSubmissionsAllowed()) ? DEVCAMP_HACKATHON_ID : null,
       title,
       description,
       techStack,

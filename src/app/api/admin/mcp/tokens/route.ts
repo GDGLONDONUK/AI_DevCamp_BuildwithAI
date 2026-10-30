@@ -79,7 +79,9 @@ export async function POST(request: NextRequest) {
 
     const scopes: McpTokenScope[] = parsed.data.scopes?.length
       ? parsed.data.scopes
-      : [parsed.data.scope || "learning"];
+      : parsed.data.scope === "admin"
+        ? ["learning", "admin"]
+        : [parsed.data.scope || "learning"];
 
     if (scopes.includes("admin") && !["admin", "moderator"].includes(role)) {
       return err(

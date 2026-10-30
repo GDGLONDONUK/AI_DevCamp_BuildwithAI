@@ -17,6 +17,40 @@ import { LEARNING_HARNESS, LEARNING_CHAT_TOOL_NAMES } from "../../../src/lib/lea
  */
 export function registerPublicTools(server: McpServer): void {
   server.registerTool(
+    "whoami",
+    {
+      description: "Return the authenticated MCP caller (uid, email, role, cohort, scopes).",
+      inputSchema: {},
+      annotations: { readOnlyHint: true },
+    },
+    async () => {
+      try {
+        const caller = await resolveCaller();
+        requireAuthenticated(caller);
+        return okResult({
+          uid: caller.uid,
+          email: caller.email ?? null,
+          role: caller.role,
+          isAdmin: caller.isAdmin,
+          enrolled: caller.enrolled,
+          scopes: caller.scopes,
+          cohortId: caller.cohortId,
+          cohortIds: caller.cohortIds,
+          activeCohortDefault: await resolveActiveCohortIdFromDb(),
+          tiers: {
+            public: true,
+            attendee: caller.enrolled,
+            admin: caller.isAdmin && caller.scopes.includes("admin"),
+          },
+          dataSource: "firestore (not seed files)",
+        });
+      } catch (e) {
+        return errResult(e instanceof Error ? e.message : String(e));
+      }
+    }
+  );
+
+  server.registerTool(
     "describe_devcamp_ai_stack",
     {
       description:

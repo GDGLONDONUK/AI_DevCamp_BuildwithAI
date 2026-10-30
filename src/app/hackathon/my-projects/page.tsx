@@ -41,8 +41,9 @@ export default function MyHackathonProjectPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const closedMsg = hackathonSubmissionStatusMessage();
-  const open = hackathonSubmissionsOpen();
+  const dateClosedMsg = hackathonSubmissionStatusMessage();
+  const [open, setOpen] = useState(() => hackathonSubmissionsOpen());
+  const closedMsg = open ? null : dateClosedMsg || "Submissions are closed.";
 
   const [title, setTitle] = useState("");
   const [teamName, setTeamName] = useState("");
@@ -67,7 +68,9 @@ export default function MyHackathonProjectPage() {
     : false;
 
   useEffect(() => {
-    if (!authLoading && !user) router.push("/?login=1");
+    if (!authLoading && !user) {
+      router.push("/?login=1&redirect=%2Fhackathon%2Fmy-projects");
+    }
   }, [authLoading, user, router]);
 
   useEffect(() => {
@@ -78,7 +81,9 @@ export default function MyHackathonProjectPage() {
     let cancelled = false;
     fetchMyHackathonProject()
       .then((r) => {
-        if (cancelled || !r.project) return;
+        if (cancelled) return;
+        if (typeof r.submissionsOpen === "boolean") setOpen(r.submissionsOpen);
+        if (!r.project) return;
         const p = r.project;
         setTitle(p.title);
         setTeamName(p.teamName || "");
