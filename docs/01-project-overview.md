@@ -18,13 +18,14 @@
 | **Registration** | Multi-step signup; pending `users/{email}` merged on first sign-in via `POST /api/me/ensure-profile`. |
 | **Sessions & roster** | Schedule from Firestore; each session lists people via **`speakerIds`** ( **`speakers`** collection) or legacy embedded **`speakers[]` / `speaker*`**; **home page** shows schedule + **Speakers & mentors**; **recordings & rich content** on **`/sessions`** gated to approved statuses (`participated`, `certified`). |
 | **Attendance** | Admin grid + per-session filters; Kick Off **in-person vs online** note (`kickoffJoinedAs`); **live self check-in** (6-digit code + admin-defined time window) on `/sessions`; **Attended** badge on schedule + dashboard when marked. |
-| **Assignments & projects** | Submit, review, statuses (`assignments`: through `approved`; `projects`: through `winner` / `passed` / `failed`); gallery-style project visibility where configured. |
+| **Assignments & projects** | Submit, review, statuses (`assignments`: through `approved`; `projects`: through `winner` / `passed` / `failed`). **Agentic Hackathon** uses the **same** `projects` docs (`cohortId` + `hackathonId`): `/hackathon/my-projects`, ideas gallery, `/vote`. |
+| **Admin MCP** | Organisers mint an **admin** `dcmcp_` token on `/mcp` and connect Claude / ChatGPT to **`/api/mcp`**. Day-of: submissions, votes, winners. Same server modules as `/api/*`. See [16](./16-hackathon-and-admin-mcp.md). |
 | **Dashboard** | Progress, programme communications opt-out / leave programme, session list with attendance labels. |
 | **Learning tasks** | **`/dashboard/tasks`** — private per-user checklist (table / cards / timeline), filters & paging, optional auto-import from **`learningTaskTemplates`** when empty. Organisers maintain templates at **`/admin/learning-tasks`**. See [09-learning-tasks-architecture.md](./09-learning-tasks-architecture.md). |
 | **Learning Assistant** | Signed-in right-slider chat (**Ask / Summarize / Translate**); RAG over **`sessionLearningMaterials`** via dedicated Gemini. See [14-learning-assistant.md](./14-learning-assistant.md). |
 | **Home marketing CMS** | Editable banners / Discord / kickoff copy in **`siteContent/home`** — Admin → **Home content** (`/admin/site`). |
 | **Programme lifecycle** | **Leave programme** sets `programOptOut` → no API/session until admin clears; cohort email uses `receivesProgramCommunications()`. |
-| **Admin** | Users (grid/table, CSV export, **certified completion** panel + export, bulk email, User Editor), **Inactive** (`disabledUsers` archive / restore, multi-select), Attendance, Sessions (CRUD, **multi-speaker** editor, **live check-in config**), Pre-registered, Assignments, Projects (`passed` / `failed` review), **Learning task templates** (`/admin/learning-tasks`), **Home content** (`/admin/site`), sub-routes: email, import, Bevy, errors, users map. |
+| **Admin** | Users (grid/table, CSV export, **certified completion** panel + export, bulk email, User Editor), **Inactive** (`disabledUsers` archive / restore, multi-select), Attendance, Sessions (CRUD, **multi-speaker** editor, **live check-in config**), Pre-registered, Assignments, Projects (`passed` / `failed` review), **Hackathon board** (`/admin/hackathon` — submissions, voting, winners), **Learning task templates** (`/admin/learning-tasks`), **Home content** (`/admin/site`), sub-routes: email, import, Bevy, errors, users map. |
 | **Observability** | Client/server errors to `error_logs`; `/admin/errors`. |
 | **Branding** | Navbar uses `public/logo.png`; **favicons** are generated square PNGs from the logo (`npm run generate-favicons`) — see [08-site-deployment-and-admin.md](./08-site-deployment-and-admin.md). |
 
@@ -50,41 +51,70 @@
 
 ## Architecture at a glance
 
+```mermaid
+flowchart TB
+  subgraph browser["Browser (React 19)"]
+    P["src/app/**/page.tsx — marketing, sessions, hackathon, dashboard, admin"]
+    C["AuthContext + Firebase JS SDK — reads where rules allow"]
+  end
+
+  subgraph llm["External LLM (optional)"]
+    CL["Claude / ChatGPT / Cursor<br/>Bearer dcmcp_ → POST /api/mcp"]
+  end
+
+  subgraph next["Next.js 16"]
+    API["src/app/api/** — requireAdmin / verifyAuth"]
+    MCP["packages/devcamp-mcp — requireAdmin caller"]
+    SVC["src/lib/server/admin/* + hackathonOps + cohortCompletion"]
+    PX["src/proxy.ts — CORS, UX cookie"]
+    API --> SVC
+    MCP --> SVC
+  end
+
+  subgraph fb["Firebase"]
+    AUTH["Authentication — ID tokens"]
+    FS["Firestore — users, sessions, attendance, projects,<br/>hackathonVotes, hackathonSettings, …"]
+    ST["Storage — avatars"]
+  end
+
+  P --> API
+  C --> FS
+  CL --> MCP
+  SVC --> FS
+  API --> AUTH
+  MCP --> AUTH
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    Browser (React 19)                      │
-│  src/app/**/page.tsx  — marketing, sessions, dashboard, …   │
-│  src/components/**    — Navbar, AuthModal, SessionEditor, … │
-│  AuthContext          — Firebase Auth + Firestore profile     │
-│  Firebase JS SDK      — direct Firestore/Storage where rules allow │
-└────────────────────────────┬────────────────────────────────┘
-                             │ HTTPS
-┌────────────────────────────▼────────────────────────────────┐
-│              Next.js 16 (Node / Edge)                      │
-│  src/app/api/**       — REST handlers + Admin SDK           │
-│    verifyAuth, requireAdmin, bulk email, ensure-profile,     │
-│    attendance PATCH, self check-in, leave-program, …         │
-│  src/proxy.ts         — CORS, UX cookie guard, headers       │
-└────────────────────────────┬────────────────────────────────┘
-                             │
-┌────────────────────────────▼────────────────────────────────┐
-│                      Firebase                               │
-│  Authentication  — ID tokens for /api                         │
-│  Firestore       — users, speakers, sessions, attendance,     │
-│                    assignments, projects, tags, error_logs, │
-│                    session_self_checkin, learningTasks,       │
-│                    learningTaskTemplates, cohorts,            │
-│                    siteContent, sessionLearningMaterials, …   │
-│  Storage         — avatars                                   │
-│  Security rules  — client-side boundary; Admin SDK bypasses  │
-└─────────────────────────────────────────────────────────────┘
+
+ASCII (same picture):
+
 ```
+┌─ Browser ──────────────────────────────────────────────────┐
+│  Pages + AuthContext + Web SDK (rules = client boundary)   │
+└────────────────────────────┬───────────────────────────────┘
+                             │ HTTPS  Firebase ID token
+┌─ Claude / ChatGPT ─────────┼───────────────────────────────┐
+│  /mcp mint dcmcp_ → /api/mcp (admin tools iff staff+scope) │
+└────────────────────────────┼───────────────────────────────┘
+                             ▼
+┌─ Next.js 16 ───────────────────────────────────────────────┐
+│  /api/*  requireAdmin(req)                                 │
+│  MCP     requireAdmin(caller)                              │
+│  both → src/lib/server/admin/* + hackathonOps (Admin SDK)  │
+└────────────────────────────┬───────────────────────────────┘
+                             ▼
+┌─ Firebase ─────────────────────────────────────────────────┐
+│  Auth · Firestore · Storage · rules (Admin SDK bypasses)   │
+└────────────────────────────────────────────────────────────┘
+```
+
+Diagrams with more detail: [16 · Hackathon & admin MCP](./16-hackathon-and-admin-mcp.md).
 
 **Data flow patterns**
 
 1. **Client-first** — Most reads (sessions list, profile) use the Firebase web SDK; rules enforce access.
 2. **Server-first** — Anything needing secrets, cross-document checks, or bypassing rules uses `/api/*` + Admin SDK (e.g. self check-in validates code and window server-side; Learning Assistant + home CMS use Admin SDK).
 3. **Hybrid** — Admin attendance grid historically used client `setDoc`; **session toggles** now go through **`PATCH /api/attendance/[uid]`** so **`sessionAttendanceAudit`** stays consistent.
+4. **Admin MCP = same services as HTTP** — Claude does not get a second Firestore write path. See [16](./16-hackathon-and-admin-mcp.md).
 
 ---
 

@@ -2,6 +2,7 @@ import "server-only";
 
 import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase-admin";
+import { redactEmail } from "@/lib/logging/redactEmail";
 
 export const LEARNING_CHAT_LOGS_COLLECTION = "learning_chat_logs";
 
@@ -36,7 +37,10 @@ function preview(text: string, max = 240): string {
 export async function logLearningChatCall(input: LearningChatLogInput): Promise<string> {
   const ref = await adminDb().collection(LEARNING_CHAT_LOGS_COLLECTION).add({
     userId: input.userId,
-    userEmail: input.userEmail ?? null,
+    userEmail:
+      input.userEmail != null && String(input.userEmail).trim() !== ""
+        ? redactEmail(String(input.userEmail))
+        : null,
     cohortId: input.cohortId,
     focusSessionId: input.focusSessionId ?? null,
     pathname: input.pathname ?? null,

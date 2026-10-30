@@ -158,9 +158,10 @@ This redirects immediately if the wrong user tries to access a page.
 | Surface | Behaviour |
 |--------|-----------|
 | **`users/{uid}`** | `email` lives on the profile doc; client SDK may **read only your own** doc (plus admins/mods read all). Not exposed via DevcampBuddies directory cards (`publicBuddyCardFromUser` omits email). |
-| **`projects/{id}`** | **Read:** signed-in **owner** (`userId`) or **admin/moderator** only — not world-readable. **Write:** new submissions store **`userId` + `userName`**; **`userEmail` is omitted** on new docs (legacy rows may still have it). Resolve contact via **`users/{userId}`** in admin tools if needed. |
-| **`assignments/{id}`** | Already scoped to owner or admin/mod for read; new submissions likewise omit **`userEmail`** where possible. |
-| **`error_logs`** | Optional reporter email is stored **redacted** (see `redactEmail` in `insertErrorLog`) so support still has coarse identity without full addresses in Firestore. |
+| **`projects/{id}`** | **Read:** signed-in **owner** (`userId`) or **admin/moderator** only — not world-readable. Public ideas / vote lists go through **`/api/hackathon/*`** (Admin SDK) and **omit `userId` / `userEmail`**; `userName` is never an email. **Write:** new submissions store **`userId` + `userName`**; **`userEmail` is omitted** on new docs. Clients cannot change **`status`**, **`userId`**, **`voteTotal`**, **`hackathonId`**. |
+| **`assignments/{id}`** | Already scoped to owner or admin/mod for read; new submissions omit **`userEmail`**. Attendee `GET /api/assignments` strips contact fields from legacy docs. |
+| **`error_logs` / `learning_chat_logs`** | Reporter email is stored **redacted** (`redactEmail`) so support still has coarse identity without full addresses in Firestore. |
+| **Admin MCP / `GET /api/admin/hackathon`** | Emails are **staff-only** (completion, board, user lookup). Do not paste those transcripts into public chats. |
 
 #### How rules are structured
 
@@ -272,6 +273,10 @@ npm run fix-organiser-admins -- --apply
 ```
 
 This prevents Luma / pending merges from leaving organisers as `attendee` and hiding the Admin nav.
+
+### Admin MCP vs HTTP APIs
+
+Organiser tools in Claude/ChatGPT use opaque **`dcmcp_`** tokens (hashed in **`mcpAccessTokens`**, client deny). HTTP `/api/*` uses **Firebase ID tokens**. Both call **`src/lib/server/admin/*`** after `requireAdmin`. Admin MCP tools are **not registered** unless live `role` is admin/moderator **and** the token has admin scope. `hackathonVotes` / `hackathonSettings` are Admin-SDK-only. Diagrams: [16](./16-hackathon-and-admin-mcp.md).
 
 ---
 

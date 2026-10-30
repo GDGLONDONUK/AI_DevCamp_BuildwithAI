@@ -30,6 +30,8 @@ type AdminHackathonProject = {
   userEmail?: string | null;
   voteTotal: number;
   status: string;
+  organiser?: boolean;
+  prizeEligible?: boolean;
   cohortId?: string;
   hackathonId?: string;
   weekCompleted?: number | null;
@@ -130,6 +132,28 @@ export default function AdminHackathonPage() {
       toast.error(e instanceof Error ? e.message : "Update failed");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const patchProjectStatus = async (projectId: string, status: string) => {
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      const res = await fetch(`/api/projects/${projectId}`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ status }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Status update failed");
+      setProjects((prev) =>
+        prev.map((p) => (p.id === projectId ? { ...p, status } : p))
+      );
+      toast.success(`Status → ${status}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Status update failed");
     }
   };
 
@@ -298,13 +322,27 @@ export default function AdminHackathonPage() {
                     {p.userEmail ? ` · ${p.userEmail}` : ""} · {p.projectType}
                   </p>
                 </div>
-                <div className="flex flex-wrap gap-2 text-[10px] font-mono uppercase">
-                  <span className="rounded border border-white/15 px-2 py-0.5 text-gray-400">
-                    {p.status}
-                  </span>
+                <div className="flex flex-wrap gap-2 text-[10px] font-mono uppercase items-center">
+                  <select
+                    value={p.status}
+                    onChange={(e) => void patchProjectStatus(p.id, e.target.value)}
+                    className="rounded border border-white/15 bg-gray-950 px-2 py-0.5 text-gray-300"
+                  >
+                    <option value="draft">draft</option>
+                    <option value="submitted">submitted</option>
+                    <option value="reviewed">reviewed</option>
+                    <option value="shortlisted">shortlisted</option>
+                    <option value="winner">winner</option>
+                    <option value="passed">passed</option>
+                  </select>
                   {p.hackathonId && (
                     <span className="rounded border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-amber-200">
                       Hackathon
+                    </span>
+                  )}
+                  {p.organiser && (
+                    <span className="rounded border border-rose-500/40 bg-rose-500/10 px-2 py-0.5 text-rose-200">
+                      Organiser · not prize-eligible
                     </span>
                   )}
                   <span className="rounded border border-green-500/30 bg-green-500/10 px-2 py-0.5 text-green-300">

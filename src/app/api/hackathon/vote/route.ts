@@ -26,6 +26,7 @@ import { isHackathonEligible } from "@/lib/hackathon/access";
 import {
   listVoteableProjects,
   listPublicHackathonIdeas,
+  toGalleryProjectCard,
 } from "@/lib/server/programmeProjects";
 import { resolveActiveCohortIdFromDb } from "@/lib/server/activeCohort";
 import {
@@ -141,7 +142,9 @@ export async function GET(req: NextRequest) {
       .filter((p) => p.userId !== auth.uid)
       .map((p) => p.id);
     return ok({
-      projects: [...byId.values()].sort((a, b) => a.title.localeCompare(b.title)),
+      projects: [...byId.values()]
+        .sort((a, b) => a.title.localeCompare(b.title))
+        .map(toGalleryProjectCard),
       voteableIds,
       ownProjectIds: voteable.filter((p) => p.userId === auth.uid).map((p) => p.id),
       ...settings,

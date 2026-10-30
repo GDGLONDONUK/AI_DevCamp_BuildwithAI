@@ -101,7 +101,6 @@ export async function POST(request: NextRequest) {
       message,
       {
         uid: auth.uid,
-        email: auth.email,
         role: gate.actor.role,
         cohortId: gate.cohortId,
         focusSessionId,

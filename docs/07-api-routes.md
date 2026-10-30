@@ -109,8 +109,8 @@ Legacy single-speaker fields (`speaker`, `speakerTitle`, `speakerPhoto`) and emb
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| `GET` | `/api/users` | Admin / Moderator | List all users. Supports `?status=` and `?search=` query params |
-| `GET` | `/api/users/[uid]` | Admin / Moderator or self | Get a user's profile |
+| `GET` | `/api/users` | Admin / Moderator | List users. `?status=` `?search=` `?cohortId=` (`all` default) `?compact=1` `?limit=` |
+| `GET` | `/api/users/[uid]` | Admin / Moderator or self | Get a user's profile (uid **or email** for admins) |
 | `PATCH` | `/api/users/[uid]` | Admin/Mod (privileged) or self (own fields) | Update a user |
 
 **PATCH /api/users/[uid] — body for admin or moderator** (privileged fields — includes `role`, `userStatus`, `kickoffInPersonAdminConfirmed`, `accountDisabled`, `accountDisabledReason`, **`programOptOut`**, **`programOptOutAt`**):
@@ -195,6 +195,7 @@ Cross-user profile data is **not** read from client Firestore (rules only allow 
 | `POST` | `/api/learning-chat` | **Bearer required** | Body `{ message, history?, focusSessionId?, pathname?, cohortId? }`. Gemini + tools over sessions / `sessionLearningMaterials` for the **active cohort only** (client `cohortId` ignored). Refuses out-of-scope asks (other users, personal tasks, attendance, etc.). Logs to **`learning_chat_logs`** + `activity_events` (`learning_chat`). Requires `LEARNING_GEMINI_API_KEY`. See [14](./14-learning-assistant.md). |
 | `GET` | `/api/admin/learning-materials?cohortId=` | Admin / Moderator | List corpus docs for a cohort. |
 | `PUT` | `/api/admin/learning-materials` | Admin / Moderator | Upsert a material (`sessionId`, `kind`, `textContent`, optional `url`). |
+| `GET` | `/api/admin/cohort-completion` | Admin / Moderator | Attendance + weekly labs + live-cohort projects. Query: `cohortId`, `minSessions`, `filter`, `includeStaff`. Same service as MCP `admin_cohort_completion`. |
 
 Merge logic and field list: `src/lib/server/mergePendingUserIntoProfile.ts`.
 
@@ -253,13 +254,14 @@ Moderators **cannot** call these routes — **`verifyAuth`** must resolve **`rol
 |--------|------|------|-------------|
 | `GET` | `/api/attendance` | Admin / Moderator | Get all users' attendance as a map |
 | `GET` | `/api/attendance/[uid]` | Admin / Moderator or self | Get one user's attendance record |
-| `PATCH` | `/api/attendance/[uid]` | Admin / Moderator | Toggle a session's attendance and merge **`sessionAttendanceAudit`** (`source: "admin"`) |
+| `PATCH` | `/api/attendance/[uid]` | Admin / Moderator | Toggle a session's attendance and merge **`sessionAttendanceAudit`** (`source: "admin"`). Optional **`force`** to mark cancelled sessions. |
 
 **PATCH body:**
 ```json
 {
   "sessionId": "session-1",
-  "attended": true
+  "attended": true,
+  "force": false
 }
 ```
 
@@ -342,7 +344,30 @@ Valid statuses: `submitted` → `reviewed` → `approved`
 }
 ```
 
-Valid statuses: `submitted` → `reviewed` → `shortlisted` → `winner`; admins may also set `passed` (programme completion without a competition win) or `failed` (final project did not meet requirements). Project `failed` is independent of `users.userStatus === "failed"`.
+Valid statuses: `draft` → `submitted` → `reviewed` → `shortlisted` → `winner`; admins may also set `passed` (programme completion without a competition win) or `failed`. Project `failed` is independent of `users.userStatus === "failed"`. Same handler as MCP `admin_set_project_status`.
+
+---
+
+### Hackathon (Agentic Hackathon / closing day)
+
+Same `projects` collection as finals. Votes and settings are **Admin SDK only**. Architecture: [16](./16-hackathon-and-admin-mcp.md).
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/hackathon/ideas` | Public (no emails) | Idea gallery from live-cohort / hackathon-tagged `projects`. `?open=1` = open-to-members teams. |
+| `GET`/`PUT` | `/api/hackathon/my-project` | Bearer | Load / upsert the caller's cohort project (`hackathonId` stamped when shipping). |
+| `GET`/`POST` | `/api/hackathon/vote` | Bearer | Read allocations / cast votes (budget, max 2/project, no self-vote). |
+| `GET` | `/api/admin/hackathon` | Admin / Moderator | Day-of board: settings, counts, leaderboard, winners, projects. |
+| `PATCH` | `/api/admin/hackathon` | Admin / Moderator | `{ submissionsOpen?, votingOpen?, votingMessage?, winnersAnnounced? }` |
+| `POST` | `/api/admin/hackathon/recompute-votes` | Admin / Moderator | Rebuild `voteTotal` from `hackathonVotes`. |
+
+### MCP (BYO LLM)
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET`/`POST`/`DELETE` | `/api/mcp` | Bearer `dcmcp_` or Firebase ID token | Streamable HTTP MCP. Admin tools only if live staff role **and** admin scope. Connector URL — **not** `/mcp`. |
+| `POST`/`GET`/`DELETE` | `/api/mcp/tokens` | Bearer | Mint / list / revoke own tokens. |
+| `POST` | `/api/admin/mcp/tokens` | Admin / Moderator | Mint a token for another user (admin scope only if they are staff). |
 
 ---
 
@@ -389,7 +414,7 @@ src/
 ├── lib/
 │   ├── firebase-admin.ts     ← Admin SDK init (server-only)
 │   ├── api-helpers.ts        ← verifyAuth, requireAdmin, ok/err helpers
-│   └── server/               ← Nominatim, merge pending user, user admin view, app error log, …
+│   └── server/               ← admin/ (shared with MCP), hackathonOps, cohortCompletion, …
 └── app/
     └── api/
         ├── sessions/          ← GET (list), POST, GET/PUT/DELETE by id
@@ -398,6 +423,8 @@ src/
         ├── attendance/
         ├── assignments/
         ├── projects/
+        ├── hackathon/
+        ├── mcp/
         ├── learning-tasks/
         ├── learning-task-templates/
         ├── email/send/

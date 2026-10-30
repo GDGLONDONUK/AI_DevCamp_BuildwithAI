@@ -24,11 +24,12 @@ flowchart LR
   subgraph engage["Engage"]
     E --> F[Sessions page — details & resources]
     F --> G[Live check-in when enabled]
-    G --> H[Assignments & project submit]
+    G -->     H[Assignments & project / hackathon submit]
     H --> I[Dashboard + learning tasks]
   end
   subgraph close["Close"]
-    I --> J[Admin reviews assignment + project]
+    I --> Hx[Hackathon day: ideas + vote]
+    Hx --> J[Admin reviews assignment + project]
     J --> K{Completion criteria met?}
     K -->|Yes| L[Included in certified completion export]
     K -->|No| M[Organiser follows up]
@@ -122,9 +123,10 @@ flowchart TB
     S3 --> A1[Attendance grid + session filters]
     A1 --> A2[Optional live self check-in codes]
     A2 --> A3[Assignments & projects review]
+    A3 --> A4["/admin/hackathon + Claude admin MCP"]
   end
   subgraph wrap["Wrap-up"]
-    A3 --> W1[Set assignment Approved + project Passed/Failed]
+    A4 --> W1[Set assignment Approved + project Passed / hackathon winners]
     W1 --> W2[Certify attendees userStatus]
     W2 --> W3[Certified completion CSV export]
     W3 --> W4[Inactive / archive if needed]
@@ -152,6 +154,7 @@ flowchart LR
 | Session detail & gating | `/sessions`, `getSessionSpeakersList` + speaker lookup |
 | Admin sessions & roster | `/admin` → Sessions, `SessionEditor`, `speakerService` / `sessionService` |
 | Assignment / project review | `/admin` → Assignments, Projects; `PATCH /api/assignments/[id]`, `PATCH /api/projects/[id]` |
+| Hackathon day-of | `/hackathon`, `/vote`, `/admin/hackathon`; Claude: `admin_hackathon_board` — [16](./16-hackathon-and-admin-mcp.md) |
 | Certified completion export | `/admin` → Users panel; `buildCertifiedCompletionAudit`, `exportCertifiedCompletionCsv` |
 | Self check-in | `/sessions` expanded card, `POST /api/me/attendance/self-check-in` |
 

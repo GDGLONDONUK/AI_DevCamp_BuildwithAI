@@ -10,6 +10,7 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase-admin";
 import { DEVCAMP_HACKATHON_ID } from "@/lib/hackathon";
+import { publicDisplayName } from "@/lib/server/omitContactPii";
 
 export type PublicProjectCard = {
   id: string;
@@ -32,6 +33,13 @@ export type PublicProjectCard = {
   weekCompleted?: number;
 };
 
+/** Gallery / vote JSON: never include owner uid or emails. */
+export function toGalleryProjectCard(card: PublicProjectCard) {
+  const rest = { ...card };
+  delete (rest as { userId?: string }).userId;
+  return rest;
+}
+
 export function toPublicProjectCard(
   id: string,
   data: FirebaseFirestore.DocumentData
@@ -49,7 +57,7 @@ export function toPublicProjectCard(
     screenshotUrls: Array.isArray(data.screenshotUrls)
       ? data.screenshotUrls.map(String).slice(0, 5)
       : [],
-    userName: String(data.userName || "Builder"),
+    userName: publicDisplayName(data.userName),
     userId: String(data.userId || ""),
     voteTotal: Number(data.voteTotal) || 0,
     status: String(data.status || "draft"),

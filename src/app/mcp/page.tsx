@@ -303,8 +303,11 @@ export default function McpTokensPage() {
               <code className="text-amber-200/90 text-xs">admin_set_attendance</code>
               . Open or close the hackathon with{" "}
               <code className="text-amber-200/90 text-xs">admin_update_hackathon_settings</code>{" "}
-              (submissionsOpen / votingOpen). Example: “Mark nayanrathece@gmail.com
-              attended for sept-2026-govern-thu” or “Open hackathon submissions.”
+              (submissionsOpen / votingOpen). Day-of:{" "}
+              <code className="text-amber-200/90 text-xs">admin_hackathon_board</code>{" "}
+              (submissions, votes, leaderboard),{" "}
+              <code className="text-amber-200/90 text-xs">admin_set_project_status</code>{" "}
+              (shortlist / winner). Example: “Show the hackathon board and current vote leaders.”
             </p>
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="text-sm space-y-1 sm:col-span-2">

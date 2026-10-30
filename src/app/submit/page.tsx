@@ -70,7 +70,10 @@ export default function SubmitPage() {
     try {
       const docRef = await addDoc(collection(db, "assignments"), {
         userId: user!.uid,
-        userName: userProfile?.displayName || user!.email,
+        userName:
+          userProfile?.displayName?.trim() && !userProfile.displayName.includes("@")
+            ? userProfile.displayName.trim()
+            : "Builder",
         weekNumber: assignmentForm.weekNumber,
         sessionId: assignmentForm.sessionId,
         title: assignmentForm.title,

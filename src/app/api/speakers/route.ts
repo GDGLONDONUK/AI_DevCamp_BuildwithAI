@@ -12,7 +12,18 @@ export async function GET() {
       .collection("speakers")
       .orderBy("sortOrder", "asc")
       .get();
-    const speakers = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    const speakers = snap.docs.map((d) => {
+      const data = d.data();
+      return {
+        id: d.id,
+        name: data.name ?? "",
+        title: data.title,
+        photo: data.photo,
+        linkedinUrl: data.linkedinUrl,
+        roles: data.roles,
+        sortOrder: data.sortOrder ?? 0,
+      };
+    });
     return ok(speakers);
   } catch (e) {
     logServerRouteException("GET /api/speakers", e);
