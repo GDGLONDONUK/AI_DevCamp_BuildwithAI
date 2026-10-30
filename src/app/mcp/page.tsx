@@ -39,7 +39,7 @@ export default function McpTokensPage() {
   const [busy, setBusy] = useState(false);
   const [minted, setMinted] = useState<Minted | null>(null);
   const [label, setLabel] = useState("claude-desktop");
-  const [scope, setScope] = useState<"learning" | "admin">("learning");
+  const [scope, setScope] = useState<"learning" | "admin">("admin");
 
   const [adminEmail, setAdminEmail] = useState("");
   const [adminScope, setAdminScope] = useState<"learning" | "admin">("admin");
@@ -81,7 +81,11 @@ export default function McpTokensPage() {
       const res = await fetch("/api/mcp/tokens", {
         method: "POST",
         headers: { ...headers, "Content-Type": "application/json" },
-        body: JSON.stringify({ scope, label }),
+        body: JSON.stringify({
+          scope: isStaff ? scope : "learning",
+          label,
+          ttlHours: 24 * 30,
+        }),
       });
       const json = await res.json();
       if (!json.ok) throw new Error(json.error || "Mint failed");
@@ -123,6 +127,7 @@ export default function McpTokensPage() {
           email: adminEmail.trim(),
           scope: adminScope,
           label: adminLabel,
+          ttlHours: 24 * 30,
         }),
       });
       const json = await res.json();
@@ -162,8 +167,11 @@ export default function McpTokensPage() {
             <KeyRound className="text-green-400" /> MCP access tokens
           </h1>
           <p className="text-gray-400 text-sm leading-relaxed">
-            Mint a personal learning token, then paste it into Claude, ChatGPT, or Cursor with
-            the connector URL below. You do not need the GitHub repo or a local MCP server.
+            Mint a personal token, then paste it into Claude, ChatGPT, or Cursor with the
+            connector URL below. If Claude says the connection expired, mint a new token here
+            and update the connector Bearer token. Organisers: choose{" "}
+            <strong className="text-white">admin</strong> scope — attendee tokens cannot list
+            other people&apos;s attendance or submissions.
           </p>
           <p className="text-gray-500 text-xs">
             Setup guides:{" "}
@@ -209,8 +217,8 @@ export default function McpTokensPage() {
                   value={scope}
                   onChange={(e) => setScope(e.target.value as "learning" | "admin")}
                 >
+                  <option value="admin">admin (staff — cohort reports, attendance)</option>
                   <option value="learning">learning (sessions, study, my tasks)</option>
-                  <option value="admin">admin (staff only)</option>
                 </select>
               </label>
             ) : (
@@ -285,6 +293,18 @@ export default function McpTokensPage() {
             <p className="text-sm text-gray-400">
               Mint learning or admin tokens for another account. Admin scope only works
               if that user is already admin or moderator.
+            </p>
+            <p className="text-sm text-gray-400">
+              With an <span className="text-amber-200">admin</span> token in Claude or
+              ChatGPT you can fix attendance:{" "}
+              <code className="text-amber-200/90 text-xs">admin_list_users</code>{" "}
+              (search by email) →{" "}
+              <code className="text-amber-200/90 text-xs">admin_get_attendance</code> →{" "}
+              <code className="text-amber-200/90 text-xs">admin_set_attendance</code>
+              . Open or close the hackathon with{" "}
+              <code className="text-amber-200/90 text-xs">admin_update_hackathon_settings</code>{" "}
+              (submissionsOpen / votingOpen). Example: “Mark nayanrathece@gmail.com
+              attended for sept-2026-govern-thu” or “Open hackathon submissions.”
             </p>
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="text-sm space-y-1 sm:col-span-2">

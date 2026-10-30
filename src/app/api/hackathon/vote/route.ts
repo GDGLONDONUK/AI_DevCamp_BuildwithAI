@@ -21,6 +21,7 @@ import { verifyAuth, ok, err, isErrorResponse } from "@/lib/api-helpers";
 import { logServerRouteException } from "@/lib/server/appErrorLog";
 import { parseJsonBody } from "@/lib/api/parseJsonBody";
 import { DEVCAMP_HACKATHON_ID } from "@/lib/hackathon";
+import { readHackathonSettings } from "@/lib/server/hackathonSettings";
 import { isHackathonEligible } from "@/lib/hackathon/access";
 import {
   listVoteableProjects,
@@ -53,26 +54,12 @@ function budgetForRole(role: string): number {
 }
 
 async function readVotingSettings() {
-  const snap = await adminDb().collection("hackathonSettings").doc("main").get();
-  const data = snap.data() || {};
-  const winnersAnnounced = data.winnersAnnounced === true;
-  let votingOpen = data.votingOpen === true && !winnersAnnounced;
-  let message: string | undefined =
-    typeof data.votingMessage === "string" ? data.votingMessage : undefined;
-
-  const opens = data.votingOpensAt?.toDate?.() as Date | undefined;
-  const closes = data.votingClosesAt?.toDate?.() as Date | undefined;
-  const now = Date.now();
-  if (opens && now < opens.getTime()) {
-    votingOpen = false;
-    message = `Voting opens ${opens.toLocaleString("en-GB")}.`;
-  }
-  if (closes && now > closes.getTime()) {
-    votingOpen = false;
-    message = "Voting has closed.";
-  }
-
-  return { votingOpen, message, winnersAnnounced };
+  const settings = await readHackathonSettings();
+  return {
+    votingOpen: settings.votingOpen,
+    message: settings.votingMessage,
+    winnersAnnounced: settings.winnersAnnounced,
+  };
 }
 
 async function loadUserVotes(uid: string) {

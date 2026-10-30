@@ -22,7 +22,6 @@ import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
 import toast from "react-hot-toast";
 import { trackActivity } from "@/lib/activityApi";
-import { requestCodeReview } from "@/lib/codeReviewApi";
 
 type SubmitType = "assignment" | "project";
 
@@ -51,7 +50,7 @@ export default function SubmitPage() {
 
   useEffect(() => {
     if (!loading && !user) {
-      router.push("/");
+      router.push("/?login=1&redirect=%2Fsubmit");
     }
   }, [user, loading, router]);
 

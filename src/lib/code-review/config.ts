@@ -1,11 +1,11 @@
 /**
  * Code review for hackathon final projects — settings.
- * Safe to import from Node scripts (no `server-only`). Never import from client components:
- * it reads server-only keys.
+ * Shared by the background agent (`functions/`), the admin API and Node scripts, so it has
+ * no `server-only` or Next.js imports. Never import from client components: it reads keys.
  *
  * Env (server-only, never NEXT_PUBLIC_):
  *   CODE_REVIEW_GEMINI_API_KEY  — dedicated Gemini key (falls back to LEARNING_GEMINI_API_KEY)
- *   CODE_REVIEW_GEMINI_MODEL    — optional model id, or a comma-separated list to fall back through,
+ *   CODE_REVIEW_GEMINI_MODEL    — optional override: model id or comma-separated list to fall back through,
  *                                 e.g. "gemini-3.8-flash,gemini-3.5-flash" (find fast ones: npm run code-review:try -- --models)
  *   GITHUB_TOKEN                — read-only token; without it GitHub allows only 60 requests/hour
  *   CODE_REVIEW_THINKING        — optional Gemini 3 thinking level: minimal | low | medium (default low)
@@ -18,7 +18,8 @@ import { HACKATHON_EVENT } from "../hackathon";
 
 /** 31 Oct 2026 is after the clocks go back, so London time = UTC. */
 const DEFAULT_EVENT_START = `${HACKATHON_EVENT.cohortEndDateIso}T09:00:00Z`;
-const DEFAULT_DEADLINE = `${HACKATHON_EVENT.cohortEndDateIso}T16:00:00Z`;
+/** Same deadline the portal uses to close submissions. */
+const DEFAULT_DEADLINE = HACKATHON_EVENT.submissionClosesIso;
 
 export const CODE_REVIEW_LIMITS = {
   /** Largest repo download we accept (compressed). */
@@ -60,13 +61,13 @@ export function getCodeReviewGeminiApiKey(): string {
 }
 
 /** Models to try in order. If one is slow or busy, the review moves on to the next. */
+/** Fast, full-quality models first, a "lite" model as the last backup (tested Oct 2026). */
+const DEFAULT_MODELS = ["gemini-3.5-flash", "gemini-3.6-flash", "gemini-flash-lite-latest"];
+
 export function getCodeReviewGeminiModelIds(): string[] {
-  const raw =
-    process.env.CODE_REVIEW_GEMINI_MODEL?.trim() ||
-    process.env.LEARNING_GEMINI_MODEL?.trim() ||
-    "gemini-3.8-flash";
-  const ids = raw.split(",").map((m) => m.trim()).filter(Boolean);
-  return ids.length > 0 ? ids : ["gemini-3.8-flash"];
+  const raw = process.env.CODE_REVIEW_GEMINI_MODEL?.trim();
+  const ids = (raw ?? "").split(",").map((m) => m.trim()).filter(Boolean);
+  return ids.length > 0 ? ids : DEFAULT_MODELS;
 }
 
 export function getCodeReviewGeminiModelId(): string {

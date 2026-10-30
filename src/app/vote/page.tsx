@@ -65,7 +65,9 @@ export default function VotePage() {
   }, []);
 
   useEffect(() => {
-    if (!authLoading && !user) router.push("/?login=1");
+    if (!authLoading && !user) {
+      router.push("/?login=1&redirect=%2Fvote");
+    }
   }, [authLoading, user, router]);
 
   useEffect(() => {

@@ -79,7 +79,8 @@ async function handle(req: Request): Promise<Response> {
     sessionIdGenerator: undefined,
     enableJsonResponse: true,
   });
-  const server = createDevcampMcpServer();
+  const includeAdmin = caller.isAdmin && caller.scopes.includes("admin");
+  const server = createDevcampMcpServer({ includeAdmin });
 
   try {
     await server.connect(transport);

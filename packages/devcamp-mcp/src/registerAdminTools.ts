@@ -8,6 +8,12 @@ import {
   listMaterialsForCohort,
   upsertLearningMaterial,
 } from "../../../src/lib/learning-chat/materialsRepoCore";
+import { attendancePatchWithAudit } from "../../../src/lib/attendanceAudit";
+import { DEVCAMP_HACKATHON_ID } from "../../../src/lib/hackathon";
+import { sessionCohortId } from "../../../src/lib/server/sessionCohortAccess";
+import { readHackathonSettings } from "../../../src/lib/server/hackathonSettings";
+import { buildCohortCompletionReport } from "../../../src/lib/server/cohortCompletion";
+import { findUserCohortProject } from "../../../src/lib/server/programmeProjects";
 import { requireAdmin, resolveCaller } from "./auth";
 import { errResult, okResult } from "./json";
 import type { DocumentData, Query } from "firebase-admin/firestore";
@@ -40,33 +46,80 @@ function serializeDoc(id: string, data: DocumentData): Record<string, unknown> {
   return { id, ...data };
 }
 
+function compactUser(id: string, data: DocumentData): Record<string, unknown> {
+  return {
+    id,
+    uid: data.uid || id,
+    email: data.email ?? null,
+    displayName: data.displayName ?? null,
+    role: data.role ?? "attendee",
+    userStatus: data.userStatus ?? "pending",
+    cohortIds: Array.isArray(data.cohortIds) ? data.cohortIds : [],
+    activeCohortId: data.activeCohortId ?? null,
+    hackathonParticipant: data.hackathonParticipant === true,
+  };
+}
+
+async function resolveUserDoc(uidOrEmail: string) {
+  const db = adminDb();
+  const direct = await db.collection("users").doc(uidOrEmail).get();
+  if (direct.exists) return direct;
+  const email = uidOrEmail.trim();
+  if (!email.includes("@")) return null;
+  const lower = email.toLowerCase();
+  for (const value of [email, lower]) {
+    const q = await db.collection("users").where("email", "==", value).limit(1).get();
+    if (!q.empty) return q.docs[0];
+  }
+  return null;
+}
+
 export function registerAdminTools(server: McpServer): void {
+  // ── Users ──────────────────────────────────────────────────────────────
+
   server.registerTool(
-    "whoami",
+    "admin_cohort_completion",
     {
-      description: "Return the authenticated MCP caller (uid, email, role, cohort).",
-      inputSchema: {},
+      description:
+        "Admin/moderator only. PRIMARY tool for certification checks. Reads attendance from attendance/{uid} (NOT users.registeredSessions — that field is unused). Combines attendance + assignments (weekly labs) + projects (final/hackathon for the live cohort). Use this instead of admin_list_users. Default: min 6 counted sessions, skip cancelled Govern Saturday and upcoming 31 Oct hackathon.",
+      inputSchema: {
+        cohortId: z.string().optional(),
+        minSessions: z.number().int().min(1).max(20).optional(),
+        excludeCancelled: z.boolean().optional(),
+        excludeUpcoming: z.boolean().optional(),
+        includeStaff: z.boolean().optional(),
+        filter: z
+          .enum(["all", "meetsAll", "meetsAttendanceAndWork", "missingProject", "belowAttendance"])
+          .optional(),
+      },
       annotations: { readOnlyHint: true },
     },
-    async () => {
+    async (args) => {
       try {
         const caller = await resolveCaller();
+        requireAdmin(caller);
+        const report = await buildCohortCompletionReport({
+          cohortId: args.cohortId,
+          minSessions: args.minSessions,
+          excludeCancelled: args.excludeCancelled,
+          excludeUpcoming: args.excludeUpcoming,
+          includeStaff: args.includeStaff,
+        });
+        const filter = args.filter || "all";
+        let members = report.members;
+        if (filter === "meetsAll") members = members.filter((m) => m.meetsAll);
+        else if (filter === "meetsAttendanceAndWork") {
+          members = members.filter((m) => m.meetsAttendanceAndWork);
+        } else if (filter === "missingProject") {
+          members = members.filter((m) => m.meetsAttendanceAndWork && !m.meetsProject);
+        } else if (filter === "belowAttendance") {
+          members = members.filter((m) => !m.meetsAttendance);
+        }
         return okResult({
-          uid: caller.uid,
-          email: caller.email ?? null,
-          role: caller.role,
-          isAdmin: caller.isAdmin,
-          enrolled: caller.enrolled,
-          scopes: caller.scopes,
-          cohortId: caller.cohortId,
-          cohortIds: caller.cohortIds,
-          activeCohortDefault: await resolveActiveCohortIdFromDb(),
-          tiers: {
-            public: true,
-            attendee: caller.enrolled,
-            admin: caller.isAdmin && caller.scopes.includes("admin"),
-          },
-          dataSource: "firestore (not seed files)",
+          ...report,
+          filter,
+          members,
+          memberCount: members.length,
         });
       } catch (e) {
         return errResult(e instanceof Error ? e.message : String(e));
@@ -74,18 +127,19 @@ export function registerAdminTools(server: McpServer): void {
     }
   );
 
-  // ── Users ──────────────────────────────────────────────────────────────
-
   server.registerTool(
     "admin_list_users",
     {
       description:
-        "Admin/moderator only. List users (optional status + text search on name/email/handle). Caps at `limit` (default 40).",
+        "Admin/moderator only. Compact user list for the live cohort by default (not a 200-row createdAt slice). Does NOT include attendance — users.registeredSessions is unused. For attendance + labs + hackathon projects use admin_cohort_completion.",
       inputSchema: {
         status: userStatus.optional(),
         search: z.string().max(120).optional(),
-        limit: z.number().int().min(1).max(200).optional(),
-        cohortId: z.string().optional().describe("Filter users whose cohortIds includes this id"),
+        limit: z.number().int().min(1).max(2000).optional(),
+        cohortId: z
+          .string()
+          .optional()
+          .describe("Defaults to the live cohort. Pass 'all' for every user."),
       },
       annotations: { readOnlyHint: true },
     },
@@ -93,28 +147,32 @@ export function registerAdminTools(server: McpServer): void {
       try {
         const caller = await resolveCaller();
         requireAdmin(caller);
-        const cap = limit ?? 40;
-        let query: Query = adminDb().collection("users").orderBy("createdAt", "desc");
-        if (status) query = query.where("userStatus", "==", status);
-        const snap = await query.limit(Math.min(cap * 3, 500)).get();
-        let users = snap.docs.map((d) => serializeDoc(d.id, d.data()));
+        const cap = limit ?? 1000;
+        const live = await resolveActiveCohortIdFromDb();
+        const wantAll = cohortId === "all";
+        const cid = wantAll ? null : (cohortId || live);
+        let query: Query = adminDb().collection("users");
+        if (cid) query = query.where("cohortIds", "array-contains", cid);
+        const snap = await query.get();
+        let users = snap.docs.map((d) => compactUser(d.id, d.data()));
+        if (status) {
+          users = users.filter((u) => u.userStatus === status);
+        }
         const term = search?.toLowerCase().trim();
         if (term) {
           users = users.filter((u) => {
             const name = String(u.displayName ?? "").toLowerCase();
             const email = String(u.email ?? "").toLowerCase();
-            const handle = String(u.handle ?? "").toLowerCase();
-            return name.includes(term) || email.includes(term) || handle.includes(term);
-          });
-        }
-        if (cohortId) {
-          users = users.filter((u) => {
-            const ids = u.cohortIds;
-            return Array.isArray(ids) && ids.includes(cohortId);
+            return name.includes(term) || email.includes(term);
           });
         }
         users = users.slice(0, cap);
-        return okResult({ count: users.length, users });
+        return okResult({
+          count: users.length,
+          cohortId: cid,
+          note: "Attendance is not on the user doc. Use admin_cohort_completion or admin_get_attendance.",
+          users,
+        });
       } catch (e) {
         return errResult(e instanceof Error ? e.message : String(e));
       }
@@ -124,9 +182,13 @@ export function registerAdminTools(server: McpServer): void {
   server.registerTool(
     "admin_get_user",
     {
-      description: "Admin/moderator only. Get one user profile by uid or email document id.",
+      description:
+        "Admin/moderator only. Get a user by uid or email, plus attendance/{uid} session marks and current-cohort project. Do not use users.registeredSessions.",
       inputSchema: {
-        uid: z.string().min(1).describe("Firestore users document id (Auth uid or email for pending)"),
+        uid: z
+          .string()
+          .min(1)
+          .describe("Firebase uid or email"),
       },
       annotations: { readOnlyHint: true },
     },
@@ -134,9 +196,37 @@ export function registerAdminTools(server: McpServer): void {
       try {
         const caller = await resolveCaller();
         requireAdmin(caller);
-        const snap = await adminDb().collection("users").doc(uid).get();
-        if (!snap.exists) return errResult(`User not found: ${uid}`);
-        return okResult(serializeDoc(snap.id, snap.data()!));
+        const snap = await resolveUserDoc(uid);
+        if (!snap) return errResult(`User not found: ${uid}`);
+        const data = snap.data()!;
+        const live = await resolveActiveCohortIdFromDb();
+        const [attSnap, project] = await Promise.all([
+          adminDb().collection("attendance").doc(snap.id).get(),
+          findUserCohortProject(snap.id, live),
+        ]);
+        const attendance = attSnap.exists
+          ? serializeDoc(attSnap.id, attSnap.data()!)
+          : {};
+        const sessionKeys = Object.entries(attendance).filter(
+          ([k, v]) => k !== "id" && k !== "sessionAttendanceAudit" && k !== "updatedAt" && v === true
+        );
+        return okResult({
+          user: compactUser(snap.id, data),
+          attendance,
+          attendanceSessionCount: sessionKeys.length,
+          attendedSessionIds: sessionKeys.map(([k]) => k),
+          currentCohortId: live,
+          project: project
+            ? {
+                id: project.id,
+                title: project.title,
+                status: project.status,
+                cohortId: project.cohortId ?? null,
+                hackathonId: project.hackathonId ?? null,
+              }
+            : null,
+          note: "Attendance is attendance/{uid}. users.registeredSessions is unused.",
+        });
       } catch (e) {
         return errResult(e instanceof Error ? e.message : String(e));
       }
@@ -291,18 +381,121 @@ export function registerAdminTools(server: McpServer): void {
     }
   );
 
+  // ── Attendance ─────────────────────────────────────────────────────────
+
+  server.registerTool(
+    "admin_get_attendance",
+    {
+      description:
+        "Admin/moderator only. Platform attendance for one person: Firestore attendance/{uid} with per-session booleans (self check-in / admin). Accepts uid or email. This is the source of truth — not Luma and not users.registeredSessions.",
+      inputSchema: {
+        uid: z.string().min(1).describe("Firebase Auth uid or email"),
+      },
+      annotations: { readOnlyHint: true },
+    },
+    async ({ uid }) => {
+      try {
+        const caller = await resolveCaller();
+        requireAdmin(caller);
+        const user = await resolveUserDoc(uid);
+        const attUid = user?.id || uid;
+        const snap = await adminDb().collection("attendance").doc(attUid).get();
+        return okResult({
+          uid: attUid,
+          email: user?.data()?.email ?? null,
+          exists: snap.exists,
+          source: "firestore attendance/{uid}",
+          attendance: snap.exists ? serializeDoc(snap.id, snap.data()!) : {},
+        });
+      } catch (e) {
+        return errResult(e instanceof Error ? e.message : String(e));
+      }
+    }
+  );
+
+  server.registerTool(
+    "admin_set_attendance",
+    {
+      description:
+        "Admin/moderator only. Mark one session attended/not for a user (same as PATCH /api/attendance/[uid]). Writes sessionAttendanceAudit with source admin. Skips cancelled sessions unless force=true.",
+      inputSchema: {
+        uid: z.string().min(1),
+        sessionId: z.string().min(1),
+        attended: z.boolean(),
+        force: z
+          .boolean()
+          .optional()
+          .describe("Allow marking cancelled sessions (e.g. sept-2026-govern-sat)"),
+      },
+      annotations: { destructiveHint: true },
+    },
+    async ({ uid, sessionId, attended, force }) => {
+      try {
+        const caller = await resolveCaller();
+        requireAdmin(caller);
+
+        const userSnap = await adminDb().collection("users").doc(uid).get();
+        if (!userSnap.exists) return errResult(`User not found: ${uid}`);
+
+        const sessionSnap = await adminDb().collection("sessions").doc(sessionId).get();
+        if (!sessionSnap.exists) return errResult(`Session not found: ${sessionId}`);
+        const sessionData = sessionSnap.data()!;
+        const title = String(sessionData.title ?? "");
+        const tags = Array.isArray(sessionData.tags)
+          ? sessionData.tags.map(String)
+          : [];
+        const cancelled =
+          tags.some((t) => t.toLowerCase() === "cancelled") ||
+          /cancelled/i.test(title);
+        if (cancelled && !force) {
+          return errResult(
+            `Session ${sessionId} looks cancelled — pass force=true to mark anyway`
+          );
+        }
+        const cohortId = sessionCohortId(sessionData);
+
+        const ref = adminDb().collection("attendance").doc(uid);
+        const existing = await ref.get();
+        const existingData = existing.exists
+          ? (existing.data() as Record<string, unknown>)
+          : undefined;
+
+        await ref.set(
+          {
+            ...attendancePatchWithAudit(sessionId, attended, caller.uid, "admin", existingData, {
+              cohortId,
+            }),
+            updatedAt: FieldValue.serverTimestamp(),
+          },
+          { merge: true }
+        );
+
+        const updated = await ref.get();
+        return okResult({
+          uid,
+          sessionId,
+          attended,
+          cohortId,
+          attendance: updated.exists ? serializeDoc(updated.id, updated.data()!) : {},
+        });
+      } catch (e) {
+        return errResult(e instanceof Error ? e.message : String(e));
+      }
+    }
+  );
+
   // ── Assignments ────────────────────────────────────────────────────────
 
   server.registerTool(
     "admin_list_assignments",
     {
       description:
-        "Admin/moderator only. List assignments; filter by userId, sessionId, or status. Caps at `limit`.",
+        "Admin/moderator only. Weekly lab/session assignments (Build/Scale/Govern/Optimise). NOT the hackathon final — that is projects/ via admin_list_projects or admin_cohort_completion. Caps at `limit`.",
       inputSchema: {
         userId: z.string().optional(),
         sessionId: z.string().optional(),
         status: assignmentStatus.optional(),
-        limit: z.number().int().min(1).max(200).optional(),
+        limit: z.number().int().min(1).max(1000).optional(),
       },
       annotations: { readOnlyHint: true },
     },
@@ -310,7 +503,7 @@ export function registerAdminTools(server: McpServer): void {
       try {
         const caller = await resolveCaller();
         requireAdmin(caller);
-        const cap = limit ?? 50;
+        const cap = limit ?? 500;
         let query: Query = adminDb().collection("assignments");
         if (userId) query = query.where("userId", "==", userId);
         else if (sessionId) query = query.where("sessionId", "==", sessionId);
@@ -323,7 +516,75 @@ export function registerAdminTools(server: McpServer): void {
         if (status && (userId || sessionId)) {
           assignments = assignments.filter((a) => a.status === status);
         }
-        return okResult({ count: assignments.length, assignments });
+        return okResult({
+          count: assignments.length,
+          kind: "weekly_labs",
+          note: "These are session assignments, not hackathon finals. Finals are projects/.",
+          assignments,
+        });
+      } catch (e) {
+        return errResult(e instanceof Error ? e.message : String(e));
+      }
+    }
+  );
+
+  server.registerTool(
+    "admin_list_projects",
+    {
+      description:
+        "Admin/moderator only. Final / hackathon projects for the live cohort (projects collection, tagged cohortId + hackathonId). Not weekly lab assignments.",
+      inputSchema: {
+        cohortId: z.string().optional(),
+        userId: z.string().optional(),
+        status: z.string().max(40).optional(),
+        limit: z.number().int().min(1).max(500).optional(),
+      },
+      annotations: { readOnlyHint: true },
+    },
+    async ({ cohortId, userId, status, limit }) => {
+      try {
+        const caller = await resolveCaller();
+        requireAdmin(caller);
+        const live = cohortId || (await resolveActiveCohortIdFromDb());
+        const cap = limit ?? 300;
+        const db = adminDb();
+        let docs;
+        if (userId) {
+          docs = (await db.collection("projects").where("userId", "==", userId).get()).docs;
+        } else {
+          const [byHack, byCohort] = await Promise.all([
+            db.collection("projects").where("hackathonId", "==", DEVCAMP_HACKATHON_ID).get(),
+            db.collection("projects").where("cohortId", "==", live).get(),
+          ]);
+          const map = new Map(byHack.docs.map((d) => [d.id, d]));
+          for (const d of byCohort.docs) map.set(d.id, d);
+          docs = [...map.values()];
+        }
+        let projects = docs.map((d) => {
+          const data = d.data();
+          return {
+            id: d.id,
+            userId: data.userId,
+            userName: data.userName,
+            title: data.title,
+            status: data.status,
+            cohortId: data.cohortId ?? null,
+            hackathonId: data.hackathonId ?? null,
+            githubUrl: data.githubUrl ?? "",
+            demoUrl: data.demoUrl ?? "",
+          };
+        });
+        if (status) projects = projects.filter((p) => p.status === status);
+        projects = projects.filter(
+          (p) => p.cohortId === live || p.hackathonId === DEVCAMP_HACKATHON_ID
+        );
+        projects = projects.slice(0, cap);
+        return okResult({
+          cohortId: live,
+          hackathonId: DEVCAMP_HACKATHON_ID,
+          count: projects.length,
+          projects,
+        });
       } catch (e) {
         return errResult(e instanceof Error ? e.message : String(e));
       }
@@ -457,6 +718,72 @@ export function registerAdminTools(server: McpServer): void {
           caller.uid
         );
         return okResult(saved);
+      } catch (e) {
+        return errResult(e instanceof Error ? e.message : String(e));
+      }
+    }
+  );
+
+  // ── Hackathon settings ─────────────────────────────────────────────────
+
+  server.registerTool(
+    "admin_get_hackathon_settings",
+    {
+      description:
+        "Admin/moderator only. Current Agentic Hackathon flags (submissionsOpen, votingOpen) from hackathonSettings/main.",
+      inputSchema: {},
+      annotations: { readOnlyHint: true },
+    },
+    async () => {
+      try {
+        const caller = await resolveCaller();
+        requireAdmin(caller);
+        const settings = await readHackathonSettings();
+        return okResult({ hackathonId: DEVCAMP_HACKATHON_ID, ...settings });
+      } catch (e) {
+        return errResult(e instanceof Error ? e.message : String(e));
+      }
+    }
+  );
+
+  server.registerTool(
+    "admin_update_hackathon_settings",
+    {
+      description:
+        "Admin/moderator only. Open/close project submissions and/or audience voting. Example: submissionsOpen=true so attendees can submit on /hackathon/my-projects.",
+      inputSchema: {
+        submissionsOpen: z.boolean().optional(),
+        votingOpen: z.boolean().optional(),
+        votingMessage: z.string().max(500).optional(),
+        winnersAnnounced: z.boolean().optional(),
+      },
+      annotations: { destructiveHint: true },
+    },
+    async (args) => {
+      try {
+        const caller = await resolveCaller();
+        requireAdmin(caller);
+        const { submissionsOpen, votingOpen, votingMessage, winnersAnnounced } = args;
+        if (
+          submissionsOpen === undefined &&
+          votingOpen === undefined &&
+          votingMessage === undefined &&
+          winnersAnnounced === undefined
+        ) {
+          return errResult("Pass submissionsOpen and/or votingOpen");
+        }
+        const payload: Record<string, unknown> = {
+          hackathonId: DEVCAMP_HACKATHON_ID,
+          updatedAt: FieldValue.serverTimestamp(),
+          updatedBy: caller.uid,
+        };
+        if (submissionsOpen !== undefined) payload.submissionsOpen = submissionsOpen;
+        if (votingOpen !== undefined) payload.votingOpen = votingOpen;
+        if (votingMessage !== undefined) payload.votingMessage = votingMessage;
+        if (winnersAnnounced !== undefined) payload.winnersAnnounced = winnersAnnounced;
+        await adminDb().collection("hackathonSettings").doc("main").set(payload, { merge: true });
+        const settings = await readHackathonSettings();
+        return okResult({ updated: true, hackathonId: DEVCAMP_HACKATHON_ID, ...settings });
       } catch (e) {
         return errResult(e instanceof Error ? e.message : String(e));
       }

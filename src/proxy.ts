@@ -50,8 +50,6 @@ const PROTECTED_ROUTES = [
   "/buddies",
   "/mcp",
   "/faq",
-  "/vote",
-  "/hackathon/my-projects",
 ];
 const ADMIN_ROUTES     = ["/admin"];
 
