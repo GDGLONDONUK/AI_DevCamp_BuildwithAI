@@ -126,3 +126,76 @@ export function pickBestCertifierCredential(
   const pool = issued.length > 0 ? issued : list;
   return pool[0] ?? null;
 }
+
+export function certifierGroupId(): string {
+  const g = process.env.CERTIFIER_GROUP_ID?.trim();
+  if (!g) {
+    throw new Error(
+      "CERTIFIER_GROUP_ID is not configured (Certifier credential template / group id)"
+    );
+  }
+  return g;
+}
+
+function toSummary(
+  raw: {
+    id?: string;
+    publicId?: string;
+    status?: string;
+    recipient?: { name?: string; email?: string };
+    issueDate?: string;
+  },
+  fallbackEmail: string
+): CertifierCredentialSummary | null {
+  if (!raw.id || !raw.publicId) return null;
+  return {
+    id: raw.id,
+    publicId: raw.publicId,
+    status: raw.status ?? "issued",
+    recipientEmail: raw.recipient?.email ?? fallbackEmail,
+    recipientName: raw.recipient?.name ?? "",
+    issueDate: raw.issueDate,
+    viewUrl: certifierCredentialViewUrl(raw.publicId),
+  };
+}
+
+/**
+ * Create, issue, and email a credential (counts against the Certifier annual quota).
+ * Docs: https://developers.certifier.io/docs/api-reference/credentials/create-issue-and-send-a-credential
+ */
+export async function createIssueSendCredential(opts: {
+  groupId: string;
+  name: string;
+  email: string;
+  issueDate?: string;
+}): Promise<CertifierCredentialSummary> {
+  const email = opts.email.trim().toLowerCase();
+  const name = opts.name.trim() || email.split("@")[0] || "Attendee";
+  const json = await certifierFetch<
+    | {
+        id?: string;
+        publicId?: string;
+        status?: string;
+        recipient?: { name?: string; email?: string };
+        issueDate?: string;
+        data?: {
+          id?: string;
+          publicId?: string;
+          status?: string;
+          recipient?: { name?: string; email?: string };
+          issueDate?: string;
+        };
+      }
+  >("/credentials/create-issue-send", {
+    method: "POST",
+    body: JSON.stringify({
+      groupId: opts.groupId,
+      recipient: { name, email },
+      issueDate: opts.issueDate || new Date().toISOString().slice(0, 10),
+    }),
+  });
+  const raw = json.data ?? json;
+  const summary = toSummary(raw, email);
+  if (!summary) throw new Error("Certifier did not return a credential id");
+  return summary;
+}
