@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Bundled output of the background code review agent.
+    "functions/lib/**",
   ]),
 ]);
 

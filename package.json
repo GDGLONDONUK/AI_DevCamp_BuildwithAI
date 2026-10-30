@@ -30,6 +30,8 @@
     "seed-learning-task-templates": "tsx --env-file=.env.local scripts/seed-learning-task-templates-cohort.ts",
     "fix-organiser-admins": "tsx --env-file=.env.local scripts/fix-organiser-admins.ts",
     "code-review:try": "tsx --env-file=.env.local scripts/try-code-review.ts",
+    "functions:build": "npm --prefix functions run build",
+    "emulators": "npm --prefix functions run build && firebase emulators:start --project demo-aidevcamp --only auth,firestore,functions --export-on-exit=.emulator-data $(test -f .emulator-data/firebase-export-metadata.json && echo --import=.emulator-data)",
     "mcp:devcamp": "tsx --env-file=.env.local packages/devcamp-mcp/src/index.ts",
     "mcp:http": "tsx --env-file=.env.local packages/devcamp-mcp/src/http.ts",
     "mcp:mint-token": "tsx --env-file=.env.local scripts/mcp-mint-id-token.ts",

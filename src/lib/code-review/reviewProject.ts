@@ -46,6 +46,7 @@ export interface ReviewInput {
   title: string;
   description: string;
   techStack: string[];
+  demoUrl?: string;
 }
 
 export interface ReviewOptions {
@@ -142,7 +143,7 @@ async function writeWithGemini(prompt: string): Promise<{ written: CodeReviewWri
   }
 
   if (lastError === null || isTimeout(lastError)) {
-    throw new Error("Writing the review took too long. The checks above are complete; try “Review again”.");
+    throw new Error("Writing the summary took too long.");
   }
   throw lastError;
 }

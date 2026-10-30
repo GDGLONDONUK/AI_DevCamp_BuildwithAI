@@ -1,22 +1,22 @@
-import "server-only";
-
 /**
- * Code review queue in Firestore (Admin SDK only — all three collections are server-only).
+ * Code review queue in Firestore. All three collections are server-only (Admin SDK).
  *
  *   projectCodeReviews/{projectId}       status + last finished review
  *   projectCodeFingerprints/{projectId}  code fingerprints, to spot copying between projects
- *   codeReviewMeta/queue                 a few "slots" so only N reviews run at once site-wide
+ *   codeReviewMeta/queue                 a few "slots" so only N reviews run at once
  *
- * Submitting a project never waits for a review. Work is picked up by `drainCodeReviewQueue()`,
- * which API routes run in `after()` — on submit, on "Review again", and whenever an admin
- * views the projects list. A review that dies mid-way (function timeout) frees its slot when
- * its lease runs out and is picked up again.
+ * The work runs in the background agent (`functions/`), never in the website:
+ *   - a team ships a project            → `enqueueCodeReview()` (Firestore trigger on projects)
+ *   - a review is queued                → `drainCodeReviewQueue()` (Firestore trigger on reviews)
+ *   - every few minutes                 → `queueMissingCodeReviews()` + drain (scheduled sweep)
+ * The admin API only reads reviews and queues "Review again".
+ *
+ * Shared with Node scripts and the website, so it takes the Firestore instance as an argument
+ * and has no `server-only` or Next.js imports.
  */
 
-import { FieldPath, Timestamp } from "firebase-admin/firestore";
-import { adminDb } from "@/lib/firebase-admin";
-import { logServerRouteException } from "@/lib/server/appErrorLog";
-import { CODE_REVIEW_LIMITS, formatCodeReviewError, getEventWindow } from "./config";
+import { FieldPath, type Firestore } from "firebase-admin/firestore";
+import { CODE_REVIEW_LIMITS, formatCodeReviewError } from "./config";
 import { GitHubReadError } from "./github";
 import type { FingerprintPeer } from "./checks";
 import { isCodeReviewBusyError, reviewProject } from "./reviewProject";
@@ -25,39 +25,65 @@ import type { CodeReviewListItem, ProjectCodeReview } from "./schema";
 export const CODE_REVIEWS_COLLECTION = "projectCodeReviews";
 export const CODE_FINGERPRINTS_COLLECTION = "projectCodeFingerprints";
 const QUEUE_DOC = "codeReviewMeta/queue";
-const SWEEP_DOC = "codeReviewMeta/sweep";
-/** How often the admin list may look for projects that were never queued. */
-const SWEEP_EVERY_MS = 2 * 60_000;
 
 /** Wait before retrying a job after GitHub/Gemini said "busy". */
 const RETRY_DELAY_MS = 60_000;
-/** Don't start another review in this invocation unless this much time is left. */
+/** Don't start another review in this run unless this much time is left. */
 const JOB_HEADROOM_MS = 150_000;
 
-interface StoredReview extends ProjectCodeReview {
+/** Statuses that mean the team has shipped their project (drafts are never reviewed). */
+const SHIPPED_STATUSES = new Set(["submitted", "reviewed", "shortlisted", "winner", "passed"]);
+
+export interface StoredReview extends ProjectCodeReview {
   queuedAtMs?: number;
   notBeforeMs?: number;
   leaseUntilMs?: number;
+  /** Set when the team re-ships while a review is running: review again when it finishes. */
+  rerunRequested?: boolean;
 }
+
+export type QueueLogger = (context: string, error: unknown) => void;
 
 type Slots = Record<string, { projectId: string; until: number }>;
 
-const reviews = () => adminDb().collection(CODE_REVIEWS_COLLECTION);
+const reviews = (db: Firestore) => db.collection(CODE_REVIEWS_COLLECTION);
 
 /** Firestore rejects `undefined`; a JSON round trip drops it. */
 function clean<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
+// ── When a project should be reviewed ────────────────────────────────────────
+
+type ProjectData = Record<string, unknown> | undefined;
+
+function millis(v: unknown): number {
+  const t = v as { toMillis?: () => number } | undefined;
+  return typeof t?.toMillis === "function" ? t.toMillis() : 0;
+}
+
+/**
+ * True when this write to `projects/{id}` needs a (new) review: the project was just shipped,
+ * its GitHub link changed, or it was shipped again. Votes and status changes by admins don't count.
+ */
+export function projectNeedsReview(before: ProjectData, after: ProjectData): boolean {
+  if (!after) return false;
+  const repo = String(after.githubUrl ?? "").trim();
+  if (!repo || !SHIPPED_STATUSES.has(String(after.status ?? ""))) return false;
+  if (!before || !SHIPPED_STATUSES.has(String(before.status ?? ""))) return true;
+  if (String(before.githubUrl ?? "").trim() !== repo) return true;
+  return millis(before.submittedAt) !== millis(after.submittedAt);
+}
+
 // ── Enqueue ──────────────────────────────────────────────────────────────────
 
 export async function enqueueCodeReview(
+  db: Firestore,
   projectId: string,
   opts: { force?: boolean } = {}
 ): Promise<ProjectCodeReview["status"] | "no-project"> {
-  const db = adminDb();
   const projectRef = db.collection("projects").doc(projectId);
-  const reviewRef = reviews().doc(projectId);
+  const reviewRef = reviews(db).doc(projectId);
 
   return db.runTransaction(async (tx) => {
     const [projectSnap, reviewSnap] = await Promise.all([tx.get(projectRef), tx.get(reviewRef)]);
@@ -68,16 +94,30 @@ export async function enqueueCodeReview(
     const now = Date.now();
 
     if (!repoUrl) {
-      tx.set(reviewRef, clean({ projectId, repoUrl: "", status: "failed", result: existing?.result ?? null, error: "No GitHub link in this submission.", attempts: 0, finishedAt: new Date(now).toISOString() }));
+      tx.set(reviewRef, clean({
+        projectId,
+        repoUrl: "",
+        status: "failed",
+        result: existing?.result ?? null,
+        error: "No GitHub link in this submission.",
+        attempts: 0,
+        finishedAt: new Date(now).toISOString(),
+      }));
       return "failed";
     }
 
     if (existing && !opts.force) {
-      const busy = existing.status === "queued" || existing.status === "running";
-      if (busy || existing.status === "ready") return existing.status;
+      if (existing.status === "queued" || existing.status === "running" || existing.status === "ready") {
+        return existing.status;
+      }
     }
     if (existing?.status === "running" && (existing.leaseUntilMs ?? 0) > now) {
-      return "running"; // already being reviewed right now
+      // Already reading the code: read it again once this review finishes.
+      tx.update(reviewRef, { rerunRequested: true });
+      return "running";
+    }
+    if (existing?.status === "queued" && (existing.notBeforeMs ?? 0) <= now) {
+      return "queued";
     }
 
     tx.set(reviewRef, clean({
@@ -89,6 +129,7 @@ export async function enqueueCodeReview(
       queuedAt: new Date(now).toISOString(),
       queuedAtMs: now,
       notBeforeMs: 0,
+      rerunRequested: false,
       startedAt: existing?.startedAt,
       finishedAt: existing?.finishedAt,
     } satisfies StoredReview));
@@ -97,38 +138,24 @@ export async function enqueueCodeReview(
 }
 
 /**
- * Queue projects submitted for the hackathon that have a GitHub link but no review yet.
- * Catches anything the submit page failed to queue (closed tab, network blip).
+ * Queue shipped hackathon projects that have a GitHub link but no review yet.
+ * Catches anything a trigger missed (deploy during the event, a dropped event).
  */
-export async function queueMissingCodeReviews(): Promise<number> {
-  const db = adminDb();
-  const since = new Date(getEventWindow().start.getTime() - 12 * 3_600_000);
+export async function queueMissingCodeReviews(db: Firestore, hackathonId: string): Promise<number> {
   const projects = await db
     .collection("projects")
-    .where("submittedAt", ">=", Timestamp.fromDate(since))
-    .select("githubUrl")
+    .where("hackathonId", "==", hackathonId)
+    .select("githubUrl", "status")
     .get();
-  const withRepo = projects.docs.filter((d) => String(d.get("githubUrl") ?? "").trim());
-  if (withRepo.length === 0) return 0;
+  const shipped = projects.docs.filter(
+    (d) => String(d.get("githubUrl") ?? "").trim() && SHIPPED_STATUSES.has(String(d.get("status") ?? ""))
+  );
+  if (shipped.length === 0) return 0;
 
-  const refs = withRepo.map((d) => reviews().doc(d.id));
-  const existing = await db.getAll(...refs, { fieldMask: ["status"] });
-  const missing = withRepo.filter((_, i) => !existing[i].exists);
-  for (const d of missing) await enqueueCodeReview(d.id);
+  const existing = await db.getAll(...shipped.map((d) => reviews(db).doc(d.id)), { fieldMask: ["status"] });
+  const missing = shipped.filter((_, i) => !existing[i].exists);
+  for (const d of missing) await enqueueCodeReview(db, d.id);
   return missing.length;
-}
-
-/** `queueMissingCodeReviews()` at most every couple of minutes, however often admins poll. */
-export async function maybeQueueMissingCodeReviews(): Promise<number> {
-  const db = adminDb();
-  const ref = db.doc(SWEEP_DOC);
-  const due = await db.runTransaction(async (tx) => {
-    const last = ((await tx.get(ref)).data()?.lastSweepMs as number | undefined) ?? 0;
-    if (Date.now() - last < SWEEP_EVERY_MS) return false;
-    tx.set(ref, { lastSweepMs: Date.now() });
-    return true;
-  });
-  return due ? queueMissingCodeReviews() : 0;
 }
 
 // ── Claim / release a slot ───────────────────────────────────────────────────
@@ -139,13 +166,11 @@ interface Job {
   attempts: number;
 }
 
-async function claimNextJob(): Promise<Job | null> {
-  const db = adminDb();
+async function claimNextJob(db: Firestore): Promise<Job | null> {
   const now = Date.now();
-
   const [queued, running] = await Promise.all([
-    reviews().where("status", "==", "queued").limit(50).get(),
-    reviews().where("status", "==", "running").limit(50).get(),
+    reviews(db).where("status", "==", "queued").limit(50).get(),
+    reviews(db).where("status", "==", "running").limit(50).get(),
   ]);
   const candidates = [
     ...queued.docs.filter((d) => ((d.data() as StoredReview).notBeforeMs ?? 0) <= now),
@@ -192,6 +217,7 @@ async function claimNextJob(): Promise<Job | null> {
         startedAt: new Date(t).toISOString(),
         leaseUntilMs: until,
         attempts: (data.attempts ?? 0) + 1,
+        rerunRequested: false,
       });
       return { projectId: snap.id, slot: free, attempts: (data.attempts ?? 0) + 1 };
     });
@@ -202,8 +228,7 @@ async function claimNextJob(): Promise<Job | null> {
   return null;
 }
 
-async function releaseSlot(job: Job): Promise<void> {
-  const db = adminDb();
+async function releaseSlot(db: Firestore, job: Job): Promise<void> {
   const queueRef = db.doc(QUEUE_DOC);
   await db.runTransaction(async (tx) => {
     const snap = await tx.get(queueRef);
@@ -216,8 +241,8 @@ async function releaseSlot(job: Job): Promise<void> {
 
 // ── Run one job ──────────────────────────────────────────────────────────────
 
-async function loadPeers(projectId: string): Promise<FingerprintPeer[]> {
-  const snap = await adminDb().collection(CODE_FINGERPRINTS_COLLECTION).get();
+async function loadPeers(db: Firestore, projectId: string): Promise<FingerprintPeer[]> {
+  const snap = await db.collection(CODE_FINGERPRINTS_COLLECTION).get();
   return snap.docs
     .filter((d) => d.id !== projectId)
     .map((d) => ({
@@ -229,9 +254,8 @@ async function loadPeers(projectId: string): Promise<FingerprintPeer[]> {
     }));
 }
 
-async function runJob(job: Job): Promise<void> {
-  const db = adminDb();
-  const reviewRef = reviews().doc(job.projectId);
+async function runJob(db: Firestore, job: Job, log: QueueLogger): Promise<void> {
+  const reviewRef = reviews(db).doc(job.projectId);
   try {
     const project = await db.collection("projects").doc(job.projectId).get();
     if (!project.exists) {
@@ -244,9 +268,10 @@ async function runJob(job: Job): Promise<void> {
       title: String(p.title ?? ""),
       description: String(p.description ?? ""),
       techStack: Array.isArray(p.techStack) ? (p.techStack as string[]) : [],
+      demoUrl: String(p.demoUrl ?? ""),
     };
 
-    const outcome = await reviewProject(input, { peers: await loadPeers(job.projectId) });
+    const outcome = await reviewProject(input, { peers: await loadPeers(db, job.projectId) });
 
     await db.collection(CODE_FINGERPRINTS_COLLECTION).doc(job.projectId).set({
       projectId: job.projectId,
@@ -257,28 +282,29 @@ async function runJob(job: Job): Promise<void> {
       updatedAt: new Date().toISOString(),
     });
 
-    // If someone pressed "Review again" while this ran, keep it queued so the newest code is read.
+    // If the team re-shipped (or an admin pressed "Review again") meanwhile, queue it again.
     await db.runTransaction(async (tx) => {
       const current = (await tx.get(reviewRef)).data() as StoredReview | undefined;
-      const requeued = current?.status === "queued";
+      const again = current?.rerunRequested === true || current?.status === "queued";
+      const now = Date.now();
       tx.set(reviewRef, clean({
         ...current,
         projectId: job.projectId,
         repoUrl: input.repoUrl,
-        status: requeued ? "queued" : "ready",
+        status: again ? "queued" : "ready",
         result: outcome.result,
         error: null,
-        attempts: requeued ? 0 : job.attempts,
-        finishedAt: new Date().toISOString(),
+        attempts: again ? 0 : job.attempts,
+        finishedAt: new Date(now).toISOString(),
         leaseUntilMs: 0,
+        rerunRequested: false,
+        ...(again && { queuedAt: new Date(now).toISOString(), queuedAtMs: now, notBeforeMs: 0 }),
       }));
     });
   } catch (e) {
     const retryable = (e instanceof GitHubReadError && e.retryable) || isCodeReviewBusyError(e);
     const message = e instanceof GitHubReadError ? e.message : formatCodeReviewError(e);
-    if (!(e instanceof GitHubReadError) || retryable) {
-      logServerRouteException(`code-review ${job.projectId}`, e);
-    }
+    if (!(e instanceof GitHubReadError) || retryable) log(`code-review ${job.projectId}`, e);
     const giveUp = !retryable || job.attempts >= CODE_REVIEW_LIMITS.maxAttempts;
     await reviewRef.update({
       status: giveUp ? "failed" : "queued",
@@ -288,18 +314,22 @@ async function runJob(job: Job): Promise<void> {
       ...(giveUp && { finishedAt: new Date().toISOString() }),
     });
   } finally {
-    await releaseSlot(job).catch(() => undefined);
+    await releaseSlot(db, job).catch(() => undefined);
   }
 }
 
 /** Review queued projects until the queue is empty, all slots are busy, or time runs out. */
-export async function drainCodeReviewQueue(budgetMs = 280_000): Promise<number> {
+export async function drainCodeReviewQueue(
+  db: Firestore,
+  opts: { budgetMs: number; log?: QueueLogger }
+): Promise<number> {
+  const log = opts.log ?? ((context, e) => console.error(context, e));
   const started = Date.now();
   let done = 0;
-  while (Date.now() - started < budgetMs - JOB_HEADROOM_MS) {
-    const job = await claimNextJob();
+  while (Date.now() - started < opts.budgetMs - JOB_HEADROOM_MS) {
+    const job = await claimNextJob(db);
     if (!job) break;
-    await runJob(job);
+    await runJob(db, job, log);
     done++;
   }
   return done;
@@ -307,33 +337,28 @@ export async function drainCodeReviewQueue(budgetMs = 280_000): Promise<number> 
 
 // ── Reads for the admin UI ───────────────────────────────────────────────────
 
-export async function getCodeReview(projectId: string): Promise<ProjectCodeReview | null> {
-  const snap = await reviews().doc(projectId).get();
+export async function getCodeReview(db: Firestore, projectId: string): Promise<ProjectCodeReview | null> {
+  const snap = await reviews(db).doc(projectId).get();
   if (!snap.exists) return null;
   const data = { ...(snap.data() as StoredReview) };
   delete data.queuedAtMs;
   delete data.notBeforeMs;
   delete data.leaseUntilMs;
+  delete data.rerunRequested;
   return data;
 }
 
-export async function listCodeReviews(): Promise<{ items: CodeReviewListItem[]; needsWork: boolean }> {
-  const snap = await reviews()
-    .select("status", "notBeforeMs", "leaseUntilMs", new FieldPath("result", "checks"), new FieldPath("result", "written", "agent", "kind"))
+export async function listCodeReviews(db: Firestore): Promise<CodeReviewListItem[]> {
+  const snap = await reviews(db)
+    .select("status", new FieldPath("result", "checks"), new FieldPath("result", "written", "agentKind"))
     .get();
-  const now = Date.now();
-  let needsWork = false;
-  const items = snap.docs.map((d) => {
-    const status = d.get("status") as ProjectCodeReview["status"];
-    if (status === "queued" && ((d.get("notBeforeMs") as number) ?? 0) <= now) needsWork = true;
-    if (status === "running" && ((d.get("leaseUntilMs") as number) ?? 0) < now) needsWork = true;
+  return snap.docs.map((d) => {
     const checks = (d.get("result.checks") as { level: string; title: string }[] | undefined) ?? [];
     return {
       projectId: d.id,
-      status,
+      status: d.get("status") as ProjectCodeReview["status"],
       lookCloser: checks.filter((c) => c.level === "look").map((c) => c.title),
-      agentKind: d.get("result.written.agent.kind") as CodeReviewListItem["agentKind"],
+      agentKind: d.get("result.written.agentKind") as CodeReviewListItem["agentKind"],
     };
   });
-  return { items, needsWork };
 }

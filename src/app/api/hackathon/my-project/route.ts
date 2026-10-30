@@ -47,6 +47,8 @@ export async function GET(req: NextRequest) {
         ...toPublicProjectCard(existing.id, existing),
         userId: auth.uid,
         weekCompleted: Number(existing.weekCompleted) || 4,
+        /** When the team last shipped (ISO), for the confirmation on My project. */
+        shippedAt: typeof existing.submittedAtClient === "string" ? existing.submittedAtClient : undefined,
       },
     });
   } catch (e) {

@@ -44,7 +44,7 @@ function printReport(r: CodeReviewResult) {
 
   out.push("", "CHECKS");
   for (const c of r.checks) {
-    out.push(`  ${c.level === "ok" ? "✓" : "!"} ${c.title}: ${c.summary}`);
+    out.push(`  ${c.level === "ok" ? "✓" : c.level === "info" ? "·" : "!"} ${c.title}: ${c.summary}`);
     for (const d of c.details) out.push(`      - ${d}`);
   }
 
@@ -61,26 +61,16 @@ function printReport(r: CodeReviewResult) {
     console.log(out.join("\n"));
     return;
   }
-  out.push("", `Written by ${r.model}`, "", "IN SHORT", `  ${w.summary}`, `  For: ${w.whoItsFor}`);
-  out.push("", `AGENT DESIGN: ${w.agent.kind} · ${w.agent.framework}${w.agent.model ? ` · ${w.agent.model}` : ""}`);
-  out.push(`  ${w.agent.explanation}`);
-  if (w.agent.rootAgent) out.push(`  ${w.agent.rootAgent} (${w.agent.rootType})`);
-  for (const a of w.agent.agents) {
-    out.push(`    → ${a.name} [${a.type}] ${a.does}${a.tools.length ? ` · tools: ${a.tools.join(", ")}` : ""}  ${a.where}`);
+  out.push("", `Written by ${r.model}`, "", "IN SHORT", `  ${w.summary}`);
+  out.push("", `TECHNICAL DEPTH (${w.agentKind})`, `  ${w.technicalDepth}`);
+  out.push("", "ORIGINALITY", `  ${w.originality}`);
+  out.push("", "DEMO CLARITY", `  ${w.demoClarity}`);
+  if (w.concerns.length > 0) {
+    out.push("", "CONCERNS");
+    for (const c of w.concerns) out.push(`  ! ${c.text}${c.where ? `  ${c.where}` : ""}`);
   }
-  for (const f of w.agent.features) out.push(`  ${f.used ? "✓" : "–"} ${f.name}${f.where ? `  ${f.where}` : ""}`);
-  out.push("", "COULD SOMEONE ELSE RUN IT?");
-  for (const x of w.runnable) out.push(`  ${x.ok ? "✓" : "✕"} ${x.text}`);
-  out.push("", "CODE QUALITY");
-  for (const x of w.quality.strengths) out.push(`  + ${x.text}  ${x.where}`);
-  for (const x of w.quality.issues) out.push(`  - ${x.text}  ${x.where}`);
-  out.push("", "SECURITY");
-  for (const x of w.security) out.push(`  ${x.level === "good" ? "✓" : "!"} ${x.text}  ${x.where}`);
-  out.push("", "RESPONSIBLE AI");
-  for (const x of w.responsibleAi) out.push(`  ${x.level === "good" ? "✓" : "!"} ${x.text}  ${x.where}`);
-  out.push("", "FOR THE PITCH");
-  for (const q of w.pitchQuestions.product) out.push(`  • ${q}`);
-  for (const q of w.pitchQuestions.business) out.push(`  £ ${q}`);
+  out.push("", "ASK AT THE PITCH");
+  for (const q of w.pitchQuestions) out.push(`  • ${q}`);
   console.log(out.join("\n"));
 }
 

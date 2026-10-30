@@ -107,7 +107,7 @@ export const projectAdminPatchSchema = z
     { message: "At least one of status or feedback is required" }
   );
 
-/** POST /api/projects/[id]/code-review — force re-review (admins only; ignored for owners). */
+/** POST /api/projects/[id]/code-review — "Review again" (admins only). */
 export const projectCodeReviewRequestSchema = z
   .object({
     force: z.boolean().optional(),

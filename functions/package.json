@@ -1,0 +1,21 @@
+{
+  "name": "aidevcamp-functions",
+  "private": true,
+  "description": "Background agent that reviews hackathon projects' GitHub repos after teams ship them.",
+  "main": "lib/index.js",
+  "engines": {
+    "node": "22"
+  },
+  "scripts": {
+    "build": "esbuild src/index.ts --bundle --platform=node --target=node22 --format=cjs --outfile=lib/index.js --tsconfig=tsconfig.json --external:firebase-admin --external:firebase-functions --log-level=warning",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.8.0",
+    "firebase-functions": "^7.4.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "typescript": "^5"
+  }
+}

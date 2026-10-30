@@ -19,19 +19,6 @@ async function readJson<T>(res: Response, label: string): Promise<T> {
   return json.data as T;
 }
 
-/** Called by the submit page after a final project is saved. Never throws. */
-export async function requestCodeReview(projectId: string): Promise<void> {
-  try {
-    await fetch(`/api/projects/${encodeURIComponent(projectId)}/code-review`, {
-      method: "POST",
-      headers: await authHeaders(),
-      body: JSON.stringify({}),
-    });
-  } catch {
-    // Non-blocking — the admin Projects tab queues anything missed.
-  }
-}
-
 export async function fetchCodeReview(projectId: string): Promise<ProjectCodeReview | null> {
   const res = await fetch(`/api/projects/${encodeURIComponent(projectId)}/code-review`, {
     headers: await authHeaders(),

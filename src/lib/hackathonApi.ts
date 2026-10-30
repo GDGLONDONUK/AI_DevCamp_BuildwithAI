@@ -46,7 +46,7 @@ export type HackathonIdea = {
 export async function fetchMyHackathonProject() {
   const headers = await authHeaders();
   const res = await fetch("/api/hackathon/my-project", { headers });
-  return parseJson<{ project: (HackathonIdea & { weekCompleted?: number }) | null }>(
+  return parseJson<{ project: (HackathonIdea & { weekCompleted?: number; shippedAt?: string }) | null }>(
     res
   );
 }
