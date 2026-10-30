@@ -30,6 +30,7 @@ Then read: [01-project-overview.md](./01-project-overview.md) + [CLAUDE.md](../C
 | [13-firebase-operations.md](./13-firebase-operations.md) | Firebase ops: open September, sync programme, admin workflows, certification, CLI |
 | [14-learning-assistant.md](./14-learning-assistant.md) | **How we build** the Learning Assistant (RAG + Gemini tools) + **DevCamp MCP / BYO-LLM** (auth, key cycling) |
 | [15-agent-harnessing-optimisation.md](./15-agent-harnessing-optimisation.md) | Harness **concepts** + kitchen sink for Learning Chat / MCP / skills (no third-party slides in git) |
+| [16-hackathon-and-admin-mcp.md](./16-hackathon-and-admin-mcp.md) | Agentic Hackathon + **shared admin services** (HTTP `/api` and Claude MCP, same write path) |
 
 ---
 
@@ -42,6 +43,7 @@ Then read: [01-project-overview.md](./01-project-overview.md) + [CLAUDE.md](../C
 - **Open a new cohort / registration?** → [11](./11-cohort-architecture.md), skill `.claude/skills/cohorts/SKILL.md`, `npm run open-september-2026-cohort`
 - **Edit home marketing copy?** → Admin → **Home content** (`/admin/site`); [08](./08-site-deployment-and-admin.md)
 - **Learning Assistant / session RAG?** → [14](./14-learning-assistant.md), skill `.claude/skills/learning-chat/SKILL.md`
+- **Hackathon / admin MCP (Claude day-of)?** → [16](./16-hackathon-and-admin-mcp.md)
 - **Optimise / harness / ADK agents?** → [15](./15-agent-harnessing-optimisation.md), `examples/adk-harnessed-agent/`
 - **Add speakers / sessions?** → `src/data/speakers.ts` + `src/data/sessions.ts` → `sync-firestore-programme` + `upload-speaker-photos`
 - **Deploy to production?** → See `08-site-deployment-and-admin.md`
@@ -60,6 +62,8 @@ User visits site
   └─ Approved user: full session content, recordings, resources
   └─ Optional: live self check-in on /sessions (code-based)
   └─ Assignments & projects: submit → admin reviews → Approved / Passed / Failed
+  └─ Hackathon close: My project / ideas / vote (same `projects` docs) → `/admin/hackathon`
+  └─ Optional: Claude/ChatGPT admin MCP (`/api/mcp`) for attendance, completion, day-of board
   └─ Dashboard: progress, learning tasks, attendance labels
   └─ Admin tools: attendance grid, user management, exports, bulk email
   └─ Programme leave: programOptOut (no access until admin restores)
@@ -95,6 +99,7 @@ Use this as a changelog-style index; details live in the linked docs.
 | **September 2026 cohort** | Active cohort **`cohort-september-2026`** (Build → Scale → Govern → Optimise). Flat **`sessions.cohortId`**; users **`cohortIds` / `activeCohortId`**; **`POST /api/me/join-cohort`**; **`npm run open-september-2026-cohort`**. Registration: **`NEXT_PUBLIC_REGISTRATION_OPEN`**. Credsverse certificate URLs. [11](./11-cohort-architecture.md), [13](./13-firebase-operations.md), `.claude/skills/cohorts/SKILL.md`. |
 | **Home site content (CMS)** | Firestore **`siteContent/home`** (Admin SDK only); public **`GET /api/site-content`** (cached); edit at **`/admin/site`**. Discord invite, announcement banner, terminal lines, join-cohort banner, kickoff CTA. Seed: **`npm run seed-site-content`**. [08](./08-site-deployment-and-admin.md). |
 | **Learning Assistant** | Signed-in slider chat (Ask / Summarize / Translate); **`POST /api/learning-chat`** + dedicated **`LEARNING_GEMINI_API_KEY`**; corpus **`sessionLearningMaterials`**. Seed: **`npm run seed-learning-materials`**. [14](./14-learning-assistant.md). |
+| **Agentic Hackathon + Admin MCP** | Closing event: **`/hackathon`**, My project / ideas / vote; `hackathonVotes` + `hackathonSettings` server-only. Claude/ChatGPT admin tools share **`src/lib/server/admin/*`** with `/api/*` (not a second Firestore path). [16](./16-hackathon-and-admin-mcp.md). |
 | **Organiser admin allowlist** | Known organiser emails in **`src/lib/organiserAdmins.ts`** always re-assert **`role: admin`** on ensure-profile. Restore: **`npm run fix-organiser-admins -- --apply`**. [04](./04-auth-and-security.md). |
 | **Luma guest import** | **`npm run import-luma-guests -- --approved-only`** → pending `users/{email}` or enrol linked accounts into active cohort. CSV under **`scripts/imports/`** (gitignored). |
 

@@ -8,6 +8,8 @@ import { NextRequest } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
 import { ok, err, requireAdmin, isErrorResponse } from "@/lib/api-helpers";
 import { logServerRouteException } from "@/lib/server/appErrorLog";
+import { upsertSession } from "@/lib/server/admin/sessions";
+import { adminRouteError } from "@/lib/server/admin/http";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -25,28 +27,21 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
 export async function PUT(request: NextRequest, { params }: Params) {
   const { id } = await params;
-
   const auth = await requireAdmin(request);
   if (isErrorResponse(auth)) return auth;
 
   try {
-    const body = await request.json();
-    const updatedAt = new Date().toISOString();
-    await adminDb().collection("sessions").doc(id).set(
-      { ...body, id, updatedAt },
-      { merge: true }
-    );
-    const updated = await adminDb().collection("sessions").doc(id).get();
-    return ok({ id: updated.id, ...updated.data() });
+    const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
+    if (!body || typeof body !== "object") return err("Invalid JSON body", 400);
+    const { id: _ignored, merge, ...fields } = body;
+    return ok(await upsertSession({ id, fields, merge: merge !== false }));
   } catch (e) {
-    logServerRouteException(`PUT /api/sessions/${id}`, e);
-    return err("Failed to update session", 500);
+    return adminRouteError(`PUT /api/sessions/${id}`, e, "Failed to update session");
   }
 }
 
 export async function DELETE(request: NextRequest, { params }: Params) {
   const { id } = await params;
-
   const auth = await requireAdmin(request);
   if (isErrorResponse(auth)) return auth;
 

@@ -139,7 +139,6 @@ export function registerLearningTools(server: McpServer): void {
         return okResult({
           ...execGetFocusHint({
             uid: caller.uid,
-            email: caller.email,
             role: caller.role,
             cohortId: caller.cohortId,
           }),

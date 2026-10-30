@@ -20,6 +20,7 @@ import {
   toPublicProjectCard,
   upsertUserCohortProject,
 } from "@/lib/server/programmeProjects";
+import { publicDisplayName } from "@/lib/server/omitContactPii";
 
 const saveSchema = z.object({
   ship: z.boolean().optional().default(false),
@@ -109,7 +110,7 @@ export async function PUT(req: NextRequest) {
 
     const result = await upsertUserCohortProject({
       uid: auth.uid,
-      userName: userData.displayName || auth.email || "Builder",
+      userName: publicDisplayName(userData.displayName),
       cohortId: live,
       hackathonId: DEVCAMP_HACKATHON_ID,
       title: body.title,

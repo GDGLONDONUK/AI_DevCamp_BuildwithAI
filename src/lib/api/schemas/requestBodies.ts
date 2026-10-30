@@ -16,6 +16,7 @@ export const selfCheckInBodySchema = z.object({
 export const attendanceAdminPatchSchema = z.object({
   sessionId: z.string().min(1).max(200).transform((s) => s.trim()),
   attended: z.boolean(),
+  force: z.boolean().optional(),
 });
 
 /** PATCH /api/users/[uid] — shape is open; unknown keys are still dropped in the route. */

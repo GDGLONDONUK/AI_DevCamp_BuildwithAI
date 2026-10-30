@@ -155,7 +155,7 @@ export default function VotePage() {
         <div className="space-y-3">
           {filtered.map((p) => {
             const n = allocations[p.id] || 0;
-            const isOwn = ownProjectIds.has(p.id) || (user?.uid != null && p.userId === user.uid);
+            const isOwn = ownProjectIds.has(p.id);
             const canVote = !isOwn && voteableIds.has(p.id) && p.status !== "draft";
             return (
               <div

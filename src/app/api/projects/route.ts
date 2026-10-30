@@ -16,6 +16,7 @@ import { resolveActiveCohortIdFromDb } from "@/lib/server/activeCohort";
 import { DEVCAMP_HACKATHON_ID } from "@/lib/hackathon";
 import { hackathonSubmissionsAllowed } from "@/lib/server/hackathonSettings";
 import { upsertUserCohortProject } from "@/lib/server/programmeProjects";
+import { omitContactPii, publicDisplayName } from "@/lib/server/omitContactPii";
 
 export async function GET(request: NextRequest) {
   const auth = await verifyAuth(request);
@@ -30,7 +31,10 @@ export async function GET(request: NextRequest) {
     }
 
     const snap = await query.orderBy("submittedAt", "desc").get();
-    const projects = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    const projects = snap.docs.map((d) => {
+      const row = { id: d.id, ...d.data() } as Record<string, unknown>;
+      return isAdmin ? row : omitContactPii(row);
+    });
     return ok(projects);
   } catch (e) {
     logServerRouteException("GET /api/projects", e);
@@ -54,7 +58,7 @@ export async function POST(request: NextRequest) {
 
     const result = await upsertUserCohortProject({
       uid: auth.uid,
-      userName: userData?.displayName ?? "",
+      userName: publicDisplayName(userData?.displayName),
       cohortId,
       // During the closing hackathon window, stamp the edition tag on the same doc.
       hackathonId: (await hackathonSubmissionsAllowed())
@@ -70,7 +74,7 @@ export async function POST(request: NextRequest) {
       ship: true,
     });
 
-    const body = { id: result.id, ...result.data };
+    const body = omitContactPii({ id: result.id, ...result.data } as Record<string, unknown>);
     return result.created ? created(body) : ok(body);
   } catch (e) {
     logServerRouteException("POST /api/projects", e);

@@ -9,6 +9,7 @@ import {
 } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase-admin";
 import type { Project, UserProfile } from "@/types";
+import { publicDisplayName } from "@/lib/server/omitContactPii";
 
 export type BuddyRequestStatus = "pending" | "accepted" | "rejected";
 
@@ -76,7 +77,7 @@ export function publicBuddyCardFromUser(
   if (!data) return null;
   return {
     uid,
-    displayName: String(data.displayName ?? ""),
+    displayName: publicDisplayName(data.displayName, "Attendee"),
     photoURL: data.photoURL ?? undefined,
     bio: data.bio ?? undefined,
     linkedinUrl: data.linkedinUrl ?? undefined,

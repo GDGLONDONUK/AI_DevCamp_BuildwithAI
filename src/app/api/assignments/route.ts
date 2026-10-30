@@ -11,11 +11,12 @@
 
 import { NextRequest } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
-import { ok, created, err, verifyAuth, requireAdmin, isErrorResponse } from "@/lib/api-helpers";
+import { ok, created, err, verifyAuth, isErrorResponse } from "@/lib/api-helpers";
 import { logServerRouteException } from "@/lib/server/appErrorLog";
 import { FieldValue } from "firebase-admin/firestore";
 import { parseJsonBody } from "@/lib/api/parseJsonBody";
 import { assignmentCreateSchema } from "@/lib/api/schemas/requestBodies";
+import { omitContactPii, publicDisplayName } from "@/lib/server/omitContactPii";
 
 export async function GET(request: NextRequest) {
   const auth = await verifyAuth(request);
@@ -31,7 +32,10 @@ export async function GET(request: NextRequest) {
     }
 
     const snap = await query.orderBy("submittedAt", "desc").get();
-    const assignments = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    const assignments = snap.docs.map((d) => {
+      const row = { id: d.id, ...d.data() } as Record<string, unknown>;
+      return isAdmin ? row : omitContactPii(row);
+    });
     return ok(assignments);
   } catch (e) {
     logServerRouteException("GET /api/assignments", e);
@@ -55,7 +59,7 @@ export async function POST(request: NextRequest) {
 
     const assignment = {
       userId:      auth.uid,
-      userName:    userData?.displayName ?? "",
+      userName:    publicDisplayName(userData?.displayName),
       weekNumber,
       sessionId,
       title,

@@ -8,14 +8,29 @@ import {
   query,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import type { Speaker } from "@/types";
+import type { Speaker, SpeakerRole } from "@/types";
 import { SPEAKERS } from "@/data/speakers";
 
 const COL = "speakers";
 
+function toPublicSpeaker(id: string, data: Record<string, unknown>): Speaker {
+  const roles = Array.isArray(data.roles)
+    ? data.roles.filter((r): r is SpeakerRole => r === "speaker" || r === "mentor")
+    : undefined;
+  return {
+    id,
+    name: String(data.name || ""),
+    title: typeof data.title === "string" ? data.title : undefined,
+    photo: typeof data.photo === "string" ? data.photo : undefined,
+    linkedinUrl: typeof data.linkedinUrl === "string" ? data.linkedinUrl : undefined,
+    roles: roles && roles.length > 0 ? roles : undefined,
+    sortOrder: Number(data.sortOrder) || 0,
+  };
+}
+
 export async function getSpeakers(): Promise<Speaker[]> {
   const snap = await getDocs(query(collection(db, COL), orderBy("sortOrder", "asc")));
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Speaker));
+  return snap.docs.map((d) => toPublicSpeaker(d.id, d.data() as Record<string, unknown>));
 }
 
 export async function upsertSpeaker(speaker: Speaker): Promise<void> {

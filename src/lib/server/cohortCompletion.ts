@@ -8,6 +8,7 @@ import { DEVCAMP_HACKATHON_ID } from "@/lib/hackathon";
 import { isStaffRole } from "@/lib/access/programmeAccess";
 import { resolveActiveCohortIdFromDb } from "@/lib/server/activeCohort";
 import { sessionCohortId } from "@/lib/server/sessionCohortAccess";
+import { sessionLooksCancelled } from "@/lib/server/sessionCancelled";
 
 const SHIPPED = new Set(["submitted", "reviewed", "shortlisted", "winner", "passed"]);
 const ASSIGNMENT_IN = new Set(["submitted", "reviewed", "approved"]);
@@ -61,11 +62,6 @@ export type CohortCompletionReport = {
   members: CohortCompletionMember[];
 };
 
-function isCancelledSession(title: string, tags: unknown): boolean {
-  const tagList = Array.isArray(tags) ? tags.map((t) => String(t).toLowerCase()) : [];
-  return tagList.includes("cancelled") || /cancelled/i.test(title);
-}
-
 function sessionStartMs(date: string): number | null {
   const t = Date.parse(`${date} 12:00:00 GMT`);
   return Number.isNaN(t) ? null : t;
@@ -114,7 +110,7 @@ export async function buildCohortCompletionReport(opts?: {
       const data = d.data();
       const title = String(data.title ?? "");
       const date = String(data.date ?? "");
-      const cancelled = isCancelledSession(title, data.tags);
+      const cancelled = sessionLooksCancelled(title, data.tags);
       const upcoming = isUpcoming(date);
       const inCohort =
         sessionCohortId(data) === cohortId ||
@@ -260,4 +256,42 @@ export async function buildCohortCompletionReport(opts?: {
     },
     members,
   };
+}
+
+export const COMPLETION_FILTERS = [
+  "all",
+  "meetsAll",
+  "meetsAttendanceAndWork",
+  "missingProject",
+  "belowAttendance",
+] as const;
+export type CompletionFilter = (typeof COMPLETION_FILTERS)[number];
+
+export function filterCompletionMembers(
+  members: CohortCompletionMember[],
+  filter: CompletionFilter = "all"
+): CohortCompletionMember[] {
+  if (filter === "meetsAll") return members.filter((m) => m.meetsAll);
+  if (filter === "meetsAttendanceAndWork") {
+    return members.filter((m) => m.meetsAttendanceAndWork);
+  }
+  if (filter === "missingProject") {
+    return members.filter((m) => m.meetsAttendanceAndWork && !m.meetsProject);
+  }
+  if (filter === "belowAttendance") return members.filter((m) => !m.meetsAttendance);
+  return members;
+}
+
+export async function buildFilteredCohortCompletionReport(opts?: {
+  cohortId?: string;
+  minSessions?: number;
+  excludeCancelled?: boolean;
+  excludeUpcoming?: boolean;
+  includeStaff?: boolean;
+  filter?: CompletionFilter;
+}) {
+  const report = await buildCohortCompletionReport(opts);
+  const filter = opts?.filter || "all";
+  const members = filterCompletionMembers(report.members, filter);
+  return { ...report, filter, members, memberCount: members.length };
 }

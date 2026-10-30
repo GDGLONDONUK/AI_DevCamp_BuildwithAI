@@ -1,15 +1,14 @@
 /**
- * GET /api/users — list all users (admin/moderator only)
+ * GET /api/users — list users (admin/moderator only)
  *
- * Query params:
- *   ?status=pending|participated|certified|outstanding|not-certified|failed
- *   ?search=string   (matches displayName or email)
+ * Query: ?status=…&search=…&cohortId=…&compact=1&limit=
+ * Default cohortId=all (full docs) so existing admin consumers stay unchanged.
  */
 
 import { NextRequest } from "next/server";
-import { adminDb } from "@/lib/firebase-admin";
-import { ok, err, requireAdmin, isErrorResponse } from "@/lib/api-helpers";
-import { logServerRouteException } from "@/lib/server/appErrorLog";
+import { ok, requireAdmin, isErrorResponse } from "@/lib/api-helpers";
+import { listAdminUsers } from "@/lib/server/admin/users";
+import { adminRouteError } from "@/lib/server/admin/http";
 
 export async function GET(request: NextRequest) {
   const auth = await requireAdmin(request);
@@ -17,31 +16,16 @@ export async function GET(request: NextRequest) {
 
   try {
     const { searchParams } = new URL(request.url);
-    const statusFilter = searchParams.get("status");
-    const searchTerm   = searchParams.get("search")?.toLowerCase();
-
-    let query = adminDb().collection("users").orderBy("createdAt", "desc") as FirebaseFirestore.Query;
-
-    if (statusFilter) {
-      query = query.where("userStatus", "==", statusFilter);
-    }
-
-    const snap = await query.get();
-    let users = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-
-    // Apply text search client-side (Firestore doesn't support full-text search)
-    if (searchTerm) {
-      users = users.filter((u: Record<string, unknown>) => {
-        const name  = String(u.displayName ?? "").toLowerCase();
-        const email = String(u.email ?? "").toLowerCase();
-        const handle = String(u.handle ?? "").toLowerCase();
-        return name.includes(searchTerm) || email.includes(searchTerm) || handle.includes(searchTerm);
-      });
-    }
-
-    return ok(users);
+    const limitRaw = searchParams.get("limit");
+    const result = await listAdminUsers({
+      status: searchParams.get("status") || undefined,
+      search: searchParams.get("search") || undefined,
+      cohortId: searchParams.get("cohortId") || "all",
+      compact: searchParams.get("compact") === "1",
+      limit: limitRaw ? Number(limitRaw) : 2000,
+    });
+    return ok(result.users);
   } catch (e) {
-    logServerRouteException("GET /api/users", e);
-    return err("Failed to fetch users", 500);
+    return adminRouteError("GET /api/users", e, "Failed to fetch users");
   }
 }

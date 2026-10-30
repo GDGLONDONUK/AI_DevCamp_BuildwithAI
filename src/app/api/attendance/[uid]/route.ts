@@ -3,69 +3,53 @@
  * PATCH /api/attendance/[uid]  — toggle a session's attendance (admin/moderator only)
  *
  * PATCH body:
- *   { sessionId: string, attended: boolean }
+ *   { sessionId: string, attended: boolean, force?: boolean }
  */
 
 import { NextRequest } from "next/server";
-import { FieldValue } from "firebase-admin/firestore";
-import { adminDb } from "@/lib/firebase-admin";
-import { ok, err, requireAdmin, requireAdminOrSelf, isErrorResponse } from "@/lib/api-helpers";
-import { logServerRouteException } from "@/lib/server/appErrorLog";
-import { attendancePatchWithAudit } from "@/lib/attendanceAudit";
-import { sessionCohortId } from "@/lib/server/sessionCohortAccess";
+import { ok, err, verifyAuth, requireAdmin, isErrorResponse } from "@/lib/api-helpers";
 import { parseJsonBody } from "@/lib/api/parseJsonBody";
 import { attendanceAdminPatchSchema } from "@/lib/api/schemas/requestBodies";
+import { getAdminAttendance, setAdminAttendance } from "@/lib/server/admin/attendance";
+import { resolveUserDoc } from "@/lib/server/admin/resolveUserDoc";
+import { adminRouteError } from "@/lib/server/admin/http";
 
 type Params = { params: Promise<{ uid: string }> };
 
 export async function GET(request: NextRequest, { params }: Params) {
-  const { uid } = await params;
-
-  const auth = await requireAdminOrSelf(request, uid);
+  const raw = decodeURIComponent((await params).uid);
+  const auth = await verifyAuth(request);
   if (isErrorResponse(auth)) return auth;
 
   try {
-    const snap = await adminDb().collection("attendance").doc(uid).get();
-    return ok(snap.exists ? snap.data() : {});
+    const user = await resolveUserDoc(raw);
+    const uid = user?.id || raw;
+    const isAdmin = ["admin", "moderator"].includes(auth.role);
+    if (!isAdmin && auth.uid !== uid) return err("Forbidden", 403);
+    const result = await getAdminAttendance(uid);
+    return ok(result.attendance);
   } catch (e) {
-    logServerRouteException(`GET /api/attendance/${uid}`, e);
-    return err("Failed to fetch attendance", 500);
+    return adminRouteError(`GET /api/attendance/${raw}`, e, "Failed to fetch attendance");
   }
 }
 
 export async function PATCH(request: NextRequest, { params }: Params) {
-  const { uid } = await params;
-
+  const raw = decodeURIComponent((await params).uid);
   const auth = await requireAdmin(request);
   if (isErrorResponse(auth)) return auth;
 
   try {
     const parsed = await parseJsonBody(request, attendanceAdminPatchSchema);
     if (!parsed.ok) return parsed.response;
-    const { sessionId, attended } = parsed.data;
-
-    const sessionSnap = await adminDb().collection("sessions").doc(sessionId).get();
-    if (!sessionSnap.exists) return err("Session not found", 404);
-    const cohortId = sessionCohortId(sessionSnap.data());
-
-    const ref = adminDb().collection("attendance").doc(uid);
-    const existing = await ref.get();
-    const existingData = existing.exists ? (existing.data() as Record<string, unknown>) : undefined;
-
-    await ref.set(
-      {
-        ...attendancePatchWithAudit(sessionId, attended, auth.uid, "admin", existingData, {
-          cohortId,
-        }),
-        updatedAt: FieldValue.serverTimestamp(),
-      },
-      { merge: true }
-    );
-
-    const updated = await adminDb().collection("attendance").doc(uid).get();
-    return ok(updated.data() ?? {});
+    const result = await setAdminAttendance({
+      uidOrEmail: raw,
+      sessionId: parsed.data.sessionId,
+      attended: parsed.data.attended,
+      actorUid: auth.uid,
+      force: parsed.data.force,
+    });
+    return ok(result.attendance);
   } catch (e) {
-    logServerRouteException(`PATCH /api/attendance/${uid}`, e);
-    return err("Failed to update attendance", 500);
+    return adminRouteError(`PATCH /api/attendance/${raw}`, e, "Failed to update attendance");
   }
 }

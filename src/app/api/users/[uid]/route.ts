@@ -2,110 +2,56 @@
  * GET   /api/users/[uid]  — get user profile (admin/moderator or own profile)
  * PATCH /api/users/[uid]  — update user status or role
  *
- * PATCH body (admin/moderator):
- *   { userStatus: "pending" | "participated" | "certified" | "outstanding" | "not-certified" | "failed" }
- *   { role: "attendee" | "moderator" | "admin" }
- *
- * PATCH body (own profile — non-privileged fields only):
- *   { displayName, bio, city, country, linkedinUrl, githubUrl, websiteUrl,
- *     experienceLevel, skills, expertise, wantToLearn, canOffer, handle,
- *     keepUpdated, … }
- *
- * programme opt-out / re-inclusion: admin/moderator only ({ programOptOut, programOptOutAt }).
+ * PATCH body (admin/moderator): privileged + self-editable fields.
+ * PATCH body (own profile): self-editable fields only.
  */
 
 import { NextRequest } from "next/server";
-import { adminDb } from "@/lib/firebase-admin";
-import { ok, err, verifyAuth, requireAdminOrSelf, isErrorResponse } from "@/lib/api-helpers";
-import { logServerRouteException } from "@/lib/server/appErrorLog";
-import { FieldValue } from "firebase-admin/firestore";
+import { ok, err, verifyAuth, isErrorResponse } from "@/lib/api-helpers";
 import { parseJsonBody } from "@/lib/api/parseJsonBody";
 import { userPatchBodySchema } from "@/lib/api/schemas/requestBodies";
+import { applyUserPatch } from "@/lib/server/admin/users";
+import { resolveUserDoc } from "@/lib/server/admin/resolveUserDoc";
+import { adminRouteError } from "@/lib/server/admin/http";
 
 type Params = { params: Promise<{ uid: string }> };
 
-// Fields that only admins/moderators may change
-const PRIVILEGED_FIELDS = [
-  "role",
-  "userStatus",
-  "kickoffInPersonAdminConfirmed",
-  "accountDisabled",
-  "accountDisabledReason",
-  "programOptOut",
-  "programOptOutAt",
-  "cohortIds",
-  "activeCohortId",
-  "cohortParticipation",
-];
-
-// Fields a user may update on their own document
-const SELF_EDITABLE_FIELDS = [
-  "displayName", "bio", "city", "country", "location",
-  "linkedinUrl", "githubUrl", "websiteUrl", "websiteURL",
-  "experienceLevel", "skills", "expertise", "wantToLearn",
-  "canOffer", "handle", "keepUpdated", "roleTitle", "photoURL",
-  "kickoffRsvpExplicitInApp",
-  "profilePublic",
-];
-
 export async function GET(request: NextRequest, { params }: Params) {
-  const { uid } = await params;
-
-  const auth = await requireAdminOrSelf(request, uid);
+  const raw = decodeURIComponent((await params).uid);
+  const auth = await verifyAuth(request);
   if (isErrorResponse(auth)) return auth;
 
   try {
-    const snap = await adminDb().collection("users").doc(uid).get();
-    if (!snap.exists) return err("User not found", 404);
+    const snap = await resolveUserDoc(raw);
+    if (!snap?.exists) return err("User not found", 404);
+    const isAdmin = ["admin", "moderator"].includes(auth.role);
+    if (!isAdmin && auth.uid !== snap.id) return err("Forbidden", 403);
     return ok({ id: snap.id, ...snap.data() });
   } catch (e) {
-    logServerRouteException(`GET /api/users/${uid}`, e);
-    return err("Failed to fetch user", 500);
+    return adminRouteError(`GET /api/users/${raw}`, e, "Failed to fetch user");
   }
 }
 
 export async function PATCH(request: NextRequest, { params }: Params) {
-  const { uid } = await params;
-
+  const raw = decodeURIComponent((await params).uid);
   const auth = await verifyAuth(request);
   if (isErrorResponse(auth)) return auth;
 
   const isAdmin = ["admin", "moderator"].includes(auth.role);
-  const isSelf  = auth.uid === uid;
-
-  if (!isAdmin && !isSelf) {
-    return err("Forbidden", 403);
-  }
 
   try {
     const parsed = await parseJsonBody(request, userPatchBodySchema);
     if (!parsed.ok) return parsed.response;
-    const body = parsed.data;
+    const snap = await resolveUserDoc(raw);
+    if (!snap?.exists) return err("User not found", 404);
+    if (!isAdmin && auth.uid !== snap.id) return err("Forbidden", 403);
 
-    // Build the update payload — enforce field-level access control
-    const update: Record<string, unknown> = {};
-
-    for (const [key, value] of Object.entries(body)) {
-      if (PRIVILEGED_FIELDS.includes(key)) {
-        if (!isAdmin) return err(`Only admins can update "${key}"`, 403);
-        update[key] = value;
-      } else if (SELF_EDITABLE_FIELDS.includes(key)) {
-        update[key] = value;
-      }
-      // Unknown fields are silently dropped
-    }
-
-    if (Object.keys(update).length === 0) {
-      return err("No valid fields to update");
-    }
-
-    update.updatedAt = FieldValue.serverTimestamp();
-
-    await adminDb().collection("users").doc(uid).update(update);
-    const updated = await adminDb().collection("users").doc(uid).get();
-    return ok({ id: updated.id, ...updated.data() });
+    const updated = await applyUserPatch(snap.id, {
+      actorIsAdmin: isAdmin,
+      fields: parsed.data,
+    });
+    return ok(updated);
   } catch (e) {
-    logServerRouteException(`PATCH /api/users/${uid}`, e);
-    return err("Failed to update user", 500);
+    return adminRouteError(`PATCH /api/users/${raw}`, e, "Failed to update user");
   }
 }

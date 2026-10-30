@@ -21,8 +21,13 @@ AI_DevCamp_BuildwithAI/
 │   │   ├── profile/page.tsx      ← /profile   Edit your profile
 │   │   ├── buddies/page.tsx      ← /buddies    DevcampBuddies (directory, requests, connections; profile modal)
 │   │   ├── buddies/[uid]/page.tsx← redirects to /buddies?u=… (shareable deep link)
+│   │   ├── hackathon/            ← Agentic Hackathon (my-projects, ideas, prizes, rules)
+│   │   ├── vote/page.tsx         ← /vote  Audience ballots
+│   │   ├── mcp/page.tsx          ← /mcp   Mint dcmcp_ tokens (connector URL is /api/mcp)
+│   │   ├── faq/page.tsx          ← /faq   LLM / MCP FAQ (signed-in)
 │   │   ├── admin/
 │   │   │   ├── page.tsx          ← /admin     Main admin panel (tabs: attendance, users, inactive, …)
+│   │   │   ├── hackathon/page.tsx← /admin/hackathon  Day-of board (submissions, votes, winners)
 │   │   │   ├── email/page.tsx    ← /admin/email  Bulk email to attendees / selections
 │   │   │   ├── import/page.tsx   ← /admin/import CSV import tools
 │   │   │   ├── bevy/page.tsx     ← /admin/bevy  Bevy CSV merge
@@ -42,6 +47,8 @@ AI_DevCamp_BuildwithAI/
 │   │       ├── attendance/       ← GET all, GET/PATCH by uid (PATCH writes sessionAttendanceAudit)
 │   │       ├── assignments/      ← GET list, POST submit, GET/PATCH by id
 │   │       ├── projects/         ← GET list, POST submit, GET/PATCH by id
+│   │       ├── hackathon/        ← ideas GET, my-project, vote POST
+│   │       ├── mcp/              ← Streamable HTTP MCP + token mint/revoke
 │   │       ├── learning-tasks/   ← GET list, POST create (Bearer; scoped userId)
 │   │       ├── learning-tasks/[id]/ ← GET/PATCH/DELETE one task
 │   │       ├── learning-task-templates/ ← GET active catalogue (Bearer)
@@ -50,7 +57,7 @@ AI_DevCamp_BuildwithAI/
 │   │       ├── log-error/        ← client error ingestion
 │   │       ├── tags/             ← public tag catalog
 │   │       ├── buddies/          ← directory, profile/[uid], requests, requests/[id], connections (Bearer)
-│   │       └── admin/            ← preregistered, pending-user, disabled-users, site-content, learning-materials, learning-task-templates, …
+│   │       └── admin/            ← hackathon, cohort-completion, preregistered, pending-user, disabled-users, site-content, learning-materials, …
 │   │
 │   ├── components/               ← Reusable UI pieces
 │   │   ├── icons/
@@ -120,7 +127,12 @@ AI_DevCamp_BuildwithAI/
 │   │   │   ├── csvPreRegistered.ts ← parseCSVText, buildPreRegisteredUsersFromRows
 │   │   │   ├── exportAttendeesCsv.ts ← Download attendees as CSV (includes in-person columns)
 │   │   │   └── uploadPreRegisteredCsv.ts ← POST pre-registered CSV to API + toast
-│   │   ├── server/              ← Server-only (API routes, serialisation)
+│   │   ├── server/              ← Server-only (API routes + MCP admin tools share these)
+│   │   │   ├── admin/               ← users, attendance, sessions, assignments (HTTP + MCP)
+│   │   │   ├── hackathonOps.ts      ← day-of board, vote totals, project status
+│   │   │   ├── hackathonSettings.ts ← submissionsOpen / votingOpen
+│   │   │   ├── cohortCompletion.ts  ← attendance + labs + projects report
+│   │   │   ├── programmeProjects.ts ← one cohort project per user
 │   │   │   ├── nominatimGeocode.ts   ← Nominatim (OSM) for admin users map
 │   │   │   ├── registrationMapSync.ts ← Users map: labels, Firestore coord cache, batch persist
 │   │   │   ├── userAdminView.ts     ← user doc → admin profile shape
@@ -164,6 +176,9 @@ AI_DevCamp_BuildwithAI/
 │   ├── delete-legacy-speaker-docs.ts ← npm run delete-legacy-speaker-docs — remove abandoned speaker doc ids after rename
 │   └── generate-favicons.ts      ← npm run generate-favicons — square PNGs from public/logo.png (requires sharp)
 │
+├── packages/devcamp-mcp/         ← BYO-LLM MCP (public → learning → study → my-tasks → admin)
+│   └── src/admin/                ← Thin wrappers around src/lib/server/admin/*
+│
 ├── .claude/skills/               ← Agent skills (cohorts, firebase-security, learning-chat)
 ├── firestore.rules               ← Firestore security rules (deployed to Firebase)
 ├── storage.rules                 ← Storage security rules (deployed to Firebase)
@@ -199,6 +214,7 @@ AI_DevCamp_BuildwithAI/
 | Add/remove skill tag presets | `src/data/tags.ts` |
 | Learning checklist & template catalogue | `src/app/dashboard/tasks/page.tsx`, `src/features/learning-tasks/*`, `src/lib/learningTasksApi.ts`; admin `src/app/admin/learning-tasks/page.tsx`; seed `src/data/learningTaskTemplatesSeed.ts`. **Docs:** [09](./09-learning-tasks-architecture.md). |
 | Learning Assistant (RAG chat) | `src/components/LearningChatPanel.tsx`, `src/lib/learning-chat/*`, `POST /api/learning-chat`. **Docs:** [14](./14-learning-assistant.md). |
+| Agentic Hackathon + admin MCP | `/hackathon/*`, `/vote`, `/admin/hackathon`; `src/lib/server/hackathonOps.ts`; `packages/devcamp-mcp/src/admin/`. **Docs:** [16](./16-hackathon-and-admin-mcp.md). |
 | Home marketing CMS | `src/lib/siteContent.ts`, `/admin/site`, `GET /api/site-content`. |
 | Organiser admin emails | `src/lib/organiserAdmins.ts`, `npm run fix-organiser-admins` |
 | Add an environment variable | `.env.local` |
