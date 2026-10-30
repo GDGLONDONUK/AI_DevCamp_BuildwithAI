@@ -77,7 +77,7 @@ function sortNewest(
 
 /**
  * The one programme project for this user in the live cohort (hackathon or not).
- * Prefers cohort match, then hackathon-tagged, then any project they own.
+ * Never reuse a past-cohort project — a new cohort gets a new document.
  */
 export async function findUserCohortProject(
   uid: string,
@@ -94,12 +94,16 @@ export async function findUserCohortProject(
   if (byCohort[0]) return { id: byCohort[0].id, ...byCohort[0].data() };
 
   const byHackathon = sortNewest(
-    docs.filter((d) => d.data().hackathonId === DEVCAMP_HACKATHON_ID)
+    docs.filter((d) => {
+      const data = d.data();
+      if (data.hackathonId !== DEVCAMP_HACKATHON_ID) return false;
+      const existingCohort = data.cohortId;
+      return !existingCohort || existingCohort === cohortId;
+    })
   );
   if (byHackathon[0]) return { id: byHackathon[0].id, ...byHackathon[0].data() };
 
-  const any = sortNewest(docs)[0];
-  return any ? { id: any.id, ...any.data() } : null;
+  return null;
 }
 
 /** @deprecated alias — same as findUserCohortProject for current edition */

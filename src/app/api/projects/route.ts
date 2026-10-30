@@ -57,7 +57,9 @@ export async function POST(request: NextRequest) {
       userName: userData?.displayName ?? "",
       cohortId,
       // During the closing hackathon window, stamp the edition tag on the same doc.
-      hackathonId: (await hackathonSubmissionsAllowed()) ? DEVCAMP_HACKATHON_ID : null,
+      hackathonId: (await hackathonSubmissionsAllowed())
+        ? DEVCAMP_HACKATHON_ID
+        : undefined,
       title,
       description,
       techStack,

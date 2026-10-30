@@ -35,6 +35,8 @@ export type CohortCompletionMember = {
 
 export type CohortCompletionReport = {
   cohortId: string;
+  notes: string[];
+  attendanceCollection: string;
   minSessions: number;
   excludeCancelled: boolean;
   excludeUpcoming: boolean;
@@ -237,6 +239,11 @@ export async function buildCohortCompletionReport(opts?: {
 
   return {
     cohortId,
+    notes: [
+      "Attendance is Firestore attendance/{uid} (per-session booleans from self check-in and admin marks). users.registeredSessions is unused and always empty — do not treat that as missing attendance.",
+      "Weekly labs live in assignments/. Final / hackathon entries live in projects/ tagged with this cohortId and hackathonId.",
+    ],
+    attendanceCollection: "attendance",
     minSessions,
     excludeCancelled,
     excludeUpcoming,
