@@ -26,6 +26,7 @@ Configure DNS in your domain provider per Vercel’s instructions, then set envi
 | `NEXT_PUBLIC_ACTIVE_COHORT_ID` | Active programme id (default `cohort-september-2026`). |
 | `CERTIFIER_API_TOKEN` | Server-only Certifier API token (never `NEXT_PUBLIC_`). |
 | `CERTIFIER_API_VERSION` | Optional Certifier API version header (default `2022-10-26`). |
+| `CERTIFIER_GROUP_ID` | Server-only. Certifier **group / credential template** id used by `POST /api/admin/certifier/issue` (and MCP `admin_issue_certificate`). Copy from Certifier dashboard. |
 | `NEXT_PUBLIC_CERTIFIER_CREDENTIAL_BASE_URL` | Optional; default `https://credsverse.com/credentials`. |
 | `LEARNING_GEMINI_API_KEY` | **Server-only.** Dedicated Gemini key for Learning Assistant (`POST /api/learning-chat`). |
 | `LEARNING_GEMINI_MODEL` | Optional model id (default `gemini-2.5-flash`). |
@@ -123,6 +124,7 @@ Use this when preparing a certificate or completion list:
 2. **Assignments tab** — set each reviewed submission to **Approved** where appropriate.
 3. **Projects tab** — set final projects to **Passed** or **Failed** (competition track: Shortlisted / Winner as needed).
 4. **Users tab** — open **Certified completion — export ready**; confirm the **Export ready** count; click **Export CSV** for all certified users with Yes/No completion columns, or **Ready only** for just the users who meet all checks.
+5. **Issue Credsverse certificates** — either issue in the Certifier UI then **Lookup / Sync**, or `POST /api/admin/certifier/issue` / MCP `admin_issue_certificate` (needs `CERTIFIER_GROUP_ID`). Each new issue counts toward the Certifier annual quota (free plan 250/year). Syncing an existing credential does not.
 
 Logic lives in `src/lib/admin/certifiedCompletion.ts`. Criteria are documented in [03-database-schema.md](./03-database-schema.md#certification-completion-export-cohort).
 

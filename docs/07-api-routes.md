@@ -166,7 +166,7 @@ Cross-user profile data is **not** read from client Firestore (rules only allow 
 | `POST` | `/api/me/ensure-profile` | Create **`users/{uid}`** if missing; merge and delete **`users/{email}`** when present. Returns **`403`** + **`ACCOUNT_DISABLED`** if **`disabledUsers/{uid}`** exists or **`accountDisabled`** is set on **`users`** / pending row. Returns **`403`** + **`PROGRAM_OPT_OUT`** if the user document or pending row is programme-opted-out. |
 | `POST` | `/api/me/leave-program` | **Bearer required.** Sets `programOptOut: true`, `programOptOutAt`, `keepUpdated: false` on `users/{uid}`. Caller must not already be blocked (same token checks as other routes). Client should sign out after success. |
 | `POST` | `/api/me/join-cohort` | **Bearer required.** Body optional `{ cohortId }` (defaults to active). Adds cohort to `cohortIds`, sets `activeCohortId` + `cohortParticipation`. Requires **`NEXT_PUBLIC_REGISTRATION_OPEN`**. Does **not** auto-enrol; spring alumni use this (or the Join banner). |
-| `GET` | `/api/me/certificate` | **Bearer required.** Certified users: Certifier credential link (Credsverse URL). |
+| `GET` | `/api/me/certificate` | **Bearer required.** Certified users: Certifier credential link (Credsverse URL). Looks up an **existing** credential; does not issue a new one. |
 | `POST` | `/api/me/activity` | **Bearer required.** Log activity events (`session_view`, resource clicks, submissions). |
 | `GET` | `/api/me/attendance/check-in-status` | **Bearer required.** Query `?sessionId=`. Returns `{ eligible, active, opensAt, closesAt }` — **no code** exposed. |
 | `POST` | `/api/me/attendance/self-check-in` | **Bearer required.** Body `{ sessionId, code }`. Validates window + code against `session_self_checkin`; sets `attendance/{uid}` and **`sessionAttendanceAudit`**. Idempotent if already marked. **`429`** if rate-limited. |
@@ -196,6 +196,8 @@ Cross-user profile data is **not** read from client Firestore (rules only allow 
 | `GET` | `/api/admin/learning-materials?cohortId=` | Admin / Moderator | List corpus docs for a cohort. |
 | `PUT` | `/api/admin/learning-materials` | Admin / Moderator | Upsert a material (`sessionId`, `kind`, `textContent`, optional `url`). |
 | `GET` | `/api/admin/cohort-completion` | Admin / Moderator | Attendance + weekly labs + live-cohort projects. Query: `cohortId`, `minSessions`, `filter`, `includeStaff`. Same service as MCP `admin_cohort_completion`. |
+| `POST` | `/api/admin/certifier/sync` | Admin / Moderator | Link **existing** Credsverse credentials by email. Body `{ uids?, email?, certifiedOnly? }`. Does **not** consume Certifier quota. MCP: `admin_sync_certifier`. |
+| `POST` | `/api/admin/certifier/issue` | Admin / Moderator | **Create, issue, and email** a credential (`create-issue-send`). Body `{ uid? \| email?, groupId?, skipIfExists?, markCertified? }`. Requires `CERTIFIER_API_TOKEN` + `CERTIFIER_GROUP_ID`. Counts against Certifier annual quota. MCP: `admin_issue_certificate`. |
 
 Merge logic and field list: `src/lib/server/mergePendingUserIntoProfile.ts`.
 

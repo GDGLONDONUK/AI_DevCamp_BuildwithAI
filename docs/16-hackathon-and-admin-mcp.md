@@ -71,11 +71,13 @@ flowchart TB
 | `PATCH /api/projects/[id]` | `admin_set_project_status` |
 | `GET /api/admin/cohort-completion` | `admin_cohort_completion` |
 | `GET`/`PATCH /api/users`, `/api/attendance/[uid]` | `admin_list_users`, `admin_get_user`, `admin_update_user`, `admin_get/set_attendance` |
+| `POST /api/admin/certifier/sync` | `admin_sync_certifier` |
+| `POST /api/admin/certifier/issue` | `admin_issue_certificate` |
 | `GET`/`PUT /api/sessions` | `admin_list_sessions`, `admin_upsert_session` |
 | `GET`/`PATCH /api/assignments/[id]` | `admin_list/get/update_assignment` |
 | `GET`/`PUT /api/admin/learning-materials` | `admin_list/upsert_learning_material` |
 
-MCP pack files: `packages/devcamp-mcp/src/admin/` (`users`, `sessions`, `attendance`, `assignments`, `materials`, `hackathon`). `registerAdminTools.ts` re-exports `admin/register.ts`. Admin tools are **not registered** unless the token has live staff role **and** admin scope.
+MCP pack files: `packages/devcamp-mcp/src/admin/` (`users`, `sessions`, `attendance`, `assignments`, `materials`, `hackathon`, `certifier`). `registerAdminTools.ts` re-exports `admin/register.ts`. Admin tools are **not registered** unless the token has live staff role **and** admin scope.
 
 ---
 

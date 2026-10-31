@@ -151,6 +151,6 @@ npm run dev              # Verify locally
 - **Firebase project:** `buildwithai-gdglondon`
 - **Deployment:** Vercel (GitHub-linked)
 - **Environment variables:** Set on Vercel dashboard (Settings → Environment Variables) — same as `.env.local`
-- **Cohort-related env:** `NEXT_PUBLIC_REGISTRATION_OPEN`, `NEXT_PUBLIC_ACTIVE_COHORT_ID`, `CERTIFIER_API_TOKEN`, `NEXT_PUBLIC_CERTIFIER_CREDENTIAL_BASE_URL`
+- **Cohort-related env:** `NEXT_PUBLIC_REGISTRATION_OPEN`, `NEXT_PUBLIC_ACTIVE_COHORT_ID`, `CERTIFIER_API_TOKEN`, `CERTIFIER_GROUP_ID`, `NEXT_PUBLIC_CERTIFIER_CREDENTIAL_BASE_URL`
 - **Learning chat:** `LEARNING_GEMINI_API_KEY`, optional `LEARNING_GEMINI_MODEL`
 - **See:** `docs/08-site-deployment-and-admin.md` for full checklist
