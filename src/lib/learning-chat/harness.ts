@@ -44,6 +44,7 @@ export type LearningHarnessDryRunPlan = {
 /** Tools exposed to the in-app Learning Assistant (not MCP admin / my-tasks). */
 export const LEARNING_CHAT_TOOL_NAMES = [
   "list_cohort_sessions",
+  "list_hackathon_resources",
   "get_session_detail",
   "search_session_materials",
   "list_session_materials",

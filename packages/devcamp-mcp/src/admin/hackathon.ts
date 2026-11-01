@@ -92,20 +92,26 @@ export function registerAdminHackathonTools(server: McpServer): void {
         "Admin/moderator only. Same as PATCH /api/projects/[id]. Set draft | submitted | reviewed | shortlisted | winner | passed | failed.",
       inputSchema: {
         projectId: z.string().min(1),
-        status: z.enum([
-          "draft",
-          "submitted",
-          "reviewed",
-          "shortlisted",
-          "winner",
-          "passed",
-          "failed",
-        ]),
+        status: z
+          .enum([
+            "draft",
+            "submitted",
+            "reviewed",
+            "shortlisted",
+            "winner",
+            "passed",
+            "failed",
+          ])
+          .optional(),
+        organiserOverride: z
+          .boolean()
+          .optional()
+          .describe("Force organiser / prize-ineligible flag on the project"),
       },
       annotations: { destructiveHint: true },
     },
-    withAdmin(async (_caller, { projectId, status }) => {
-      const project = await patchAdminProject(projectId, { status });
+    withAdmin(async (_caller, { projectId, status, organiserOverride }) => {
+      const project = await patchAdminProject(projectId, { status, organiserOverride });
       return { updated: true, project };
     })
   );

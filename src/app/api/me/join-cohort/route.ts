@@ -10,19 +10,17 @@ import { z } from "zod";
 import { adminDb } from "@/lib/firebase-admin";
 import { verifyAuth, ok, err, isErrorResponse } from "@/lib/api-helpers";
 import { logServerRouteException } from "@/lib/server/appErrorLog";
-import {
-  SEPTEMBER_2026_COHORT_ID,
-  SPRING_2026_COHORT_ID,
-  userInCohort,
-} from "@/lib/cohorts";
-import { resolveActiveCohortIdFromDb } from "@/lib/server/activeCohort";
+import { userInCohort } from "@/lib/cohorts";
 import { isRegistrationOpen } from "@/lib/registrationOpen";
+import {
+  getCohortLifecycle,
+  resolveEnrolmentCohortId,
+} from "@/lib/server/cohortLifecycle";
+import { assertCohortIsJoinable, resolveSelfJoinCohortId } from "@/lib/joinCohortPolicy";
 
 const BodySchema = z.object({
   cohortId: z.string().min(1).optional(),
 });
-
-const JOINABLE = new Set([SPRING_2026_COHORT_ID, SEPTEMBER_2026_COHORT_ID]);
 
 export async function POST(req: NextRequest) {
   try {
@@ -39,16 +37,17 @@ export async function POST(req: NextRequest) {
       return err(parsed.error.issues[0]?.message || "Invalid body", 400);
     }
 
-    const programmeActive = await resolveActiveCohortIdFromDb();
-    const cohortId = parsed.data.cohortId?.trim() || programmeActive;
-    if (!JOINABLE.has(cohortId)) {
-      return err("Unknown or closed cohort", 400);
-    }
-
-    // Only the live programme cohort is joinable via self-serve (admins can PATCH).
-    if (cohortId !== programmeActive) {
-      return err("That cohort is not open for self-join", 400);
-    }
+    const enrolmentCohortId = await resolveEnrolmentCohortId();
+    const resolved = resolveSelfJoinCohortId(parsed.data.cohortId, enrolmentCohortId);
+    if (!resolved.ok) return err(resolved.error, resolved.status);
+    const cohortId = resolved.cohortId;
+    const lifecycle = await getCohortLifecycle(cohortId);
+    const joinable = assertCohortIsJoinable({
+      cohortId,
+      enrolmentCohortId,
+      lifecycle,
+    });
+    if (!joinable.ok) return err(joinable.error, joinable.status);
 
     const db = adminDb();
     const ref = db.collection("users").doc(authResult.uid);

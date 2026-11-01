@@ -44,6 +44,7 @@ service cloud.firestore {
         'certifierCredentialPublicId',
         'certifierCredentialStatus',
         'certifierSyncedAt',
+        'certifierCredentials',
         'cohortIds',
         'activeCohortId',
         'cohortParticipation',
@@ -154,7 +155,9 @@ service cloud.firestore {
           resource.data.userId == request.auth.uid &&
           request.resource.data.userId == resource.data.userId &&
           !request.resource.data.diff(resource.data).affectedKeys()
-            .hasAny(['status', 'userId', 'voteTotal', 'hackathonId'])
+            .hasAny(['status', 'userId', 'voteTotal', 'hackathonId',
+                     'placement', 'placementLabel', 'award', 'prize',
+                     'judgeBlurb', 'organiserOverride'])
         ) ||
         isAdminOrMod()
       );
@@ -206,6 +209,12 @@ service cloud.firestore {
 
     // ── Cohorts — read/written only via /api/cohorts (Admin SDK). No client access. ──
     match /cohorts/{cohortId} {
+      allow read, write: if false;
+    }
+    match /certificateShares/{shareId} {
+      allow read, write: if false;
+    }
+    match /cohortCloseRuns/{runId} {
       allow read, write: if false;
     }
 

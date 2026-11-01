@@ -31,6 +31,7 @@ type AdminHackathonProject = {
   voteTotal: number;
   status: string;
   organiser?: boolean;
+  organiserOverride?: boolean;
   prizeEligible?: boolean;
   cohortId?: string;
   hackathonId?: string;
@@ -154,6 +155,32 @@ export default function AdminHackathonPage() {
       toast.success(`Status → ${status}`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Status update failed");
+    }
+  };
+
+  const patchOrganiserOverride = async (projectId: string, organiserOverride: boolean) => {
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      const res = await fetch(`/api/projects/${projectId}`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ organiserOverride }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Update failed");
+      setProjects((prev) =>
+        prev.map((p) =>
+          p.id === projectId
+            ? { ...p, organiserOverride, organiser: organiserOverride, prizeEligible: !organiserOverride }
+            : p
+        )
+      );
+      toast.success(organiserOverride ? "Marked organiser" : "Cleared organiser flag");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Update failed");
     }
   };
 
@@ -345,6 +372,15 @@ export default function AdminHackathonPage() {
                       Organiser · not prize-eligible
                     </span>
                   )}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      void patchOrganiserOverride(p.id, !(p.organiserOverride === true || p.organiser))
+                    }
+                    className="rounded border border-white/20 px-2 py-0.5 text-gray-300 hover:text-white"
+                  >
+                    {p.organiser ? "Clear organiser flag" : "Mark organiser"}
+                  </button>
                   <span className="rounded border border-green-500/30 bg-green-500/10 px-2 py-0.5 text-green-300">
                     {p.voteTotal} votes
                   </span>

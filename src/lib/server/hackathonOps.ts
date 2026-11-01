@@ -39,6 +39,7 @@ export type HackathonBoardRow = {
   userName: string;
   userEmail: string | null;
   organiser: boolean;
+  organiserOverride?: boolean;
   prizeEligible: boolean;
   cohortId?: string;
   hackathonId?: string;
@@ -69,7 +70,9 @@ export async function listHackathonProjects(cohortId?: string): Promise<Hackatho
     const data = d.data();
     const pub = toPublicProjectCard(d.id, data);
     const role = maps.roleByUid.get(pub.userId) || "attendee";
-    const organiser = isStaffRole(role);
+    const override = data.organiserOverride;
+    const organiser =
+      override === true ? true : override === false ? false : isStaffRole(role);
     map.set(d.id, {
       id: pub.id,
       title: pub.title,
@@ -86,6 +89,7 @@ export async function listHackathonProjects(cohortId?: string): Promise<Hackatho
       userName: pub.userName,
       userEmail: maps.emailByUid.get(pub.userId) || null,
       organiser,
+      organiserOverride: typeof override === "boolean" ? override : undefined,
       prizeEligible: !organiser && pub.status !== "draft",
       cohortId: pub.cohortId,
       hackathonId: pub.hackathonId,
@@ -217,19 +221,26 @@ export async function recomputeHackathonVotesAndBoard() {
 
 export async function patchAdminProject(
   projectId: string,
-  fields: { status?: ProjectStatus; feedback?: string }
+  fields: { status?: ProjectStatus; feedback?: string; organiserOverride?: boolean }
 ): Promise<Record<string, unknown>> {
   const ref = adminDb().collection("projects").doc(projectId);
   const snap = await ref.get();
   if (!snap.exists) throw new AdminOpError(`Project not found: ${projectId}`, 404);
-  if (fields.status === undefined && fields.feedback === undefined) {
-    throw new AdminOpError("Provide status and/or feedback", 400);
+  if (
+    fields.status === undefined &&
+    fields.feedback === undefined &&
+    fields.organiserOverride === undefined
+  ) {
+    throw new AdminOpError("Provide status, feedback, and/or organiserOverride", 400);
   }
   const update: Record<string, unknown> = {
     updatedAt: FieldValue.serverTimestamp(),
   };
   if (fields.status !== undefined) update.status = fields.status;
   if (fields.feedback !== undefined) update.feedback = fields.feedback;
+  if (fields.organiserOverride !== undefined) {
+    update.organiserOverride = fields.organiserOverride;
+  }
   await ref.set(update, { merge: true });
   const updated = await ref.get();
   return serializeDoc(updated.id, updated.data()!);

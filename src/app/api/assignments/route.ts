@@ -17,6 +17,10 @@ import { FieldValue } from "firebase-admin/firestore";
 import { parseJsonBody } from "@/lib/api/parseJsonBody";
 import { assignmentCreateSchema } from "@/lib/api/schemas/requestBodies";
 import { omitContactPii, publicDisplayName } from "@/lib/server/omitContactPii";
+import { sessionCohortId } from "@/lib/server/sessionCohortAccess";
+import { assertCohortAcceptsSubmissions } from "@/lib/server/cohortLifecycle";
+import { isAdminOpError } from "@/lib/server/admin/errors";
+import { assertSafeProjectSubmitUrl } from "@/lib/safeProjectUrl";
 
 export async function GET(request: NextRequest) {
   const auth = await verifyAuth(request);
@@ -52,6 +56,23 @@ export async function POST(request: NextRequest) {
     if (!parsed.ok) return parsed.response;
     const { weekNumber, sessionId, title, description, githubUrl, notebookUrl, demoUrl } =
       parsed.data;
+
+    try {
+      if (githubUrl) assertSafeProjectSubmitUrl(githubUrl, "githubUrl");
+      if (notebookUrl) assertSafeProjectSubmitUrl(notebookUrl, "notebookUrl");
+      if (demoUrl) assertSafeProjectSubmitUrl(demoUrl, "demoUrl");
+    } catch (e) {
+      return err(e instanceof Error ? e.message : "Invalid URL", 400);
+    }
+
+    const sessionSnap = await adminDb().collection("sessions").doc(sessionId).get();
+    const cohortId = sessionCohortId(sessionSnap.exists ? sessionSnap.data() : undefined);
+    try {
+      await assertCohortAcceptsSubmissions(cohortId);
+    } catch (gate) {
+      if (isAdminOpError(gate)) return err(gate.message, gate.status);
+      throw gate;
+    }
 
     // Fetch user display name to denormalise into the document
     const userSnap = await adminDb().collection("users").doc(auth.uid).get();

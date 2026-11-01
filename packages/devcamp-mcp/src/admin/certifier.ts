@@ -33,10 +33,14 @@ export function registerAdminCertifierTools(server: McpServer): void {
           .string()
           .optional()
           .describe("Override CERTIFIER_GROUP_ID (Certifier template/group)"),
+        cohortId: z
+          .string()
+          .optional()
+          .describe("Scope skipIfExists to this cohort (never reuse a June credential)"),
         skipIfExists: z
           .boolean()
           .optional()
-          .describe("Default true — do not issue a second credential"),
+          .describe("Default true — do not issue a second credential for this cohort"),
         markCertified: z
           .boolean()
           .optional()
@@ -48,6 +52,7 @@ export function registerAdminCertifierTools(server: McpServer): void {
       issueCertifierCredential({
         uidOrEmail: args.uid,
         groupId: args.groupId,
+        cohortId: args.cohortId,
         skipIfExists: args.skipIfExists,
         markCertified: args.markCertified,
       })

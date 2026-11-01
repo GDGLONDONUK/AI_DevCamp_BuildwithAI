@@ -8,6 +8,7 @@ import {
   execGetFocusHint,
   execGetSessionDetail,
   execListCohortSessions,
+  execListHackathonResources,
   execListSessionMaterials,
   execSearchSessionMaterials,
 } from "@/lib/learning-chat/toolExecutors";
@@ -24,6 +25,13 @@ export function buildLearningChatTools(ctx: LearningChatContext) {
         "List programme sessions for the active cohort (titles, dates, topics, weeks). Use for schedule overview. Does NOT return user or attendance data.",
       inputSchema: z.object({}),
       execute: async () => execListCohortSessions(ctx),
+    }),
+
+    list_hackathon_resources: tool({
+      description:
+        "Starter links for the closing Agentic Hackathon: beginner coding, beginner agents guide, social-media agent labs, Halloween photo codelab, and the hackathon hub. Use when the user asks for hackathon resources, labs, or where to start.",
+      inputSchema: z.object({}),
+      execute: async () => execListHackathonResources(),
     }),
 
     get_session_detail: tool({

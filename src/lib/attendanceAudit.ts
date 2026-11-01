@@ -12,6 +12,7 @@ export function getSessionAttendanceAudit(
 export type AttendanceAuditOptions = {
   /** Cohort of the session being marked (for multi-cohort attendance reports). */
   cohortId?: string;
+  reason?: string;
 };
 
 /** Build Firestore merge payload for session boolean + audit map entry. */
@@ -49,6 +50,7 @@ export function attendancePatchWithAudit(
       updatedAt: nowIso,
       source: prev?.source ?? source,
       ...(cohortId ? { cohortId } : {}),
+      ...(opts?.reason ? { reason: opts.reason } : prev?.reason ? { reason: prev.reason } : {}),
     };
   }
 

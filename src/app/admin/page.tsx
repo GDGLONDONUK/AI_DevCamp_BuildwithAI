@@ -1158,6 +1158,9 @@ export default function AdminPage() {
               <Plus size={16} />
               <span>Add pending user</span>
             </button>
+            <Link href="/admin/cohorts" className="flex items-center gap-2 text-sm text-green-300 hover:text-green-200 border border-green-500/30 hover:border-green-500/50 bg-green-500/10 px-4 py-2 rounded-lg font-mono transition-all">
+              Close cohort
+            </Link>
             <Link href="/admin/hackathon" className="flex items-center gap-2 text-sm text-amber-300 hover:text-amber-200 border border-amber-500/30 hover:border-amber-500/50 bg-amber-500/10 px-4 py-2 rounded-lg font-mono transition-all">
               <Trophy size={14} /> Hackathon
             </Link>

@@ -1,7 +1,7 @@
-"use client";
-
 import Image from "next/image";
-import { DEFAULT_HACKATHON_PRIZES } from "@/lib/hackathonContent";
+import { loadHackathonPublicContent } from "@/lib/server/hackathonPublicContent";
+
+export const dynamic = "force-dynamic";
 
 function PrizeImage({ src, alt }: { src: string; alt: string }) {
   const isSvg = src.endsWith(".svg");
@@ -24,11 +24,12 @@ function PrizeImage({ src, alt }: { src: string; alt: string }) {
   );
 }
 
-export default function HackathonPrizesPage() {
-  const inPerson = DEFAULT_HACKATHON_PRIZES.filter(
+export default async function HackathonPrizesPage() {
+  const { prizes } = await loadHackathonPublicContent();
+  const inPerson = prizes.filter(
     (p) => (p.audience || "in-person") === "in-person" || p.audience === "all"
   );
-  const online = DEFAULT_HACKATHON_PRIZES.filter((p) => p.audience === "online");
+  const online = prizes.filter((p) => p.audience === "online");
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-12 space-y-10">

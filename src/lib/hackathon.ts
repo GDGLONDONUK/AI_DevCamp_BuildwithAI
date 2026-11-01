@@ -1,10 +1,8 @@
 /**
  * September 2026 cohort closing — Agentic Hackathon (in person + online).
  * Luma is the ticket / RSVP surface; projects ship via /hackathon/my-projects
- * (DevCamp final project = hackathon entry). Content: prizes/rules in hackathonContent.ts.
+ * (DevCamp final project = hackathon entry). Content: Firestore hackathonSettings/main.
  */
-
-import { DEFAULT_HACKATHON_PRIZES } from "@/lib/hackathonContent";
 
 export const HACKATHON_LUMA_URL = "https://luma.com/wz7509ty";
 
@@ -52,8 +50,6 @@ export const HACKATHON_EVENT = {
   /** Programme end — same day as this event (cohort Firestore endDate). */
   cohortEndDateIso: "2026-10-31",
 } as const;
-
-export { DEFAULT_HACKATHON_PRIZES };
 
 export function hackathonIdeasOpen(now = Date.now()): boolean {
   return now >= Date.parse(HACKATHON_EVENT.ideaOpensIso);
