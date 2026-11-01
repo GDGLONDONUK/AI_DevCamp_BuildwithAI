@@ -18,6 +18,8 @@ export interface SessionAttendanceAuditEntry {
   source: AttendanceMarkSource;
   /** Cohort of the session when marked — supports multi-cohort reporting. */
   cohortId?: string;
+  /** e.g. cohort-close-auto */
+  reason?: string;
 }
 
 /**
@@ -197,6 +199,18 @@ export interface UserProfile {
   certifierCredentialStatus?: string;
   /** ISO time when credential ids were last synced from Certifier. */
   certifierSyncedAt?: string;
+  /** Per-cohort Credsverse credentials (never reuse another cohort's id). */
+  certifierCredentials?: Record<
+    string,
+    {
+      credentialId: string;
+      publicId: string;
+      status: string;
+      issuedAt: string;
+      kind?: "participation" | "completion";
+      groupId?: string;
+    }
+  >;
   /**
    * Cohorts this person has joined (e.g. `cohort-june-2026`, `cohort-september-2026`).
    * Maintained by register / join-cohort APIs — not self-editable.
@@ -207,7 +221,14 @@ export interface UserProfile {
   /** Per-cohort status / join metadata. */
   cohortParticipation?: Record<
     string,
-    { status: string; joinedAt: string; role?: string }
+    {
+      status: string;
+      joinedAt: string;
+      role?: string;
+      certifiedAt?: string;
+      certificationRule?: string;
+      certificateShareId?: string;
+    }
   >;
 }
 
@@ -380,6 +401,21 @@ export interface Project {
   openToMembers?: boolean;
   /** Audience vote tally (server-maintained; never client-writable). */
   voteTotal?: number;
+  placement?: number | null;
+  placementLabel?: string;
+  award?:
+    | "first-online"
+    | "first-in-person"
+    | "second"
+    | "third"
+    | "peoples-choice"
+    | "finalist";
+  /** Admin-only — never returned on public winner APIs. */
+  prize?: string;
+  judgeBlurb?: string;
+  teamMembers?: string[];
+  /** When set, overrides staff-role prize ineligibility. */
+  organiserOverride?: boolean;
 }
 
 /** Row in Firestore `error_logs` (written only via Admin SDK / API). */

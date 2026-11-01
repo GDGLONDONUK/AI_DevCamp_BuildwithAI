@@ -10,6 +10,7 @@ import { resolveActiveCohortIdFromDb } from "../../../src/lib/server/activeCohor
 import { requireAuthenticated, resolveCaller } from "./auth";
 import { errResult, okResult } from "./json";
 import { LEARNING_HARNESS, LEARNING_CHAT_TOOL_NAMES } from "../../../src/lib/learning-chat/harness";
+import { execListHackathonResources } from "../../../src/lib/learning-chat/toolExecutors";
 
 /**
  * Public-tier MCP tools — Firestore `sessions` only (same data as the public website).
@@ -105,6 +106,31 @@ export function registerPublicTools(server: McpServer): void {
               guide: "docs/15-agent-harnessing-optimisation.md",
             },
           },
+        });
+      } catch (e) {
+        return errResult(e instanceof Error ? e.message : String(e));
+      }
+    }
+  );
+
+  server.registerTool(
+    "list_hackathon_resources",
+    {
+      description:
+        "PUBLIC: starter links for the AI DevCamp Agentic Hackathon (closing session). " +
+        "Beginner coding, beginner agents guide, social-media agent labs, Halloween photo codelab, hackathon hub. " +
+        "Use when the user asks for hackathon resources or where to start.",
+      inputSchema: {},
+      annotations: { readOnlyHint: true },
+    },
+    async () => {
+      try {
+        const caller = await resolveCaller();
+        requireAuthenticated(caller);
+        return okResult({
+          tier: "public",
+          source: "hackathonSettings",
+          ...(await execListHackathonResources()),
         });
       } catch (e) {
         return errResult(e instanceof Error ? e.message : String(e));

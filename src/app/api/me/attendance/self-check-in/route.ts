@@ -26,6 +26,8 @@ import {
   sessionCohortId,
 } from "@/lib/server/sessionCohortAccess";
 import { isSelfCheckInWindowOpen } from "@/lib/server/selfCheckInWindow";
+import { assertCohortAcceptsCheckIn } from "@/lib/server/cohortLifecycle";
+import { isAdminOpError } from "@/lib/server/admin/errors";
 import type { SessionSelfCheckInDocument } from "@/types";
 import { parseJsonBody } from "@/lib/api/parseJsonBody";
 import { selfCheckInBodySchema } from "@/lib/api/schemas/requestBodies";
@@ -51,6 +53,13 @@ export async function POST(request: NextRequest) {
     const cohortId = sessionCohortId(sessionSnap.data());
     if (!canSelfCheckInForSessionCohort(userData, cohortId)) {
       return err("You are not enrolled in this session’s programme cohort.", 403);
+    }
+
+    try {
+      await assertCohortAcceptsCheckIn(cohortId);
+    } catch (gate) {
+      if (isAdminOpError(gate)) return err(gate.message, gate.status);
+      throw gate;
     }
 
     if (isSelfCheckInRateLimited(auth.uid)) {

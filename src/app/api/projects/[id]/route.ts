@@ -45,6 +45,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     const project = await patchAdminProject(id, {
       status: parsed.data.status,
       feedback: parsed.data.feedback,
+      organiserOverride: parsed.data.organiserOverride,
     });
     return ok(project);
   } catch (e) {

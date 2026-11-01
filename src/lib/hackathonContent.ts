@@ -1,6 +1,6 @@
 /**
- * Agentic Hackathon content for AI DevCamp (31 Oct 2026).
- * Adapted from GDG London Hackathon (IO 2026) prizes / rules / resources.
+ * Agentic Hackathon content types + seed defaults.
+ * Runtime source of truth: Firestore `hackathonSettings/main` (Admin SDK).
  */
 
 export type ContentLink = { href: string; label: string };
@@ -110,11 +110,73 @@ export const DEFAULT_HACKATHON_PRIZES: HackathonPrizeEntry[] = [
 export const HAUNTED_KIOSK_URL = "https://aidevcamp-halloween-hack.vercel.app/";
 export const HAUNTED_KIOSK_BUILD_URL = "https://aidevcamp-halloween-hack.vercel.app/build";
 
-export const DEFAULT_RESOURCE_LINKS: ContentLink[] = [
+export type HackathonStarterLink = {
+  id: string;
+  audience: string;
+  title: string;
+  blurb: string;
+  href: string;
+  label: string;
+};
+
+/** Starter pack emailed for the closing hackathon. No tracking query params. */
+export const HACKATHON_STARTER_LINKS: HackathonStarterLink[] = [
   {
-    href: HAUNTED_KIOSK_BUILD_URL,
-    label: "Haunted Kiosk · Build lab (Halloween Hack)",
+    id: "beginner-coding",
+    audience: "New to coding",
+    title: "Start here",
+    blurb: "Beginner coding resource — a starting point if you are new to programming.",
+    href: "https://claude.ai/artifact/A7as43vs7VEURNiciCKegQ",
+    label: "Explore the beginner coding resource",
   },
+  {
+    id: "beginner-agents",
+    audience: "New to AI agents",
+    title: "Learn the basics",
+    blurb: "What AI agents are, before you start building.",
+    href: "https://app.gitbook.com/o/QmDNG4JEnkJ1l4zy56g2/sites/site_RPJpo/s/hOG0AEyMnm8rgrfWDnlA/~/preview/",
+    label: "Explore the beginner’s guide to agents",
+  },
+  {
+    id: "social-media-labs",
+    audience: "Hands-on labs",
+    title: "Build a social media agent from scratch",
+    blurb: "Step-by-step labs to build your own social media agent.",
+    href: "https://sonikajanagill.com/ai-devcamp-labs/index.html",
+    label: "Start the social media agent labs",
+  },
+  {
+    id: "halloween-photo",
+    audience: "Codelab",
+    title: "Try the Halloween photo codelab",
+    blurb: "Build a spooky photo experience in the Haunted Kiosk build lab.",
+    href: HAUNTED_KIOSK_BUILD_URL,
+    label: "Open the photo codelab",
+  },
+  {
+    id: "hackathon-hub",
+    audience: "Event hub",
+    title: "Hackathon hub on this site",
+    blurb: "Schedule, rules, prizes, submit, and winners for the Agentic Hackathon.",
+    href: "https://aidevcamp.gdg.london/hackathon",
+    label: "Open the hackathon hub",
+  },
+];
+
+export type JudgingCriterion = { title: string; detail: string };
+
+export type HackathonPublicContent = {
+  prizes: HackathonPrizeEntry[];
+  rulesSections: RulesSection[];
+  judgingCriteria: JudgingCriterion[];
+  starterLinks: HackathonStarterLink[];
+  resourceLinks: ContentLink[];
+  hauntedKioskUrl: string;
+  hauntedKioskBuildUrl: string;
+};
+
+export const DEFAULT_RESOURCE_LINKS: ContentLink[] = [
+  ...HACKATHON_STARTER_LINKS.map((l) => ({ href: l.href, label: l.label })),
   { href: HAUNTED_KIOSK_URL, label: "Haunted Kiosk · photo booth" },
   { href: "https://ai.google.dev/docs", label: "Gemini API Docs" },
   { href: "https://aistudio.google.com/", label: "Google AI Studio" },
@@ -250,9 +312,197 @@ export const DEFAULT_RULES_SECTIONS: RulesSection[] = [
   },
 ];
 
-export const JUDGING_CRITERIA = [
+export const JUDGING_CRITERIA: JudgingCriterion[] = [
   { title: "Impact", detail: "Does it solve a real problem for a clear audience?" },
   { title: "Technical depth", detail: "Agents, tools, MCP/ADK, deployment — beyond a thin wrapper." },
   { title: "Demo clarity", detail: "Can judges understand and see it working quickly?" },
   { title: "Originality", detail: "Fresh angle, not a copy of a common tutorial." },
-] as const;
+];
+
+export const DEFAULT_HACKATHON_PUBLIC_CONTENT: HackathonPublicContent = {
+  prizes: DEFAULT_HACKATHON_PRIZES,
+  rulesSections: DEFAULT_RULES_SECTIONS,
+  judgingCriteria: JUDGING_CRITERIA,
+  starterLinks: HACKATHON_STARTER_LINKS,
+  resourceLinks: DEFAULT_RESOURCE_LINKS,
+  hauntedKioskUrl: HAUNTED_KIOSK_URL,
+  hauntedKioskBuildUrl: HAUNTED_KIOSK_BUILD_URL,
+};
+
+export function hackathonStarterResourcesPayload(
+  content: Pick<HackathonPublicContent, "starterLinks"> = DEFAULT_HACKATHON_PUBLIC_CONTENT
+) {
+  const links = content.starterLinks.length
+    ? content.starterLinks
+    : HACKATHON_STARTER_LINKS;
+  return {
+    title: "Helpful resources for the AI DevCamp Hackathon",
+    event: "AI DevCamp 2026 Agentic Hackathon (closing session, 31 Oct 2026)",
+    closingSessionId: "sept-2026-hackathon",
+    links: links.map((l) => ({
+      id: l.id,
+      audience: l.audience,
+      title: l.title,
+      blurb: l.blurb,
+      url: l.href,
+      label: l.label,
+    })),
+  };
+}
+
+function asString(value: unknown, fallback: string): string {
+  return typeof value === "string" && value.trim() ? value.trim() : fallback;
+}
+
+function asSafeHref(value: unknown, fallback: string): string {
+  const raw = asString(value, fallback);
+  if (raw.startsWith("https://") || raw.startsWith("http://") || raw.startsWith("/")) {
+    return raw;
+  }
+  return fallback;
+}
+
+function asNumber(value: unknown, fallback: number): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+function asStringList(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const items = value.filter((v): v is string => typeof v === "string" && v.trim().length > 0);
+  return items.length ? items : undefined;
+}
+
+function normalizePrize(raw: unknown, fallback?: HackathonPrizeEntry): HackathonPrizeEntry | null {
+  if (!raw || typeof raw !== "object") return fallback ?? null;
+  const o = raw as Record<string, unknown>;
+  const id = asString(o.id, fallback?.id || "");
+  const name = asString(o.name, fallback?.name || "");
+  if (!id || !name) return fallback ?? null;
+  const audience =
+    o.audience === "online" || o.audience === "in-person" || o.audience === "all"
+      ? o.audience
+      : fallback?.audience;
+  return {
+    id,
+    name,
+    imageSrc: asString(o.imageSrc, fallback?.imageSrc || ""),
+    featured: o.featured === true ? true : fallback?.featured,
+    sortOrder: asNumber(o.sortOrder, fallback?.sortOrder ?? 0),
+    ...(audience ? { audience } : {}),
+    ...(typeof o.note === "string" && o.note.trim()
+      ? { note: o.note.trim() }
+      : fallback?.note
+        ? { note: fallback.note }
+        : {}),
+  };
+}
+
+function normalizeStarter(raw: unknown, fallback?: HackathonStarterLink): HackathonStarterLink | null {
+  if (!raw || typeof raw !== "object") return fallback ?? null;
+  const o = raw as Record<string, unknown>;
+  const id = asString(o.id, fallback?.id || "");
+  const href = asSafeHref(o.href, fallback?.href || "");
+  if (!id || !href) return fallback ?? null;
+  return {
+    id,
+    audience: asString(o.audience, fallback?.audience || ""),
+    title: asString(o.title, fallback?.title || ""),
+    blurb: asString(o.blurb, fallback?.blurb || ""),
+    href,
+    label: asString(o.label, fallback?.label || href),
+  };
+}
+
+function normalizeRule(raw: unknown, fallback?: RulesSection): RulesSection | null {
+  if (!raw || typeof raw !== "object") return fallback ?? null;
+  const o = raw as Record<string, unknown>;
+  const id = asString(o.id, fallback?.id || "");
+  const title = asString(o.title, fallback?.title || "");
+  if (!id || !title) return fallback ?? null;
+  const kind = (
+    ["card", "list", "numbered", "judging", "warning"] as RulesSectionKind[]
+  ).includes(o.kind as RulesSectionKind)
+    ? (o.kind as RulesSectionKind)
+    : fallback?.kind || "card";
+  const items = asStringList(o.items) ?? fallback?.items;
+  return {
+    id,
+    kind,
+    title,
+    body: typeof o.body === "string" ? o.body : fallback?.body,
+    ...(items ? { items } : {}),
+    variant: (["default", "violet", "amber", "emerald"] as RulesSectionVariant[]).includes(
+      o.variant as RulesSectionVariant
+    )
+      ? (o.variant as RulesSectionVariant)
+      : fallback?.variant,
+    icon: fallback?.icon,
+    linkHref: o.linkHref != null ? asSafeHref(o.linkHref, fallback?.linkHref || "") : fallback?.linkHref,
+    linkLabel: typeof o.linkLabel === "string" ? o.linkLabel : fallback?.linkLabel,
+    sortOrder: asNumber(o.sortOrder, fallback?.sortOrder ?? 0),
+  };
+}
+
+/** Merge Firestore `hackathonSettings/main` marketing fields with seed defaults. */
+export function normalizeHackathonPublicContent(raw?: unknown): HackathonPublicContent {
+  const d = DEFAULT_HACKATHON_PUBLIC_CONTENT;
+  if (!raw || typeof raw !== "object") {
+    return {
+      ...d,
+      prizes: [...d.prizes],
+      rulesSections: [...d.rulesSections],
+      judgingCriteria: [...d.judgingCriteria],
+      starterLinks: [...d.starterLinks],
+      resourceLinks: [...d.resourceLinks],
+    };
+  }
+  const o = raw as Record<string, unknown>;
+
+  const prizes = Array.isArray(o.prizes)
+    ? o.prizes.map((row, i) => normalizePrize(row, d.prizes[i])).filter((p): p is HackathonPrizeEntry => Boolean(p))
+    : d.prizes;
+  const starterLinks = Array.isArray(o.starterLinks)
+    ? o.starterLinks
+        .map((row, i) => normalizeStarter(row, d.starterLinks[i]))
+        .filter((p): p is HackathonStarterLink => Boolean(p))
+    : d.starterLinks;
+  const rulesSections = Array.isArray(o.rulesSections)
+    ? o.rulesSections
+        .map((row, i) => normalizeRule(row, d.rulesSections[i]))
+        .filter((p): p is RulesSection => Boolean(p))
+    : d.rulesSections;
+  const resourceLinks = Array.isArray(o.resourceLinks)
+    ? o.resourceLinks
+        .map((row) => {
+          if (!row || typeof row !== "object") return null;
+          const r = row as Record<string, unknown>;
+          const href = asSafeHref(r.href, "");
+          const label = asString(r.label, "");
+          if (!href || !label) return null;
+          return { href, label };
+        })
+        .filter((p): p is ContentLink => Boolean(p))
+    : d.resourceLinks;
+  const judgingCriteria = Array.isArray(o.judgingCriteria)
+    ? o.judgingCriteria
+        .map((row) => {
+          if (!row || typeof row !== "object") return null;
+          const r = row as Record<string, unknown>;
+          const title = asString(r.title, "");
+          const detail = asString(r.detail, "");
+          if (!title || !detail) return null;
+          return { title, detail };
+        })
+        .filter((p): p is JudgingCriterion => Boolean(p))
+    : d.judgingCriteria;
+
+  return {
+    prizes: prizes.length ? prizes : d.prizes,
+    rulesSections: rulesSections.length ? rulesSections : d.rulesSections,
+    judgingCriteria: judgingCriteria.length ? judgingCriteria : [...d.judgingCriteria],
+    starterLinks: starterLinks.length ? starterLinks : d.starterLinks,
+    resourceLinks: resourceLinks.length ? resourceLinks : d.resourceLinks,
+    hauntedKioskUrl: asSafeHref(o.hauntedKioskUrl, d.hauntedKioskUrl),
+    hauntedKioskBuildUrl: asSafeHref(o.hauntedKioskBuildUrl, d.hauntedKioskBuildUrl),
+  };
+}

@@ -101,11 +101,13 @@ export const projectAdminPatchSchema = z
       .enum(["draft", "submitted", "reviewed", "shortlisted", "winner", "passed", "failed"])
       .optional(),
     feedback: z.string().max(20000).optional(),
+    organiserOverride: z.boolean().optional(),
   })
   .strict()
   .refine(
-    (d) => d.status !== undefined || d.feedback !== undefined,
-    { message: "At least one of status or feedback is required" }
+    (d) =>
+      d.status !== undefined || d.feedback !== undefined || d.organiserOverride !== undefined,
+    { message: "At least one of status, feedback, or organiserOverride is required" }
   );
 
 /** POST /api/projects/[id]/code-review — "Review again" (admins only). */

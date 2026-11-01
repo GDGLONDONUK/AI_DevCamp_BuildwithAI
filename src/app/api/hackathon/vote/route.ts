@@ -21,6 +21,9 @@ import { verifyAuth, ok, err, isErrorResponse } from "@/lib/api-helpers";
 import { logServerRouteException } from "@/lib/server/appErrorLog";
 import { parseJsonBody } from "@/lib/api/parseJsonBody";
 import { DEVCAMP_HACKATHON_ID } from "@/lib/hackathon";
+import { SEPTEMBER_2026_COHORT_ID } from "@/lib/cohorts";
+import { assertCohortAcceptsSubmissions } from "@/lib/server/cohortLifecycle";
+import { isAdminOpError } from "@/lib/server/admin/errors";
 import { readHackathonSettings } from "@/lib/server/hackathonSettings";
 import { isHackathonEligible } from "@/lib/hackathon/access";
 import {
@@ -176,6 +179,12 @@ export async function POST(req: NextRequest) {
     const settings = await readVotingSettings();
     if (!settings.votingOpen) {
       return err(settings.message || "Voting is closed", 403);
+    }
+    try {
+      await assertCohortAcceptsSubmissions(SEPTEMBER_2026_COHORT_ID);
+    } catch (gate) {
+      if (isAdminOpError(gate)) return err(gate.message, gate.status);
+      throw gate;
     }
 
     try {

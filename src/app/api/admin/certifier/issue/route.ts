@@ -16,6 +16,7 @@ const bodySchema = z
     uid: z.string().min(1).max(320).optional(),
     email: z.string().email().max(320).optional(),
     groupId: z.string().min(1).max(80).optional(),
+    cohortId: z.string().min(1).max(80).optional(),
     skipIfExists: z.boolean().optional(),
     markCertified: z.boolean().optional(),
   })
@@ -35,6 +36,7 @@ export async function POST(request: NextRequest) {
     const result = await issueCertifierCredential({
       uidOrEmail,
       groupId: parsed.data.groupId,
+      cohortId: parsed.data.cohortId,
       skipIfExists: parsed.data.skipIfExists,
       markCertified: parsed.data.markCertified,
     });

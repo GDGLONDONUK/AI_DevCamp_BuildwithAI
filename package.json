@@ -35,7 +35,11 @@
     "mcp:devcamp": "tsx --env-file=.env.local packages/devcamp-mcp/src/index.ts",
     "mcp:http": "tsx --env-file=.env.local packages/devcamp-mcp/src/http.ts",
     "mcp:mint-token": "tsx --env-file=.env.local scripts/mcp-mint-id-token.ts",
-    "mcp:probe-attendee": "tsx --env-file=.env.local scripts/mcp-probe-attendee-access.ts"
+    "mcp:probe-attendee": "tsx --env-file=.env.local scripts/mcp-probe-attendee-access.ts",
+    "test:unit": "tsx --test src/lib/certification.test.ts src/lib/safeProjectUrl.test.ts src/lib/joinCohortPolicy.test.ts src/lib/hackathonContent.test.ts",
+    "test:e2e": "playwright test",
+    "migrate-september-certification": "tsx --env-file=.env.local scripts/migrate-september-certification.ts",
+    "seed-hackathon-winners": "tsx --env-file=.env.local scripts/seed-hackathon-winners.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.76",
@@ -64,6 +68,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@playwright/test": "^1.51.1",
     "@tailwindcss/postcss": "^4",
     "@types/leaflet": "^1.9.21",
     "@types/node": "^20",

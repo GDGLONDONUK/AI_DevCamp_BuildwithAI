@@ -11,6 +11,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase-admin";
 import { DEVCAMP_HACKATHON_ID } from "@/lib/hackathon";
 import { publicDisplayName } from "@/lib/server/omitContactPii";
+import { sanitizePublicProjectUrl } from "@/lib/safeProjectUrl";
 
 export type PublicProjectCard = {
   id: string;
@@ -52,8 +53,8 @@ export function toPublicProjectCard(
     projectType: data.projectType === "team" ? "team" : "solo",
     openToMembers: data.openToMembers === true,
     techStack: Array.isArray(data.techStack) ? data.techStack.map(String) : [],
-    githubUrl: typeof data.githubUrl === "string" ? data.githubUrl : undefined,
-    demoUrl: typeof data.demoUrl === "string" ? data.demoUrl : undefined,
+    githubUrl: sanitizePublicProjectUrl(data.githubUrl) ?? undefined,
+    demoUrl: sanitizePublicProjectUrl(data.demoUrl) ?? undefined,
     screenshotUrls: Array.isArray(data.screenshotUrls)
       ? data.screenshotUrls.map(String).slice(0, 5)
       : [],

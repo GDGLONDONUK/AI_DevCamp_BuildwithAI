@@ -14,6 +14,7 @@
 import { adminDb } from "@/lib/firebase-admin";
 import { userInCohort } from "@/lib/cohorts";
 import { resolveActiveCohortIdFromDb } from "@/lib/server/activeCohort";
+import { getCohortLifecycle, resolveEnrolmentCohortId } from "@/lib/server/cohortLifecycle";
 
 export type ProgrammeActor = {
   uid: string;
@@ -45,11 +46,14 @@ export function actorEnrolledInCohort(
 export async function resolveDefaultCohortId(
   actor: Pick<ProgrammeActor, "role" | "cohortIds" | "activeCohortId">
 ): Promise<string> {
-  const programmeActive = await resolveActiveCohortIdFromDb();
-  if (isStaffRole(actor.role) || userInCohort(actor.cohortIds, programmeActive)) {
-    return programmeActive;
+  const enrolmentId = await resolveEnrolmentCohortId();
+  const enrolmentLife = await getCohortLifecycle(enrolmentId);
+  if (enrolmentLife === "live" && (isStaffRole(actor.role) || userInCohort(actor.cohortIds, enrolmentId))) {
+    return enrolmentId;
   }
-  return (actor.activeCohortId || programmeActive).trim();
+  if (actor.activeCohortId?.trim()) return actor.activeCohortId.trim();
+  if (userInCohort(actor.cohortIds, enrolmentId)) return enrolmentId;
+  return (await resolveActiveCohortIdFromDb()).trim();
 }
 
 /**

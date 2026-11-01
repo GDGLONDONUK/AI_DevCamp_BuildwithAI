@@ -708,12 +708,28 @@ export const SEPTEMBER_2026_SESSIONS: Session[] = [
     ],
     resources: [
       {
-        title: "Register on Luma",
-        url: "https://luma.com/wz7509ty",
+        title: "Beginner coding resource",
+        url: "https://claude.ai/artifact/A7as43vs7VEURNiciCKegQ",
       },
       {
-        title: "Hackathon page (this site)",
+        title: "Beginner’s guide to agents",
+        url: "https://app.gitbook.com/o/QmDNG4JEnkJ1l4zy56g2/sites/site_RPJpo/s/hOG0AEyMnm8rgrfWDnlA/~/preview/",
+      },
+      {
+        title: "Social media agent labs",
+        url: "https://sonikajanagill.com/ai-devcamp-labs/index.html",
+      },
+      {
+        title: "Halloween photo codelab",
+        url: "https://aidevcamp-halloween-hack.vercel.app/build",
+      },
+      {
+        title: "Hackathon hub (this site)",
         url: "https://aidevcamp.gdg.london/hackathon",
+      },
+      {
+        title: "Register on Luma",
+        url: "https://luma.com/wz7509ty",
       },
       {
         title: "Submit final project",

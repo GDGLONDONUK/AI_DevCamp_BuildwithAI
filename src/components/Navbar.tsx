@@ -40,11 +40,15 @@ export default function Navbar() {
     setDropdownOpen(false);
   };
 
-  const certUrl =
-    userProfile?.userStatus === "certified" && userProfile.certifierCredentialPublicId
-      ? certifierCredentialViewUrl(userProfile.certifierCredentialPublicId)
-      : userProfile?.userStatus === "certified"
-        ? "/profile#certificate"
+  const septShare = userProfile?.cohortParticipation?.["cohort-september-2026"]?.certificateShareId;
+  const septCertified =
+    userProfile?.cohortParticipation?.["cohort-september-2026"]?.status === "certified";
+  const certUrl = septShare
+    ? `/certificate/${septShare}`
+    : septCertified
+      ? "/cohorts/september-2026/certified"
+      : userProfile?.userStatus === "certified" && userProfile.certifierCredentialPublicId
+        ? certifierCredentialViewUrl(userProfile.certifierCredentialPublicId)
         : null;
 
   const navLinks = [
@@ -183,28 +187,14 @@ export default function Navbar() {
                               <User size={16} />
                               My Profile
                             </Link>
-                            {userProfile?.userStatus === "certified" && (
+                            {certUrl && (
                               <Link
-                                href={
-                                  userProfile.certifierCredentialPublicId
-                                    ? certifierCredentialViewUrl(userProfile.certifierCredentialPublicId)
-                                    : "/profile#certificate"
-                                }
-                                target={
-                                  userProfile.certifierCredentialPublicId ? "_blank" : undefined
-                                }
-                                rel={
-                                  userProfile.certifierCredentialPublicId
-                                    ? "noopener noreferrer"
-                                    : undefined
-                                }
+                                href={certUrl}
                                 onClick={() => setDropdownOpen(false)}
                                 className="flex items-center gap-3 px-4 py-2.5 text-sm text-emerald-300 hover:text-emerald-200 hover:bg-emerald-500/10 transition-colors"
                               >
                                 <Award size={16} />
-                                {userProfile.certifierCredentialPublicId
-                                  ? "View certificate"
-                                  : "Get certificate"}
+                                Certificate
                               </Link>
                             )}
                             {userProfile?.role === "admin" && (

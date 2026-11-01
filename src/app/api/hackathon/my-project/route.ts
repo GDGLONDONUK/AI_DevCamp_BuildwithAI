@@ -21,6 +21,9 @@ import {
   upsertUserCohortProject,
 } from "@/lib/server/programmeProjects";
 import { publicDisplayName } from "@/lib/server/omitContactPii";
+import { assertCohortAcceptsSubmissions } from "@/lib/server/cohortLifecycle";
+import { isAdminOpError } from "@/lib/server/admin/errors";
+import { assertSafeProjectSubmitUrl } from "@/lib/safeProjectUrl";
 
 const saveSchema = z.object({
   ship: z.boolean().optional().default(false),
@@ -78,7 +81,17 @@ export async function PUT(req: NextRequest) {
 
     const userSnap = await adminDb().collection("users").doc(auth.uid).get();
     const userData = userSnap.data() || {};
-    const live = await resolveActiveCohortIdFromDb();
+    const live =
+      (typeof userData.activeCohortId === "string" && userData.activeCohortId) ||
+      (await resolveActiveCohortIdFromDb());
+    try {
+      await assertCohortAcceptsSubmissions(live);
+      if (body.githubUrl) assertSafeProjectSubmitUrl(body.githubUrl, "githubUrl");
+      if (body.demoUrl) assertSafeProjectSubmitUrl(body.demoUrl, "demoUrl");
+    } catch (gate) {
+      if (isAdminOpError(gate)) return err(gate.message, gate.status);
+      return err(gate instanceof Error ? gate.message : "Invalid submission", 400);
+    }
 
     if (
       !isHackathonEligible(

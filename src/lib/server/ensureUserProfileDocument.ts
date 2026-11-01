@@ -6,8 +6,7 @@ import { findPendingUserByEmail } from "@/lib/server/userImportLookup";
 import { applyPendingRowToEnsureProfileData } from "@/lib/server/mergePendingUserIntoProfile";
 import type { UserProfile } from "@/types";
 import { isRegistrationOpen } from "@/lib/registrationOpen";
-import { getActiveCohortId } from "@/lib/cohorts";
-import { resolveActiveCohortIdFromDb } from "@/lib/server/activeCohort";
+import { getCohortLifecycle, resolveEnrolmentCohortId } from "@/lib/server/cohortLifecycle";
 import { isOrganiserAdminEmail } from "@/lib/organiserAdmins";
 
 export type EnsureUserProfileResult = {
@@ -36,28 +35,30 @@ export async function ensureUserProfileForUid(uid: string): Promise<EnsureUserPr
     const data = existing.data()!;
     const email = String(data.email || "").trim();
     if (isOrganiserAdminEmail(email)) {
-      const programmeActive = await resolveActiveCohortIdFromDb();
+      const enrolmentId = await resolveEnrolmentCohortId();
+      const enrolmentLife = await getCohortLifecycle(enrolmentId);
       const nowIso = new Date().toISOString();
       const patch: Record<string, unknown> = {
         updatedAt: FieldValue.serverTimestamp(),
       };
       if (data.role !== "admin") patch.role = "admin";
-      if (data.activeCohortId !== programmeActive) {
-        patch.activeCohortId = programmeActive;
-      }
       const ids = Array.isArray(data.cohortIds) ? data.cohortIds : [];
-      if (!ids.includes(programmeActive)) {
-        patch.cohortIds = FieldValue.arrayUnion(programmeActive);
+      if (!ids.includes(enrolmentId)) {
+        patch.cohortIds = FieldValue.arrayUnion(enrolmentId);
         patch.cohortParticipation = {
           ...(typeof data.cohortParticipation === "object" && data.cohortParticipation
             ? data.cohortParticipation
             : {}),
-          [programmeActive]: {
+          [enrolmentId]: {
             status: "participated",
             joinedAt: nowIso,
             role: "admin",
           },
         };
+      }
+      // Don't pull organisers off a closed/live programme onto an upcoming waitlist.
+      if (enrolmentLife === "live" && data.activeCohortId !== enrolmentId) {
+        patch.activeCohortId = enrolmentId;
       }
       await userRef.set(patch, { merge: true });
     }
@@ -124,7 +125,7 @@ export async function ensureUserProfileForUid(uid: string): Promise<EnsureUserPr
   const isGoogle = record.providerData?.some((p) => p.providerId === "google.com") ?? false;
   const authProviderIds = record.providerData?.map((p) => p.providerId) ?? [];
 
-  const activeCohortId = await resolveActiveCohortIdFromDb();
+  const activeCohortId = await resolveEnrolmentCohortId();
   const nowIso = new Date().toISOString();
   const organiserAdmin = isOrganiserAdminEmail(email);
 

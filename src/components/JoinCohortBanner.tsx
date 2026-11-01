@@ -3,7 +3,11 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { joinActiveCohort } from "@/lib/meApi";
-import { getActiveCohortId, userInCohort } from "@/lib/cohorts";
+import {
+  APRIL_2027_COHORT_ID,
+  SEPTEMBER_2026_COHORT_ID,
+  userInCohort,
+} from "@/lib/cohorts";
 import { isRegistrationOpen } from "@/lib/registrationOpen";
 import { useSiteContent } from "@/hooks/useSiteContent";
 import toast from "react-hot-toast";
@@ -18,13 +22,17 @@ export default function JoinCohortBanner() {
   const { user, userProfile, refreshProfile } = useAuth();
   const { content } = useSiteContent();
   const [busy, setBusy] = useState(false);
-  const activeId = getActiveCohortId();
   const banner = content.joinCohortBanner;
 
   if (!isRegistrationOpen()) return null;
   if (!user || !userProfile) return null;
   if (userProfile.role === "admin" || userProfile.role === "moderator") return null;
-  if (userInCohort(userProfile.cohortIds, activeId)) return null;
+  if (
+    userInCohort(userProfile.cohortIds, SEPTEMBER_2026_COHORT_ID) ||
+    userInCohort(userProfile.cohortIds, APRIL_2027_COHORT_ID)
+  ) {
+    return null;
+  }
 
   return (
     <div className="border-b border-amber-500/30 bg-amber-500/10 px-4 py-3">
@@ -39,7 +47,7 @@ export default function JoinCohortBanner() {
           onClick={async () => {
             setBusy(true);
             try {
-              const r = await joinActiveCohort(activeId);
+              const r = await joinActiveCohort();
               await refreshProfile?.();
               toast.success(
                 r.alreadyJoined ? banner.successAlready : banner.successJoined

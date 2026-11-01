@@ -6,20 +6,39 @@
 
 export const SPRING_2026_COHORT_ID = "cohort-june-2026";
 export const SEPTEMBER_2026_COHORT_ID = "cohort-september-2026";
+export const APRIL_2027_COHORT_ID = "cohort-april-2027";
 
-/** Default active cohort when env is unset. */
+/** Default enrolment cohort when env / Firestore is unset. */
 export const DEFAULT_ACTIVE_COHORT_ID = SEPTEMBER_2026_COHORT_ID;
+
+/** Programme lifecycle used after September close (maps older planning/active/completed). */
+export type CohortLifecycle = "upcoming" | "live" | "closed";
 
 export type CohortStatus =
   | "planning"
   | "registration"
   | "active"
-  | "completed";
+  | "completed"
+  | CohortLifecycle;
+
+export function normalizeCohortLifecycle(
+  status: string | undefined | null,
+  isCurrent?: boolean
+): CohortLifecycle {
+  const s = String(status || "").toLowerCase();
+  if (s === "closed" || s === "completed") return "closed";
+  if (s === "upcoming" || s === "planning" || s === "registration") return "upcoming";
+  if (s === "live" || s === "active") return "live";
+  return isCurrent ? "live" : "upcoming";
+}
 
 export type CohortParticipation = {
   status: string;
   joinedAt: string;
   role?: "attendee" | "moderator" | "admin";
+  certifiedAt?: string;
+  certificationRule?: string;
+  certificateShareId?: string;
 };
 
 /**

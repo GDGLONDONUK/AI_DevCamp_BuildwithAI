@@ -4,6 +4,8 @@
  */
 
 import { SPRING_2026_COHORT_ID } from "@/lib/cohorts";
+import { hackathonStarterResourcesPayload } from "@/lib/hackathonContent";
+import { loadHackathonPublicContent } from "@/lib/server/hackathonPublicContent";
 import type { LearningChatContext } from "@/lib/learning-chat/constants";
 import { LEARNING_HARNESS } from "@/lib/learning-chat/harness";
 import {
@@ -39,6 +41,11 @@ export function publicSessionPayload(session: Awaited<ReturnType<typeof getSessi
     })),
     speakerIds: session.speakerIds,
   };
+}
+
+export async function execListHackathonResources() {
+  const content = await loadHackathonPublicContent();
+  return hackathonStarterResourcesPayload(content);
 }
 
 export async function execListCohortSessions(ctx: Pick<LearningChatContext, "cohortId">) {

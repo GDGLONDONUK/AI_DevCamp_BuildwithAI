@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 
 const LINKS: { href: string; label: string; exact?: boolean }[] = [
   { href: "/hackathon", label: "Overview", exact: true },
+  { href: "/hackathon/devcamp-september-2026/winners", label: "Winners" },
   { href: "/hackathon/ideas", label: "Ideas" },
   { href: "/hackathon/prizes", label: "Prizes" },
   { href: "/hackathon/rules", label: "Rules" },

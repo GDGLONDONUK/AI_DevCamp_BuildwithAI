@@ -1,13 +1,16 @@
-"use client";
-
 import Link from "next/link";
-import {
-  DEFAULT_RULES_SECTIONS,
-  JUDGING_CRITERIA,
-  type RulesSection,
-} from "@/lib/hackathonContent";
+import { loadHackathonPublicContent } from "@/lib/server/hackathonPublicContent";
+import type { JudgingCriterion, RulesSection } from "@/lib/hackathonContent";
 
-function SectionCard({ section }: { section: RulesSection }) {
+export const dynamic = "force-dynamic";
+
+function SectionCard({
+  section,
+  judgingCriteria,
+}: {
+  section: RulesSection;
+  judgingCriteria: JudgingCriterion[];
+}) {
   const border =
     section.variant === "amber"
       ? "border-amber-500/40 bg-amber-500/10"
@@ -41,7 +44,7 @@ function SectionCard({ section }: { section: RulesSection }) {
       )}
       {section.kind === "judging" && (
         <ul className="mt-2 space-y-2">
-          {JUDGING_CRITERIA.map((c) => (
+          {judgingCriteria.map((c) => (
             <li key={c.title} className="text-sm">
               <span className="text-green-300 font-semibold">{c.title}: </span>
               <span className="text-gray-300">{c.detail}</span>
@@ -63,7 +66,8 @@ function SectionCard({ section }: { section: RulesSection }) {
   );
 }
 
-export default function HackathonRulesPage() {
+export default async function HackathonRulesPage() {
+  const content = await loadHackathonPublicContent();
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-12 space-y-6">
       <div>
@@ -82,8 +86,8 @@ export default function HackathonRulesPage() {
           .
         </p>
       </div>
-      {DEFAULT_RULES_SECTIONS.map((s) => (
-        <SectionCard key={s.id} section={s} />
+      {content.rulesSections.map((s) => (
+        <SectionCard key={s.id} section={s} judgingCriteria={content.judgingCriteria} />
       ))}
     </div>
   );

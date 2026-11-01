@@ -137,6 +137,18 @@ export function certifierGroupId(): string {
   return g;
 }
 
+/** September 2026 template. Falls back to CERTIFIER_GROUP_ID with a warning. */
+export function certifierGroupIdForCohort(cohortId: string): string {
+  if (cohortId === "cohort-september-2026") {
+    const sept = process.env.CERTIFIER_GROUP_ID_SEPT_2026?.trim();
+    if (sept) return sept;
+    console.warn(
+      "[certifier] CERTIFIER_GROUP_ID_SEPT_2026 is not set; falling back to CERTIFIER_GROUP_ID"
+    );
+  }
+  return certifierGroupId();
+}
+
 function toSummary(
   raw: {
     id?: string;

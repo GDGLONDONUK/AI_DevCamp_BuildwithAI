@@ -34,10 +34,11 @@ import {
 } from "lucide-react";
 import ProfileCompletion from "@/components/ui/ProfileCompletion";
 import ProgramOptOutControl from "@/components/ProgramOptOutControl";
+import DashboardCertificateCard from "@/components/DashboardCertificateCard";
 
 export default function DashboardPage() {
   const { user, userProfile, loading } = useAuth();
-  const { sessions: liveSessions } = useSessions();
+  const { sessions: liveSessions } = useSessions(userProfile?.activeCohortId);
   const programmeSessions = useMemo(
     () => (liveSessions.length > 0 ? liveSessions : STATIC_SESSIONS),
     [liveSessions]
@@ -183,6 +184,14 @@ export default function DashboardPage() {
             </div>
           ))}
         </div>
+
+        {userProfile ? (
+          <DashboardCertificateCard
+            profile={userProfile}
+            sessions={programmeSessions}
+            attendance={attendance}
+          />
+        ) : null}
 
         {/* Profile completion card */}
         <ProfileCompletion profile={userProfile} variant="compact" />

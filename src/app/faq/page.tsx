@@ -179,7 +179,8 @@ const FAQS: FaqItem[] = [
           fresh token from <Link href="/mcp" className="text-green-400 underline">/mcp</Link>. Do
           not trust web search for the schedule — ask the connector for{" "}
           <code className="text-green-300">list_public_sessions</code> (live cohort is September
-          2026, not the April–May spring run).
+          2026, not the April–May spring run). For closing-day starter links ask{" "}
+          <code className="text-green-300">list_hackathon_resources</code>.
         </p>
       </FaqAnswer>
     ),
@@ -195,9 +196,10 @@ const FAQS: FaqItem[] = [
           <Link href="/mcp" className="text-green-400 underline">
             /mcp
           </Link>
-          ), your LLM can use programme schedule, lesson materials for your cohort,
-          flashcards / quizzes / Learning Guide, and <em>your own</em> learning tasks — not
-          other people’s data.
+          ), your LLM can use programme schedule, closing-hackathon starter links
+          (<code className="text-green-300">list_hackathon_resources</code>), lesson materials
+          for your cohort, flashcards / quizzes / Learning Guide, and <em>your own</em>{" "}
+          learning tasks — not other people’s data.
         </p>
         <p>
           Prefer the in-app Learning Assistant if you only need help on the site.
@@ -264,6 +266,7 @@ const FAQS: FaqItem[] = [
       <FaqAnswer>
         <ul className="list-disc list-inside space-y-1">
           <li>“List this cohort’s sessions and what’s coming next.”</li>
+          <li>“What are the hackathon starter resources / beginner labs?”</li>
           <li>“Search materials for RAG / ADK from the Scale workshop.”</li>
           <li>“Make flashcards for session &lt;id&gt; and quiz me.”</li>
           <li>“Start Learning Guide mode for Govern.”</li>
@@ -375,7 +378,9 @@ const FAQS: FaqItem[] = [
           <li>
             <code className="text-green-300">list_public_sessions</code> or{" "}
             <code className="text-green-300">list_cohort_sessions</code> → pick a{" "}
-            <code className="text-gray-400">sessionId</code>
+            <code className="text-gray-400">sessionId</code>. For closing-day starter links
+            (beginner coding, labs, Halloween codelab) use{" "}
+            <code className="text-green-300">list_hackathon_resources</code>.
           </li>
           <li>
             <code className="text-green-300">search_session_materials</code> /{" "}

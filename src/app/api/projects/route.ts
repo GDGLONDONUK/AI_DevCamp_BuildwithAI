@@ -17,6 +17,9 @@ import { DEVCAMP_HACKATHON_ID } from "@/lib/hackathon";
 import { hackathonSubmissionsAllowed } from "@/lib/server/hackathonSettings";
 import { upsertUserCohortProject } from "@/lib/server/programmeProjects";
 import { omitContactPii, publicDisplayName } from "@/lib/server/omitContactPii";
+import { assertCohortAcceptsSubmissions } from "@/lib/server/cohortLifecycle";
+import { isAdminOpError } from "@/lib/server/admin/errors";
+import { assertSafeProjectSubmitUrl } from "@/lib/safeProjectUrl";
 
 export async function GET(request: NextRequest) {
   const auth = await verifyAuth(request);
@@ -54,7 +57,17 @@ export async function POST(request: NextRequest) {
 
     const userSnap = await adminDb().collection("users").doc(auth.uid).get();
     const userData = userSnap.data();
-    const cohortId = await resolveActiveCohortIdFromDb();
+    const cohortId =
+      (typeof userData?.activeCohortId === "string" && userData.activeCohortId) ||
+      (await resolveActiveCohortIdFromDb());
+    try {
+      await assertCohortAcceptsSubmissions(cohortId);
+      if (githubUrl) assertSafeProjectSubmitUrl(githubUrl, "githubUrl");
+      if (demoUrl) assertSafeProjectSubmitUrl(demoUrl, "demoUrl");
+    } catch (gate) {
+      if (isAdminOpError(gate)) return err(gate.message, gate.status);
+      return err(gate instanceof Error ? gate.message : "Invalid submission", 400);
+    }
 
     const result = await upsertUserCohortProject({
       uid: auth.uid,
