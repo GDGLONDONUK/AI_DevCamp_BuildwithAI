@@ -21,6 +21,8 @@ async function main() {
     resourceLinks: DEFAULT_HACKATHON_PUBLIC_CONTENT.resourceLinks,
     hauntedKioskUrl: DEFAULT_HACKATHON_PUBLIC_CONTENT.hauntedKioskUrl,
     hauntedKioskBuildUrl: DEFAULT_HACKATHON_PUBLIC_CONTENT.hauntedKioskBuildUrl,
+    photosAlbumUrl: DEFAULT_HACKATHON_PUBLIC_CONTENT.photosAlbumUrl,
+    photosAlbumTitle: DEFAULT_HACKATHON_PUBLIC_CONTENT.photosAlbumTitle,
     updatedAt: new Date().toISOString(),
   };
   if (process.argv.includes("--submissions-open")) payload.submissionsOpen = true;

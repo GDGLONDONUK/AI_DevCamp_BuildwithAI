@@ -3,6 +3,12 @@
  * Runtime source of truth: Firestore `hackathonSettings/main` (Admin SDK).
  */
 
+import {
+  isPublicGooglePhotosAlbumUrl,
+  PUBLIC_HACKATHON_PHOTOS_ALBUM_TITLE,
+  PUBLIC_HACKATHON_PHOTOS_ALBUM_URL,
+} from "@/lib/googlePhotosAlbum";
+
 export type ContentLink = { href: string; label: string };
 
 export type RulesSectionKind = "card" | "list" | "numbered" | "judging" | "warning";
@@ -173,6 +179,8 @@ export type HackathonPublicContent = {
   resourceLinks: ContentLink[];
   hauntedKioskUrl: string;
   hauntedKioskBuildUrl: string;
+  photosAlbumUrl: string;
+  photosAlbumTitle: string;
 };
 
 export const DEFAULT_RESOURCE_LINKS: ContentLink[] = [
@@ -327,6 +335,8 @@ export const DEFAULT_HACKATHON_PUBLIC_CONTENT: HackathonPublicContent = {
   resourceLinks: DEFAULT_RESOURCE_LINKS,
   hauntedKioskUrl: HAUNTED_KIOSK_URL,
   hauntedKioskBuildUrl: HAUNTED_KIOSK_BUILD_URL,
+  photosAlbumUrl: PUBLIC_HACKATHON_PHOTOS_ALBUM_URL,
+  photosAlbumTitle: PUBLIC_HACKATHON_PHOTOS_ALBUM_TITLE,
 };
 
 export function hackathonStarterResourcesPayload(
@@ -504,5 +514,9 @@ export function normalizeHackathonPublicContent(raw?: unknown): HackathonPublicC
     resourceLinks: resourceLinks.length ? resourceLinks : d.resourceLinks,
     hauntedKioskUrl: asSafeHref(o.hauntedKioskUrl, d.hauntedKioskUrl),
     hauntedKioskBuildUrl: asSafeHref(o.hauntedKioskBuildUrl, d.hauntedKioskBuildUrl),
+    photosAlbumUrl: isPublicGooglePhotosAlbumUrl(o.photosAlbumUrl)
+      ? String(o.photosAlbumUrl).trim()
+      : d.photosAlbumUrl,
+    photosAlbumTitle: asString(o.photosAlbumTitle, d.photosAlbumTitle),
   };
 }

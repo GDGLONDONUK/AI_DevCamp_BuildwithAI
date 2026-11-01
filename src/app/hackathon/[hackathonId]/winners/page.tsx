@@ -4,7 +4,10 @@ import { notFound } from "next/navigation";
 import { ExternalLink, MapPin, Sparkles, Trophy, Users } from "lucide-react";
 import { DEVCAMP_HACKATHON_ID } from "@/lib/hackathon";
 import { loadPublicWinners } from "@/lib/server/publicWinners";
+import { loadHackathonPublicContent } from "@/lib/server/hackathonPublicContent";
+import { loadGooglePhotosPreview } from "@/lib/server/googlePhotosPreview";
 import WinnerCard from "@/components/hackathon/WinnerCard";
+import EventPhotosSection from "@/components/hackathon/EventPhotosSection";
 import { GithubIcon } from "@/components/icons/SocialBrandIcons";
 import { sanitizePublicProjectUrl } from "@/lib/safeProjectUrl";
 
@@ -47,7 +50,14 @@ export default async function HackathonWinnersPage({
   const { hackathonId } = await params;
   if (hackathonId !== DEVCAMP_HACKATHON_ID) notFound();
 
-  const { winners, gallery } = await loadPublicWinners(hackathonId);
+  const [{ winners, gallery }, content] = await Promise.all([
+    loadPublicWinners(hackathonId),
+    loadHackathonPublicContent(),
+  ]);
+  const photos = await loadGooglePhotosPreview(
+    content.photosAlbumUrl,
+    content.photosAlbumTitle
+  );
   const champions = winners.filter(
     (w) => w.award === "first-online" || w.award === "first-in-person"
   );
@@ -93,6 +103,8 @@ export default async function HackathonWinnersPage({
           </Link>
         </p>
       </header>
+
+      <EventPhotosSection photos={photos} compact />
 
       <section aria-labelledby="champions-heading">
         <SectionHeading

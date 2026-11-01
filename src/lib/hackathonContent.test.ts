@@ -44,5 +44,6 @@ describe("hackathon starter links", () => {
     assert.equal(normalized.prizes[0]?.name, "JBL Go from DB");
     assert.notEqual(normalized.starterLinks[0]?.href.startsWith("javascript:"), true);
     assert.ok(normalized.hauntedKioskUrl.startsWith("https://"));
+    assert.ok(normalized.photosAlbumUrl.startsWith("https://photos.app.goo.gl/"));
   });
 });
