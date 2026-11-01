@@ -15,8 +15,16 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { HACKATHON_EVENT } from "@/lib/hackathon";
 import type { HackathonPublicContent } from "@/lib/hackathonContent";
+import EventPhotosSection from "@/components/hackathon/EventPhotosSection";
+import type { GooglePhotosPreview } from "@/lib/googlePhotosAlbum";
 
-export default function HackathonHub({ content }: { content: HackathonPublicContent }) {
+export default function HackathonHub({
+  content,
+  photos,
+}: {
+  content: HackathonPublicContent;
+  photos: GooglePhotosPreview;
+}) {
   const { user } = useAuth();
   const e = HACKATHON_EVENT;
   const extraResources = content.resourceLinks.filter(
@@ -123,6 +131,8 @@ export default function HackathonHub({ content }: { content: HackathonPublicCont
       </section>
 
       <section className="max-w-4xl mx-auto px-4 sm:px-6 py-12 space-y-12">
+        <EventPhotosSection photos={photos} compact />
+
         <div className="rounded-2xl border border-[var(--hh-line)] bg-[var(--hh-card)] p-6 space-y-4">
           <h2 className="text-xl font-bold text-white">
             🎃 Helpful resources for the hackathon

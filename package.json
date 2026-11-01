@@ -36,7 +36,7 @@
     "mcp:http": "tsx --env-file=.env.local packages/devcamp-mcp/src/http.ts",
     "mcp:mint-token": "tsx --env-file=.env.local scripts/mcp-mint-id-token.ts",
     "mcp:probe-attendee": "tsx --env-file=.env.local scripts/mcp-probe-attendee-access.ts",
-    "test:unit": "tsx --test src/lib/certification.test.ts src/lib/safeProjectUrl.test.ts src/lib/joinCohortPolicy.test.ts src/lib/hackathonContent.test.ts",
+    "test:unit": "tsx --test src/lib/certification.test.ts src/lib/safeProjectUrl.test.ts src/lib/joinCohortPolicy.test.ts src/lib/hackathonContent.test.ts src/lib/googlePhotosAlbum.test.ts",
     "test:e2e": "playwright test",
     "migrate-september-certification": "tsx --env-file=.env.local scripts/migrate-september-certification.ts",
     "seed-hackathon-winners": "tsx --env-file=.env.local scripts/seed-hackathon-winners.ts"

@@ -66,8 +66,8 @@ const WINNER_SEEDS: WinnerSeed[] = [
       "Creative security idea — agents find and fix cloud weaknesses, with a human approving every fix.",
   },
   {
-    placement: null,
-    award: "peoples-choice",
+    placement: 4,
+    award: "finalist",
     projectId: "hXToaQ18FwAVUGO6d13c",
     title: "Allergy-guard",
     builders: "Jayashri",
