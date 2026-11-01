@@ -10,6 +10,7 @@ import WinnerCard from "@/components/hackathon/WinnerCard";
 import EventPhotosSection from "@/components/hackathon/EventPhotosSection";
 import { GithubIcon } from "@/components/icons/SocialBrandIcons";
 import { sanitizePublicProjectUrl } from "@/lib/safeProjectUrl";
+import { halloweenRank } from "@/lib/hackathonWinnersData";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 300;
@@ -25,16 +26,21 @@ function SectionHeading({
   kicker,
   title,
   detail,
+  haunt,
 }: {
   id: string;
   kicker: string;
   title: string;
   detail?: string;
+  haunt?: boolean;
 }) {
   return (
     <div className="border-b border-[var(--hh-line)] pb-3 mb-5">
       <p className="font-mono text-xs tracking-[0.2em] text-amber-300 mb-1">{kicker}</p>
-      <h2 id={id} className="text-2xl sm:text-3xl font-bold text-white">
+      <h2
+        id={id}
+        className={haunt ? "hh-section-haunt text-3xl sm:text-4xl" : "text-2xl sm:text-3xl font-bold text-white"}
+      >
         {title}
       </h2>
       {detail ? <p className="mt-1 text-sm text-[var(--hh-muted)]">{detail}</p> : null}
@@ -58,13 +64,12 @@ export default async function HackathonWinnersPage({
     content.photosAlbumUrl,
     content.photosAlbumTitle
   );
-  const champions = winners.filter(
-    (w) => w.award === "first-online" || w.award === "first-in-person"
-  );
-  const podium = winners.filter((w) =>
-    ["second", "third", "peoples-choice"].includes(w.award)
-  );
-  const ranked = winners.filter((w) => w.award === "finalist");
+  const champions = winners.filter((w) => halloweenRank(w.award, w.placement) === 1);
+  const podium = winners.filter((w) => {
+    const rank = halloweenRank(w.award, w.placement);
+    return rank === 2 || rank === 3 || rank === 4 || rank === 5;
+  });
+  const ranked = winners.filter((w) => halloweenRank(w.award, w.placement) == null);
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12 sm:py-16 space-y-16">
@@ -109,9 +114,10 @@ export default async function HackathonWinnersPage({
       <section aria-labelledby="champions-heading">
         <SectionHeading
           id="champions-heading"
-          kicker="GOLD"
-          title="Champions"
+          kicker="🎃 1ST PLACE"
+          title="Champions of the night"
           detail="Joint first — strongest in-person build, and the highest-scoring online project."
+          haunt
         />
         <div className="grid md:grid-cols-2 gap-5">
           {champions.map((card) => (
@@ -123,12 +129,14 @@ export default async function HackathonWinnersPage({
       <section aria-labelledby="podium-heading">
         <SectionHeading
           id="podium-heading"
-          kicker="PODIUM"
-          title="2nd, 3rd & People's Choice"
+          kicker="👻 2ND · 🍬 3RD · 🧙 4TH · 🧪 5TH"
+          title="The hunt continues"
+          detail="Four more spells from the night — 2nd through 5th."
+          haunt
         />
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid sm:grid-cols-2 gap-5">
           {podium.map((card) => (
-            <WinnerCard key={card.permalinkId} card={card} share />
+            <WinnerCard key={card.permalinkId} card={card} share featured />
           ))}
         </div>
       </section>
@@ -138,7 +146,7 @@ export default async function HackathonWinnersPage({
           id="finalists-heading"
           kicker="SHORTLIST"
           title="Finalists"
-          detail="Places 5–15 — the rest of the day’s strongest show-and-tells."
+          detail="Places 6–15 — the rest of the day’s strongest show-and-tells."
         />
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {ranked.map((card) => (

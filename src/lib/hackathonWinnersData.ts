@@ -23,6 +23,23 @@ export function isHackathonAward(value: unknown): value is HackathonAward {
   return typeof value === "string" && AWARDS.includes(value as HackathonAward);
 }
 
+export type HalloweenRank = 1 | 2 | 3 | 4 | 5;
+
+export function ordinalPlace(n: number): string {
+  const v = n % 100;
+  if (v >= 11 && v <= 13) return `${n}th`;
+  switch (n % 10) {
+    case 1:
+      return `${n}st`;
+    case 2:
+      return `${n}nd`;
+    case 3:
+      return `${n}rd`;
+    default:
+      return `${n}th`;
+  }
+}
+
 export function placementLabel(award: HackathonAward, placement: number | null): string {
   switch (award) {
     case "first-online":
@@ -36,8 +53,21 @@ export function placementLabel(award: HackathonAward, placement: number | null):
     case "peoples-choice":
       return "People's Choice";
     default:
-      return placement != null ? `${placement}th` : "Finalist";
+      return placement != null ? ordinalPlace(placement) : "Finalist";
   }
+}
+
+/** 1st–5th get the Halloween podium treatment; everyone else is a finalist card. */
+export function halloweenRank(
+  award: HackathonAward,
+  placement: number | null
+): HalloweenRank | null {
+  if (award === "first-online" || award === "first-in-person") return 1;
+  if (award === "second" || placement === 2) return 2;
+  if (award === "third" || placement === 3) return 3;
+  if (placement === 4) return 4;
+  if (placement === 5) return 5;
+  return null;
 }
 
 export function awardSortKey(award: HackathonAward, placement: number | null): number {

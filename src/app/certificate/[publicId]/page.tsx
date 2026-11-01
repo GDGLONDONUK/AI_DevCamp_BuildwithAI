@@ -66,7 +66,7 @@ export default async function CertificateSharePage({ params }: Params) {
               rel="noopener noreferrer"
               className="text-green-400 hover:underline"
             >
-              View Credsverse credential
+              View Certifier credential
             </a>
           </p>
         ) : (

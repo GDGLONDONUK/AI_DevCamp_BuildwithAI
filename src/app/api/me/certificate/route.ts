@@ -1,5 +1,5 @@
 /**
- * GET /api/me/certificate — per-cohort certified status + Credsverse ids for this cohort.
+ * GET /api/me/certificate — per-cohort certified status + Certifier ids for this cohort.
  */
 
 import { NextRequest } from "next/server";
@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
         shareId: shareId || null,
         sharePath: shareId ? `/certificate/${shareId}` : null,
         message:
-          "Your DevCamp certificate page is ready. The Credsverse credential will appear once organisers issue it.",
+          "Your DevCamp certificate page is ready. The Certifier credential will appear once organisers issue it.",
       });
     }
 

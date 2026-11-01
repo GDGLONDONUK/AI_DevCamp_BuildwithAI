@@ -213,6 +213,8 @@
 }
 
 .hackathon-haunt .hh-winner-card {
+  position: relative;
+  overflow: hidden;
   transition:
     transform 0.2s ease,
     box-shadow 0.2s ease,
@@ -231,28 +233,62 @@
   }
 }
 
-.hackathon-haunt .hh-winner-gold {
-  border-color: rgba(255, 179, 71, 0.55) !important;
+.hackathon-haunt .hh-winner-gold,
+.hackathon-haunt .hh-rank-1 {
+  border-color: rgba(255, 179, 71, 0.7) !important;
   background:
-    radial-gradient(120% 80% at 100% 0%, rgba(255, 179, 71, 0.18), transparent 55%),
+    radial-gradient(90% 70% at 100% 0%, rgba(255, 179, 71, 0.28), transparent 55%),
+    radial-gradient(70% 50% at 0% 100%, rgba(255, 122, 26, 0.16), transparent 50%),
     var(--hh-card) !important;
   box-shadow:
-    0 0 0 1px rgba(255, 179, 71, 0.12),
-    0 22px 48px rgba(255, 122, 26, 0.2);
+    0 0 0 1px rgba(255, 179, 71, 0.22),
+    0 0 36px rgba(255, 122, 26, 0.28),
+    0 22px 48px rgba(255, 122, 26, 0.22);
+  animation: hh-lantern 3.6s ease-in-out infinite;
 }
 
-.hackathon-haunt .hh-winner-silver {
-  border-color: rgba(203, 213, 225, 0.38) !important;
+.hackathon-haunt .hh-rank-2 {
+  border-color: rgba(186, 230, 253, 0.5) !important;
   background:
-    radial-gradient(120% 80% at 100% 0%, rgba(226, 232, 240, 0.12), transparent 55%),
+    radial-gradient(90% 70% at 100% 0%, rgba(186, 230, 253, 0.2), transparent 55%),
+    radial-gradient(70% 50% at 0% 100%, rgba(148, 163, 184, 0.12), transparent 50%),
     var(--hh-card) !important;
+  box-shadow:
+    0 0 0 1px rgba(186, 230, 253, 0.16),
+    0 18px 40px rgba(125, 211, 252, 0.12);
 }
 
-.hackathon-haunt .hh-winner-bronze {
-  border-color: rgba(217, 119, 6, 0.45) !important;
+.hackathon-haunt .hh-rank-3 {
+  border-color: rgba(251, 146, 60, 0.55) !important;
   background:
-    radial-gradient(120% 80% at 100% 0%, rgba(180, 83, 9, 0.2), transparent 55%),
+    radial-gradient(90% 70% at 100% 0%, rgba(253, 186, 116, 0.22), transparent 55%),
+    radial-gradient(70% 50% at 0% 100%, rgba(180, 83, 9, 0.18), transparent 50%),
     var(--hh-card) !important;
+  box-shadow:
+    0 0 0 1px rgba(251, 146, 60, 0.18),
+    0 18px 40px rgba(234, 88, 12, 0.16);
+}
+
+.hackathon-haunt .hh-rank-4 {
+  border-color: rgba(192, 132, 252, 0.5) !important;
+  background:
+    radial-gradient(90% 70% at 100% 0%, rgba(168, 85, 247, 0.22), transparent 55%),
+    radial-gradient(70% 50% at 0% 100%, rgba(88, 28, 135, 0.22), transparent 50%),
+    var(--hh-card) !important;
+  box-shadow:
+    0 0 0 1px rgba(192, 132, 252, 0.16),
+    0 18px 40px rgba(147, 51, 234, 0.18);
+}
+
+.hackathon-haunt .hh-rank-5 {
+  border-color: rgba(140, 255, 102, 0.42) !important;
+  background:
+    radial-gradient(90% 70% at 100% 0%, rgba(140, 255, 102, 0.18), transparent 55%),
+    radial-gradient(70% 50% at 0% 100%, rgba(22, 101, 52, 0.2), transparent 50%),
+    var(--hh-card) !important;
+  box-shadow:
+    0 0 0 1px rgba(140, 255, 102, 0.14),
+    0 18px 40px rgba(74, 222, 128, 0.12);
 }
 
 .hackathon-haunt .hh-winner-choice {
@@ -260,4 +296,131 @@
   background:
     radial-gradient(120% 80% at 100% 0%, rgba(255, 77, 109, 0.16), transparent 55%),
     var(--hh-card) !important;
+}
+
+.hackathon-haunt .hh-rank-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.hackathon-haunt .hh-rank-mark {
+  font-family: var(--font-creepster), "Creepster", cursive;
+  font-size: clamp(3.4rem, 7vw, 5.2rem);
+  line-height: 0.78;
+  letter-spacing: 0.04em;
+  margin: 0;
+}
+
+.hackathon-haunt .hh-rank-1 .hh-rank-mark {
+  background: linear-gradient(180deg, #ffe9a8, #ffb347 55%, #ff7a1a);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 8px 18px rgba(255, 122, 26, 0.45));
+}
+
+.hackathon-haunt .hh-rank-2 .hh-rank-mark {
+  background: linear-gradient(180deg, #f8fafc, #bae6fd 60%, #94a3b8);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 8px 16px rgba(186, 230, 253, 0.28));
+}
+
+.hackathon-haunt .hh-rank-3 .hh-rank-mark {
+  background: linear-gradient(180deg, #fed7aa, #fb923c 50%, #c2410c);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 8px 16px rgba(251, 146, 60, 0.35));
+}
+
+.hackathon-haunt .hh-rank-4 .hh-rank-mark {
+  background: linear-gradient(180deg, #e9d5ff, #c084fc 50%, #7e22ce);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 8px 16px rgba(168, 85, 247, 0.35));
+}
+
+.hackathon-haunt .hh-rank-5 .hh-rank-mark {
+  background: linear-gradient(180deg, #d9f99d, #8cff66 50%, #16a34a);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 8px 16px rgba(140, 255, 102, 0.3));
+}
+
+.hackathon-haunt .hh-rank-motif {
+  font-size: 2rem;
+  line-height: 1;
+  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.35));
+}
+
+.hackathon-haunt .hh-rank-1::after,
+.hackathon-haunt .hh-rank-2::after,
+.hackathon-haunt .hh-rank-3::after,
+.hackathon-haunt .hh-rank-4::after,
+.hackathon-haunt .hh-rank-5::after {
+  position: absolute;
+  top: 0.35rem;
+  left: 0.45rem;
+  font-size: 1.6rem;
+  opacity: 0.28;
+  pointer-events: none;
+  transform: rotate(-12deg);
+}
+
+.hackathon-haunt .hh-rank-1::after {
+  content: "🕸️";
+}
+.hackathon-haunt .hh-rank-2::after {
+  content: "🌙";
+}
+.hackathon-haunt .hh-rank-3::after {
+  content: "🕸️";
+}
+.hackathon-haunt .hh-rank-4::after {
+  content: "✨";
+}
+.hackathon-haunt .hh-rank-5::after {
+  content: "🕷️";
+}
+
+.hackathon-haunt .hh-section-haunt {
+  font-family: var(--font-creepster), "Creepster", cursive;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  background: linear-gradient(180deg, #ffb347, #ff7a1a 70%, #c2410c);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent !important;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 6px 18px rgba(255, 122, 26, 0.28));
+}
+
+@keyframes hh-lantern {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 1px rgba(255, 179, 71, 0.22),
+      0 0 28px rgba(255, 122, 26, 0.22),
+      0 22px 48px rgba(255, 122, 26, 0.2);
+  }
+  45% {
+    box-shadow:
+      0 0 0 1px rgba(255, 227, 150, 0.45),
+      0 0 48px rgba(255, 179, 71, 0.45),
+      0 26px 56px rgba(255, 122, 26, 0.32);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hackathon-haunt .hh-winner-gold,
+  .hackathon-haunt .hh-rank-1 {
+    animation: none;
+  }
 }
